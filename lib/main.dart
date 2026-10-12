@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:rev_game_mvp/crash_game/crash_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -35,7 +36,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      
+      body: Center(child: CrashPage(),),
     );
   }
 }
