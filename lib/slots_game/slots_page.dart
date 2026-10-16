@@ -15,7 +15,6 @@ import '../core/api/api_client.dart';
 import '../games/game_support.dart';
 import '../model/model.dart';
 import '../pages/paytable_page.dart';
-import '../pages/round_format.dart';
 import '../user/bloc/profile_cubit.dart';
 import '../user/data/user_repository.dart';
 import 'api_slots_server.dart';
@@ -26,6 +25,8 @@ import 'slots_server.dart';
 import 'slots_theme.dart';
 import 'slots_widgets.dart';
 import 'symbol_view.dart';
+import '../pages/how_to_play_page.dart';
+import '../pages/round_format.dart';
 
 enum SlotsPhase { idle, spinning, win, bigWin }
 
@@ -40,6 +41,9 @@ class SlotsPage extends StatefulWidget {
 }
 
 class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, GameSessionMixin<SlotsPage> {
+  @override
+  GameType get guideType => GameType.slots;
+
   late final SlotsServer _server = ApiSlotsServer(context.read<ApiClient>());
   SlotsConfig? _cfg;
 
@@ -304,6 +308,7 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
                             onBack: () => Navigator.maybePop(context),
                             onVerify: _showFairness,
                             actions: [
+                              IconSquareButton(icon: Icons.help_outline_rounded, semanticLabel: 'How to play', onPressed: () => openGuide(context, GameType.slots)),
                               IconSquareButton(
                                 icon: Icons.info_outline_rounded,
                                 semanticLabel: 'Game info',

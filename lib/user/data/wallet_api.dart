@@ -101,6 +101,18 @@ class WalletApi {
     return parseDouble(j['balance']);
   }
 
+  /// Asks the server to settle any suspension or probation that has ended.
+  /// The result arrives through the live Firestore listener.
+  Future<void> refreshStanding() async {
+    await _api.get('/v1/account/standing');
+  }
+
+  /// Appeal an active ban, suspension, restriction or investigation.
+  /// [attachments] are ids from `SupportApi.upload` (photos, videos, PDFs).
+  Future<void> appeal(String actionId, String message, {List<String> attachments = const []}) async {
+    await _api.post('/v1/account/appeal', {'actionId': actionId, 'message': message, 'attachments': attachments});
+  }
+
   Future<FairnessState> fairness() async => FairnessState.fromJson(await _api.get('/v1/fairness'));
 
   Future<RotateResult> rotateSeed({String? clientSeed}) async {

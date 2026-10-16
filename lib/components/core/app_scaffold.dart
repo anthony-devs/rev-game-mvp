@@ -45,7 +45,7 @@ class AppScaffold extends StatelessWidget {
             bottom: false,
             child: Stack(
               children: [
-                Padding(padding: padding, child: body),
+                Positioned.fill(child: Padding(padding: padding, child: body)),
                 if (bottomBar != null)
                   Positioned(
                     left: 24,

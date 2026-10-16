@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>REV Games · Support desk</title>
+<style>
+  :root{--bg:#f4f5f8;--panel:#fff;--panel2:#f0f1f6;--line:#dfe1ea;--text:#171a26;--dim:#667085;--brand:#5b3df5;--brandText:#fff;--mine:#5b3df5;--mineText:#fff;--theirs:#eceefa;--note:#fff6d6;--noteLine:#ecd88b;--green:#0e9f6e;--red:#d92d4a;--amber:#b7791f;--blue:#2563eb}
+  @media(prefers-color-scheme:dark){:root{--bg:#0f1117;--panel:#171a23;--panel2:#1e222e;--line:#2a2f3d;--text:#eceef6;--dim:#9aa1b5;--brand:#8b78ff;--brandText:#10101a;--mine:#6a56f0;--theirs:#232838;--note:#3a3216;--noteLine:#6b5a1d;--green:#34d399;--red:#ff6b81;--amber:#f5b94a;--blue:#6ea0ff}}
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 "Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column}
+  button,input,select,textarea{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+  button{cursor:pointer} button:hover{border-color:var(--brand)}
+  button.primary{background:var(--brand);border-color:var(--brand);color:var(--brandText);font-weight:600}
+  button.ok{background:var(--green);border-color:var(--green);color:#fff;font-weight:600}
+  button.ghost{background:transparent} button.sm{padding:3px 9px;font-size:12px}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  input:focus,select:focus,textarea:focus{outline:2px solid color-mix(in srgb,var(--brand) 45%,transparent);outline-offset:0}
+  header{display:flex;align-items:center;gap:14px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .logo{font-weight:800;letter-spacing:.2px} .logo b{color:var(--brand)}
+  .pills{display:flex;gap:6px;flex-wrap:wrap}
+  .stat{background:var(--panel2);border-radius:20px;padding:3px 11px;font-size:12px;color:var(--dim)} .stat b{color:var(--text)}
+  .spacer{flex:1}
+  .layout{flex:1;min-height:0;display:grid;grid-template-columns:340px minmax(0,1fr) 320px}
+  @media(max-width:1100px){.layout{grid-template-columns:300px minmax(0,1fr)}.side{display:none}}
+  @media(max-width:760px){.layout{grid-template-columns:1fr}.layout.open .queue{display:none}.layout:not(.open) .convo{display:none}}
+  .queue,.convo,.side{background:var(--panel);min-height:0;display:flex;flex-direction:column}
+  .queue{border-right:1px solid var(--line)} .side{border-left:1px solid var(--line);overflow:auto}
+  .filters{padding:10px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .filters input{grid-column:1/3}
+  #bulkbar{display:none;padding:8px 10px;border-bottom:1px solid var(--line);background:var(--panel2);gap:6px;flex-wrap:wrap;align-items:center;font-size:12px}
+  .tlist{flex:1;overflow:auto}
+  .t{display:flex;gap:9px;padding:11px 12px;border-bottom:1px solid var(--line);cursor:pointer}
+  .t:hover{background:var(--panel2)} .t.sel{background:color-mix(in srgb,var(--brand) 12%,var(--panel))}
+  .t .dot{width:8px;height:8px;border-radius:50%;background:transparent;margin-top:6px;flex:none} .t.unread .dot{background:var(--brand)}
+  .t .b{min-width:0;flex:1} .t .sub{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .t.unread .sub{font-weight:800}
+  .t .prev{color:var(--dim);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .t .meta{display:flex;gap:6px;align-items:center;margin-top:3px;font-size:11px;color:var(--dim);flex-wrap:wrap}
+  .tag{border-radius:6px;padding:0 6px;font-size:11px;font-weight:600;background:var(--panel2);color:var(--dim)}
+  .tag.open{background:color-mix(in srgb,var(--red) 16%,transparent);color:var(--red)} .tag.pending{background:color-mix(in srgb,var(--amber) 18%,transparent);color:var(--amber)}
+  .tag.solved{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)} .tag.urgent{background:var(--red);color:#fff} .tag.high{background:color-mix(in srgb,var(--amber) 25%,transparent);color:var(--amber)}
+  .convo header.ch{padding:12px 16px;display:flex;gap:10px;align-items:flex-start;border-bottom:1px solid var(--line);background:var(--panel)}
+  .ch h2{margin:0;font-size:16px}
+  .msgs{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:var(--bg)}
+  .m{max-width:78%;padding:9px 12px;border-radius:14px;background:var(--theirs);align-self:flex-start;white-space:pre-wrap;word-break:break-word}
+  .m.agent{align-self:flex-end;background:var(--mine);color:var(--mineText)}
+  .m.note{align-self:stretch;max-width:none;background:var(--note);border:1px dashed var(--noteLine);color:var(--text)}
+  .m .who{font-size:11px;opacity:.75;margin-bottom:2px;font-weight:600}
+  .chip{display:inline-flex;gap:6px;align-items:center;margin:6px 6px 0 0;padding:3px 9px;border-radius:8px;font-size:12px;background:rgba(127,127,127,.18);cursor:pointer;color:inherit}
+  .composer{border-top:1px solid var(--line);padding:10px 12px;background:var(--panel)}
+  .composer textarea{width:100%;min-height:70px;resize:vertical}
+  .composer .bar{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center}
+  .modes button.on{background:var(--brand);color:var(--brandText);border-color:var(--brand)}
+  .side .sec{padding:14px;border-bottom:1px solid var(--line)} .side h3{margin:0 0 8px;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--dim)}
+  .side label{display:block;font-size:12px;color:var(--dim);margin:8px 0 3px} .side select{width:100%}
+  .kv{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:2px 0} .kv span:first-child{color:var(--dim)}
+  .std{display:inline-block;padding:1px 9px;border-radius:20px;font-size:12px;font-weight:700;background:var(--panel2)}
+  .std.bad{background:color-mix(in srgb,var(--red) 16%,transparent);color:var(--red)} .std.good{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)} .std.warn{background:color-mix(in srgb,var(--amber) 18%,transparent);color:var(--amber)}
+  .empty{color:var(--dim);text-align:center;padding:30px 16px}
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
+  .modal{background:var(--panel);border-radius:14px;padding:18px;width:100%;max-width:440px;max-height:90vh;overflow:auto;border:1px solid var(--line)} .modal.wide{max-width:900px}
+  .modal img,.modal video{max-width:100%;max-height:70vh;display:block;margin:0 auto;border-radius:8px}
+  .modal h3{margin:0 0 8px} .modal label{display:block;font-size:12px;color:var(--dim);margin:10px 0 3px} .modal input{width:100%}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:9px 16px;border-radius:10px;display:none;z-index:30}
+  .toast.err{background:var(--red);color:#fff}
+  .back{display:none} @media(max-width:760px){.back{display:inline-block}}
+  .pending-files{display:flex;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">REV <b>Support</b> desk</div>
+  <div class="pills" id="counts"></div>
+  <div class="spacer"></div>
+  <span id="me" style="color:var(--dim);font-size:13px"></span>
+  <button class="sm ghost" id="pw">Change password</button>
+  <button class="sm ghost" id="out">Sign out</button>
+</header>
+
+<div class="layout" id="layout">
+  <aside class="queue">
+    <div class="filters">
+      <input id="q" placeholder="Search subject, player, email, id">
+      <select id="fStatus"><option value="">Active (open + pending)</option><option value="open">Open</option><option value="pending">Waiting on player</option><option value="solved">Solved</option><option value="closed">Closed</option><option value="all">All</option></select>
+      <select id="fAssignee"><option value="">Anyone</option><option value="me">Mine</option><option value="none">Unassigned</option></select>
+      <select id="fCat" style="grid-column:1/3"><option value="">All categories</option></select>
+    </div>
+    <div id="bulkbar"><b id="bc">0</b> selected
+      <button class="sm" data-bulk="assign_me">Assign to me</button><button class="sm" data-bulk="unassign">Unassign</button>
+      <select id="bStatus" class="sm"><option value="">Set status…</option><option value="open">Open</option><option value="pending">Waiting on player</option><option value="solved">Solved</option></select>
+      <select id="bPrio" class="sm"><option value="">Set priority…</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select>
+      <button class="sm ghost" id="bClear">Clear</button>
+    </div>
+    <div class="tlist" id="tlist"><div class="empty">Loading…</div></div>
+  </aside>
+
+  <section class="convo" id="convo"><div class="empty" style="margin:auto">Pick a ticket to start.</div></section>
+  <aside class="side" id="side"></aside>
+</div>
+
+<div class="scrim" id="scrim"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+<input type="file" id="picker" multiple accept="image/*,video/mp4,video/quicktime,application/pdf" style="display:none">
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const st = { get: k => { try { return sessionStorage.getItem(k) || ''; } catch { return ''; } }, del: k => { try { sessionStorage.removeItem(k); } catch {} }, set: (k, v) => { try { sessionStorage.setItem(k, v); } catch {} } };
+let TOKEN = st.get('staffToken');
+if (!TOKEN) location.replace('/staff');
+
+let META = null, current = null, detail = null, mode = 'reply', pendingFiles = [], bulkSel = new Set(), uploading = false;
+const STATUS_LABEL = {open: 'Open', pending: 'Waiting on player', solved: 'Solved', closed: 'Closed'};
+
+function toast(m, err) { const t = $('#toast'); t.textContent = m; t.className = 'toast' + (err ? ' err' : ''); t.style.display = 'block'; clearTimeout(toast.h); toast.h = setTimeout(() => t.style.display = 'none', 3200); }
+function signOut() { st.del('staffToken'); location.replace('/staff'); }
+function modal(html, wide) { $('#modal').className = 'modal' + (wide ? ' wide' : ''); $('#modal').innerHTML = html; $('#scrim').style.display = 'flex'; return $('#modal'); }
+function closeModal() { $('#scrim').style.display = 'none'; $('#modal').innerHTML = ''; }
+$('#scrim').onclick = e => { if (e.target === $('#scrim')) closeModal(); };
+
+async function request(path, opts = {}) {
+  return fetch(path, {...opts, headers: {Authorization: 'Bearer ' + TOKEN, ...(opts.body instanceof FormData ? {} : {'Content-Type': 'application/json'}), ...(opts.headers || {})}});
+}
+async function api(path, opts = {}) {
+  const res = await request(path, opts), d = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (d.error === 'staff_unauthenticated') signOut();
+    if (d.error === 'wrong_role') { location.replace('/admin'); }
+    const e = new Error(d.message || 'HTTP ' + res.status); e.code = d.error; e.status = res.status; throw e;
+  }
+  return d;
+}
+const post = (p, b) => api(p, {method: 'POST', body: JSON.stringify(b || {})});
+const fmt = iso => iso ? new Date(iso).toLocaleString([], {dateStyle: 'medium', timeStyle: 'short'}) : '—';
+const ago = iso => { if (!iso) return '—'; const s = (Date.now() - new Date(iso)) / 1000; return s < 90 ? 'just now' : s < 5400 ? Math.round(s / 60) + 'm' : s < 172800 ? Math.round(s / 3600) + 'h' : Math.round(s / 86400) + 'd'; };
+const fileSize = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+const ico = a => a.kind === 'video' ? '🎬' : a.kind === 'pdf' ? '📄' : '🖼';
+
+async function openFile(uid, a) {
+  try {
+    const res = await request(`/support/api/files/${encodeURIComponent(uid)}/${encodeURIComponent(a.id)}`);
+    if (!res.ok) throw new Error('Could not load the file.');
+    const url = URL.createObjectURL(await res.blob());
+    if (a.kind === 'image' && a.mime !== 'image/heic') modal(`<h3>${esc(a.name)}</h3><img src="${url}" alt="">`, true);
+    else if (a.kind === 'video') modal(`<h3>${esc(a.name)}</h3><video src="${url}" controls playsinline></video>`, true);
+    else { const l = document.createElement('a'); l.href = url; l.download = a.name; document.body.appendChild(l); l.click(); l.remove(); }
+  } catch (e) { toast(e.message, true); }
+}
+const chips = (list, idPrefix) => (list || []).map((a, i) => `<span class="chip" data-${idPrefix}="${i}">${ico(a)} ${esc(a.name)} · ${fileSize(a.size)}</span>`).join('');
+
+// ------------------------------------------------------------------ queue
+function filters() {
+  const p = new URLSearchParams();
+  if ($('#fStatus').value) p.set('status', $('#fStatus').value);
+  if ($('#fAssignee').value) p.set('assignee', $('#fAssignee').value);
+  if ($('#fCat').value) p.set('category', $('#fCat').value);
+  if ($('#q').value.trim()) p.set('q', $('#q').value.trim());
+  return p.toString();
+}
+async function loadQueue() {
+  try {
+    const d = await api('/support/api/tickets?' + filters());
+    $('#counts').innerHTML = ['open', 'pending', 'solved', 'closed'].map(s => `<span class="stat"><b>${d.counts[s]}</b> ${STATUS_LABEL[s].toLowerCase()}</span>`).join('');
+    $('#tlist').innerHTML = d.tickets.length ? d.tickets.map(t => `
+      <div class="t ${t.unread ? 'unread' : ''} ${t.id === current ? 'sel' : ''}" data-id="${esc(t.id)}">
+        <input type="checkbox" class="pick" data-pick="${esc(t.id)}" ${bulkSel.has(t.id) ? 'checked' : ''}>
+        <span class="dot"></span>
+        <div class="b"><div class="sub">${esc(t.subject)}</div><div class="prev">${t.lastFrom === 'agent' ? 'You: ' : ''}${esc(t.lastPreview)}</div>
+          <div class="meta"><span class="tag ${t.status}">${STATUS_LABEL[t.status]}</span>${t.priority !== 'normal' ? `<span class="tag ${t.priority}">${esc(t.priority)}</span>` : ''}<span>${esc(t.playerName || 'Player')}</span><span>· ${ago(t.lastMessageAt)}</span>${t.assigneeName ? `<span>· ${esc(t.assigneeName)}</span>` : '<span>· unassigned</span>'}</div></div>
+      </div>`).join('') : '<div class="empty">Nothing here. 🎉</div>';
+    $$('.t', $('#tlist')).forEach(el => el.onclick = e => { if (e.target.classList.contains('pick')) return; openTicket(el.dataset.id); });
+    $$('.pick', $('#tlist')).forEach(c => c.onchange = () => { c.checked ? bulkSel.add(c.dataset.pick) : bulkSel.delete(c.dataset.pick); syncBulk(); });
+    syncBulk();
+  } catch (e) { if (e.status !== 401) $('#tlist').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+function syncBulk() { $('#bulkbar').style.display = bulkSel.size ? 'flex' : 'none'; $('#bc').textContent = bulkSel.size; }
+async function runBulk(op, value) {
+  try {
+    const d = await post('/support/api/bulk', {ids: [...bulkSel], op, value});
+    toast(d.done + ' updated' + (d.failed ? ', ' + d.failed + ' failed' : ''), d.failed > 0);
+    bulkSel.clear(); loadQueue(); if (current) openTicket(current, true);
+  } catch (e) { toast(e.message, true); }
+}
+$$('[data-bulk]').forEach(b => b.onclick = () => runBulk(b.dataset.bulk));
+$('#bStatus').onchange = e => { if (e.target.value) runBulk('status', e.target.value); e.target.value = ''; };
+$('#bPrio').onchange = e => { if (e.target.value) runBulk('priority', e.target.value); e.target.value = ''; };
+$('#bClear').onclick = () => { bulkSel.clear(); loadQueue(); };
+
+// ------------------------------------------------------------------ conversation
+async function openTicket(id, silent) {
+  if (id !== current) { pendingFiles = []; mode = 'reply'; }
+  current = id; $('#layout').classList.add('open');
+  try { detail = await api('/support/api/tickets/' + id); renderTicket(!silent); loadQueue(); }
+  catch (e) { if (e.status !== 401) toast(e.message, true); }
+}
+function renderTicket(scroll) {
+  const t = detail.ticket, p = detail.player;
+  const keepText = $('#text') ? $('#text').value : '';
+  const items = [...detail.messages.map(m => ({...m, kind: m.from})), ...detail.notes.map(n => ({...n, kind: 'note', from: 'note'}))].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  const wasBottom = !$('.msgs') || $('.msgs').scrollHeight - $('.msgs').scrollTop - $('.msgs').clientHeight < 80;
+  $('#convo').innerHTML = `
+    <header class="ch"><button class="sm back" id="back">‹ Queue</button><div style="flex:1;min-width:0"><h2>${esc(t.subject)}</h2>
+      <div style="color:var(--dim);font-size:12px">${esc(t.categoryLabel)} · opened ${fmt(t.createdAt)} · ${esc(t.playerName || 'Player')}${t.playerEmail ? ' · ' + esc(t.playerEmail) : ''}</div></div>
+      <span class="tag ${t.status}">${STATUS_LABEL[t.status]}</span></header>
+    <div class="msgs" id="msgs">${items.map(m => m.kind === 'note'
+      ? `<div class="m note"><div class="who">🔒 Internal note · ${esc(m.author)} · ${fmt(m.createdAt)}</div>${esc(m.text)}</div>`
+      : `<div class="m ${m.from === 'agent' ? 'agent' : ''}"><div class="who">${esc(m.author)} · ${fmt(m.createdAt)}</div>${esc(m.text)}${m.attachments && m.attachments.length ? `<div>${chips(m.attachments, 'a' + m.id)}</div>` : ''}</div>`).join('')}</div>
+    ${t.status === 'closed' ? '<div class="composer" style="color:var(--dim);text-align:center">This ticket is closed by the player.</div>' : `
+    <div class="composer">
+      <div class="bar modes" style="margin:0 0 8px"><button class="sm ${mode === 'reply' ? 'on' : ''}" data-mode="reply">Reply to player</button><button class="sm ${mode === 'note' ? 'on' : ''}" data-mode="note">Internal note</button>
+        <span class="spacer"></span>
+        ${mode === 'reply' ? `<select id="canned" class="sm" style="max-width:190px"><option value="">Canned replies…</option>${META.canned.map(c => `<option value="${esc(c.id)}">${esc(c.title)}</option>`).join('')}</select>` : ''}</div>
+      <textarea id="text" maxlength="2000" placeholder="${mode === 'reply' ? 'Write to the player… (Ctrl+Enter to send)' : 'Only staff can see notes'}"></textarea>
+      <div class="pending-files" id="pf">${pendingFiles.map((f, i) => `<span class="chip" data-rm="${i}">${ico(f)} ${esc(f.name)} ✕</span>`).join('')}</div>
+      <div class="bar">${mode === 'reply' ? '<button id="attach" class="sm">📎 Attach</button>' : ''}<span class="spacer"></span>
+        ${mode === 'reply' ? '<button class="ok" id="sendSolve">Send &amp; solve</button><button class="primary" id="send">Send</button>' : '<button class="primary" id="addNote">Add note</button>'}</div>
+    </div>`}`;
+  $('#text') && ($('#text').value = keepText);
+  items.forEach(m => { if (m.attachments) $$(`[data-a${m.id}]`).forEach(c => c.onclick = () => openFile(t.uid, m.attachments[+c.getAttribute('data-a' + m.id)])); });
+  if (scroll || wasBottom) { const el = $('#msgs'); el.scrollTop = el.scrollHeight; }
+  $('#back') && ($('#back').onclick = () => { $('#layout').classList.remove('open'); });
+  $$('[data-mode]').forEach(b => b.onclick = () => { mode = b.dataset.mode; renderTicket(false); });
+  $$('[data-rm]').forEach(c => c.onclick = () => { pendingFiles.splice(+c.dataset.rm, 1); renderTicket(false); });
+  $('#canned') && ($('#canned').onchange = e => {
+    const c = META.canned.find(x => x.id === e.target.value); if (!c) return;
+    const first = ((p.displayName || t.playerName || 'there') + '').split(' ')[0];
+    const ta = $('#text'); ta.value = (ta.value ? ta.value + '\n\n' : '') + c.text.replaceAll('{name}', first); ta.focus(); e.target.value = '';
+  });
+  $('#attach') && ($('#attach').onclick = () => $('#picker').click());
+  $('#send') && ($('#send').onclick = () => send(false));
+  $('#sendSolve') && ($('#sendSolve').onclick = () => send(true));
+  $('#addNote') && ($('#addNote').onclick = addNote);
+  $('#text') && ($('#text').onkeydown = e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { mode === 'reply' ? send(false) : addNote(); } });
+  renderSide();
+}
+async function send(solve) {
+  const text = $('#text').value.trim();
+  if (!text && !pendingFiles.length) return toast('Write something first', true);
+  if (uploading) return toast('Wait for the upload to finish', true);
+  try {
+    await post(`/support/api/tickets/${current}/reply`, {text, attachments: pendingFiles.map(f => f.id), solve});
+    pendingFiles = []; $('#text').value = ''; toast(solve ? 'Sent and solved' : 'Sent'); openTicket(current, false); setTimeout(() => { const m = $('#msgs'); if (m) m.scrollTop = m.scrollHeight; }, 150);
+  } catch (e) { toast(e.message, true); }
+}
+async function addNote() {
+  const text = $('#text').value.trim(); if (!text) return toast('Write the note first', true);
+  try { await post(`/support/api/tickets/${current}/note`, {text}); $('#text').value = ''; toast('Note added'); openTicket(current, false); } catch (e) { toast(e.message, true); }
+}
+$('#picker').onchange = async e => {
+  const files = [...e.target.files]; e.target.value = '';
+  if (!current || !files.length) return;
+  if (pendingFiles.length + files.length > META.maxFiles) return toast('Up to ' + META.maxFiles + ' files per reply', true);
+  uploading = true;
+  for (const f of files) {
+    if (f.size > META.maxMb * 1048576) { toast(f.name + ' is over ' + META.maxMb + ' MB', true); continue; }
+    const fd = new FormData(); fd.append('file', f);
+    try { const res = await request(`/support/api/tickets/${current}/uploads`, {method: 'POST', body: fd}), d = await res.json(); if (!res.ok) throw new Error(d.message); pendingFiles.push(d); }
+    catch (err) { toast(err.message, true); }
+  }
+  uploading = false; renderTicket(false);
+};
+
+// ------------------------------------------------------------------ right panel
+function renderSide() {
+  const t = detail.ticket, p = detail.player;
+  const stateClass = {good: 'good', probation: 'warn'}[p.state] || 'bad';
+  $('#side').innerHTML = `
+    <div class="sec"><h3>Ticket</h3>
+      <label>Status</label><select id="sStatus">${META.statuses.filter(s => s !== 'closed' || t.status === 'closed').map(s => `<option value="${s}" ${s === t.status ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}</select>
+      <label>Priority</label><select id="sPrio">${META.priorities.map(s => `<option value="${s}" ${s === t.priority ? 'selected' : ''}>${s[0].toUpperCase() + s.slice(1)}</option>`).join('')}</select>
+      <label>Assigned to</label><div style="display:flex;gap:6px;align-items:center"><span style="flex:1">${esc(t.assigneeName || 'Nobody')}</span>${t.assignee === META.me.username ? '<button class="sm" id="unassign">Unassign</button>' : '<button class="sm" id="assignMe">Assign to me</button>'}</div>
+    </div>
+    <div class="sec"><h3>Player</h3>
+      <div class="kv"><span>Name</span><span>${esc(p.displayName || '—')}</span></div>
+      <div class="kv"><span>Email</span><span style="word-break:break-all;text-align:right">${esc(p.email || (p.isAnonymous ? 'Guest' : '—'))}</span></div>
+      <div class="kv"><span>Standing</span><span class="std ${stateClass}">${esc(p.state.replaceAll('_', ' '))}</span></div>
+      <div class="kv"><span>Can play</span><span>${p.blocksPlay ? 'No' : 'Yes'}</span></div>
+      ${p.probationUntil ? `<div class="kv"><span>Probation until</span><span>${fmt(p.probationUntil)}</span></div>` : ''}
+      ${p.active.map(a => `<div style="margin-top:8px;padding:8px;border-radius:8px;background:var(--panel2)"><b>${esc(a.type.replaceAll('_', ' '))}</b><br><span style="color:var(--dim)">${esc(a.reason)}</span>${a.expiresAt ? `<br><span style="color:var(--dim)">ends ${fmt(a.expiresAt)}</span>` : ''}<br><span style="color:var(--dim)">appeal: ${esc(a.appealStatus)}</span></div>`).join('')}
+      <div class="kv" style="margin-top:8px"><span>Player id</span><span style="font-size:11px;word-break:break-all;text-align:right">${esc(p.uid)}</span></div>
+    </div>
+    <div class="sec"><h3>Recent appeals</h3>${p.appeals.length ? p.appeals.map(a => `<div style="margin-bottom:10px"><span class="tag ${a.status === 'pending' ? 'pending' : a.status === 'approved' ? 'solved' : 'open'}">${esc(a.status)}</span> <span style="color:var(--dim);font-size:12px">${esc(a.actionType.replaceAll('_', ' '))} · ${ago(a.createdAt)}</span><div style="white-space:pre-wrap;margin-top:4px;word-break:break-word">${esc(a.message)}</div><div>${chips(a.attachments, 'ap' + a.id)}</div></div>`).join('') : '<div style="color:var(--dim)">None.</div>'}
+      <div style="color:var(--dim);font-size:12px;margin-top:6px">Appeals are decided by the admin team. Add an internal note if you think one needs attention.</div></div>`;
+  p.appeals.forEach(a => $$(`[data-ap${a.id}]`).forEach(c => c.onclick = () => openFile(p.uid, a.attachments[+c.getAttribute('data-ap' + a.id)])));
+  const upd = async body => { try { await post(`/support/api/tickets/${current}/update`, body); openTicket(current, false); } catch (e) { toast(e.message, true); } };
+  $('#sStatus').onchange = e => upd({status: e.target.value}); $('#sPrio').onchange = e => upd({priority: e.target.value});
+  $('#assignMe') && ($('#assignMe').onclick = () => upd({assignee: 'me'})); $('#unassign') && ($('#unassign').onclick = () => upd({assignee: null}));
+}
+
+// ------------------------------------------------------------------ password + wiring
+function passwordDialog(forced) {
+  modal(`<h3>${forced ? 'Choose a new password' : 'Change password'}</h3>${forced ? '<div style="color:var(--dim);font-size:13px">Your account was set up with a temporary password. Pick your own to continue.</div>' : ''}
+    <label>Current password</label><input id="pCur" type="password" autocomplete="current-password">
+    <label>New password (12+ characters, upper, lower, number, symbol)</label><input id="pNew" type="password" autocomplete="new-password">
+    <div id="pErr" style="color:var(--red);min-height:20px;margin-top:6px;font-size:13px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">${forced ? '' : '<button id="pCancel">Cancel</button>'}<button class="primary" id="pOk">Change password</button></div>`);
+  if (forced) $('#scrim').onclick = null; 
+  $('#pCancel') && ($('#pCancel').onclick = closeModal);
+  $('#pOk').onclick = async () => {
+    try { const d = await post('/staff/api/password', {current: $('#pCur').value, new: $('#pNew').value}); TOKEN = d.token; st.set('staffToken', d.token); closeModal(); toast('Password changed'); META.me.mustChangePassword = false; }
+    catch (e) { $('#pErr').textContent = e.message; }
+  };
+}
+$('#pw').onclick = () => passwordDialog(false);
+$('#out').onclick = signOut;
+['fStatus', 'fAssignee', 'fCat'].forEach(i => $('#' + i).onchange = loadQueue);
+$('#q').oninput = () => { clearTimeout($('#q').h); $('#q').h = setTimeout(loadQueue, 250); };
+setInterval(() => {
+  if (document.hidden || !META || $('#scrim').style.display === 'flex') return;
+  const ae = document.activeElement;
+  if (ae && (ae.id === 'text' || ae.id === 'q')) { loadQueue(); return; }
+  loadQueue(); if (current) openTicket(current, false);
+}, 8000);
+
+(async () => {
+  if (!TOKEN) return;
+  try {
+    META = await api('/support/api/meta');
+    $('#me').textContent = META.me.name + ' (' + META.me.username + ')';
+    $('#fCat').innerHTML += Object.entries(META.categories).map(([k, v]) => `<option value="${esc(k)}">${esc(v)}</option>`).join('');
+    loadQueue();
+    if (META.me.mustChangePassword) passwordDialog(true);
+  } catch (e) { if (e.status === 403) { $('#tlist').innerHTML = '<div class="empty">This account can\'t open the support desk.</div>'; } }
+})();
+</script>
+</body>
+</html>

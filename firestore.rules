@@ -48,6 +48,34 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // Account standing: bans, suspensions, restrictions, investigations and appeals.
+      // The app listens to account/standing, so a staff action shows up live.
+      // Only the game server (Admin SDK) writes any of this.
+      match /account/{doc} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+      match /standing_actions/{id} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+      match /appeals/{id} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+
+      // Support: the player reads their own tickets and messages live.
+      // Tickets are created and answered through the game server only.
+      // Internal notes live in tickets/{id}/notes, which no client can read.
+      match /tickets/{ticketId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+        match /messages/{messageId} {
+          allow read: if isOwner(uid);
+          allow write: if false;
+        }
+      }
+
       // Progress: same idea, starts at level 1.
       match /progress/{doc} {
         allow read: if isOwner(uid);

@@ -10,6 +10,7 @@ import 'history_page.dart';
 import 'limits_page.dart';
 import 'round_format.dart';
 import 'wallet_page.dart';
+import '../support/support_button.dart';
 
 /// U1. Settings tab. Sign out lives in the profile, not here.
 class SettingsPage extends StatelessWidget {
@@ -92,7 +93,7 @@ class SettingsPage extends StatelessWidget {
             ListRowTile(icon: Icons.account_balance_wallet_outlined, title: 'Wallet and credits', onTap: () => pushPage<void>(context, const WalletPage())),
             ListRowTile(icon: Icons.shield_outlined, title: 'Play limits and breaks', onTap: () => pushPage<void>(context, const LimitsPage())),
             ListRowTile(icon: Icons.history_rounded, title: 'Game history', onTap: () => pushPage<void>(context, const HistoryPage())),
-            ListRowTile(icon: Icons.help_outline_rounded, title: 'Help Centre', onTap: () => pushPage<void>(context, const HelpPage())),
+            ListRowTile(icon: Icons.help_outline_rounded, title: 'Help Centre', trailing: const SupportBadge(), onTap: () => pushPage<void>(context, const HelpPage())),
             const ListRowTile(icon: Icons.language_rounded, title: 'Language', trailingText: 'English', showChevron: false),
           ],
         ),

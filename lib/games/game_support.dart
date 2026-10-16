@@ -3,8 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../components/components.dart';
 import '../core/api/api_client.dart';
+import '../model/model.dart';
 import '../pages/fairness_page.dart';
 import '../pages/get_credits_sheet.dart';
+import '../pages/how_to_play_page.dart';
 import '../session/session_guard.dart';
 import '../user/bloc/profile_cubit.dart';
 
@@ -91,11 +93,20 @@ mixin GameSessionMixin<T extends StatefulWidget> on State<T> {
   /// The real wallet balance (ignores any hold).
   double get walletBalance => _profile.state.wallet.balance;
 
+  /// Set to the game's type to show its how-to-play guide the first time it opens.
+  GameType? get guideType => null;
+
   @override
   void initState() {
     super.initState();
     _guard.enter();
     AppSound.startMusic();
+    final g = guideType;
+    if (g != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) showGuideIfFirstTime(context, g);
+      });
+    }
   }
 
   @override
@@ -107,6 +118,11 @@ mixin GameSessionMixin<T extends StatefulWidget> on State<T> {
 
   /// `false` (and a message) if a limit stops the player from betting now.
   bool checkCanPlay() {
+    if (_profile.state.blocksPlay) {
+      AppSound.play(Sfx.error);
+      showToast(context, 'Your account is restricted. Play is not available right now.', error: true);
+      return false;
+    }
     final reason = _guard.blockReason();
     if (reason != null) {
       AppSound.play(Sfx.error);
@@ -118,7 +134,9 @@ mixin GameSessionMixin<T extends StatefulWidget> on State<T> {
 
   /// Largest bet allowed: the game's max, the player's own cap, and what they have.
   double maxBetFor(double gameMax) {
-    return _guard.maxBet(gameMax);
+    final probation = _profile.state.probationMaxBet;
+    final cap = probation == null || probation > gameMax ? gameMax : probation;
+    return _guard.maxBet(cap);
   }
 
   /// Show [shown] until [releaseBalance]. Use at the start of a round.

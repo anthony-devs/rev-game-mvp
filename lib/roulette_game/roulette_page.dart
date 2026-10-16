@@ -12,6 +12,7 @@ import '../model/model.dart';
 import '../user/bloc/profile_cubit.dart';
 import '../user/data/user_repository.dart';
 import 'roulette_api.dart';
+import '../pages/how_to_play_page.dart';
 
 enum _Phase { betting, spinning, result }
 
@@ -34,6 +35,9 @@ class RoulettePage extends StatefulWidget {
 }
 
 class _RoulettePageState extends State<RoulettePage> with TickerProviderStateMixin, GameSessionMixin<RoulettePage> {
+  @override
+  GameType get guideType => GameType.roulette;
+
   static const _chips = <double>[10, 50, 100, 500, 1000];
   static const double _seg = 2 * math.pi / 37;
 
@@ -243,6 +247,7 @@ class _RoulettePageState extends State<RoulettePage> with TickerProviderStateMix
       balance: balance,
       lowBalance: walletBalance < 10 && _phase != _Phase.spinning,
       glowColor: AppColors.green,
+      onHelp: () => openGuide(context, GameType.roulette),
       onVerify: () => openFairness(context, roundId: _phase == _Phase.result ? res?.roundId : null),
       stage: ListView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),

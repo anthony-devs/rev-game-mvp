@@ -1,6 +1,23 @@
 __pycache__/
-.venv/
-.pytest_cache/
 *.pyc
+.venv/
+venv/
+.pytest_cache/
+.coverage
+
+# Secrets: only the *.example templates are committed
 .env
+.env.*
+!.env.example
+!.env.*.example
+
+# Firebase / Google service account keys
 service-account*.json
+serviceAccount*.json
+*-adminsdk-*.json
+*-firebase-adminsdk*.json
+keys/
+*.pem
+
+# Files saved by local runs (attachments)
+data/

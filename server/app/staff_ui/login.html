@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>REV Games · Staff sign in</title>
+<style>
+  :root{--bg:#0b0b0d;--panel:#141417;--panel2:#1b1b1f;--line:#2a2a30;--text:#f2f2f4;--dim:#9a9aa5;--green:#2ee59d;--red:#ff6b6d;--gold:#ffc83d;--purple:#b26bff}
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:radial-gradient(1200px 600px at 50% -10%,#1d1230 0,var(--bg) 60%);color:var(--text);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;padding:16px}
+  .card{width:100%;max-width:400px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:26px}
+  h1{margin:0 0 4px;font-size:20px;letter-spacing:.3px}
+  h1 b{color:var(--gold)}
+  p{margin:0 0 18px;color:var(--dim);font-size:13px}
+  label{display:block;color:var(--dim);font-size:12px;margin:14px 0 5px}
+  .field{position:relative}
+  input,button{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;width:100%}
+  input:focus{outline:1px solid var(--purple)}
+  #show{position:absolute;right:6px;top:6px;width:auto;padding:5px 10px;font-size:12px;background:transparent;border:none;color:var(--dim);cursor:pointer}
+  #go{margin-top:20px;background:var(--green);border-color:var(--green);color:#04170f;font-weight:700;cursor:pointer}
+  #go:disabled{opacity:.55;cursor:not-allowed}
+  #err{min-height:20px;margin-top:12px;color:var(--red);font-size:13px}
+  #resume{display:none;margin-bottom:16px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);font-size:13px}
+  #resume a{color:var(--green);cursor:pointer;margin-right:12px}
+  .foot{margin-top:18px;color:var(--dim);font-size:11px;text-align:center}
+</style>
+</head>
+<body>
+<main class="card">
+  <h1>REV <b>Games</b> · Staff</h1>
+  <p>Sign in with the account you were given.</p>
+  <div id="resume">Already signed in as <b id="resumeWho"></b>.<br><a id="resumeGo">Continue</a><a id="resumeOut" style="color:var(--dim)">Use another account</a></div>
+  <form id="f" autocomplete="on">
+    <label for="u">Username</label>
+    <input id="u" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+    <label for="p">Password</label>
+    <div class="field"><input id="p" name="password" type="password" autocomplete="current-password" required><button type="button" id="show">Show</button></div>
+    <div id="err" role="alert"></div>
+    <button id="go" type="submit">Sign in</button>
+  </form>
+  <div class="foot">Authorised staff only. Every sign-in and action is logged.</div>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const put = (k, v) => { try { sessionStorage.setItem(k, v); } catch {} };
+const get = k => { try { return sessionStorage.getItem(k) || ''; } catch { return ''; } };
+const del = k => { try { sessionStorage.removeItem(k); } catch {} };
+
+$('#show').onclick = () => { const p = $('#p'); const hide = p.type === 'text'; p.type = hide ? 'password' : 'text'; $('#show').textContent = hide ? 'Show' : 'Hide'; };
+
+$('#f').onsubmit = async e => {
+  e.preventDefault();
+  $('#err').textContent = ''; $('#go').disabled = true; $('#go').textContent = 'Signing in…';
+  try {
+    const res = await fetch('/staff/api/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username: $('#u').value.trim(), password: $('#p').value})});
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.message || 'Could not sign in.');
+    del('adminKey'); put('staffToken', d.token); put('staffRole', d.role);
+    // each role goes to its own site
+    location.replace(d.redirect);
+  } catch (err) {
+    $('#err').textContent = err.message; $('#p').value = ''; $('#p').focus();
+    $('#go').disabled = false; $('#go').textContent = 'Sign in';
+  }
+};
+
+(async () => {
+  const t = get('staffToken'); if (!t) return;
+  try {
+    const res = await fetch('/staff/api/me', {headers: {Authorization: 'Bearer ' + t}});
+    if (!res.ok) { del('staffToken'); return; }
+    const me = await res.json();
+    $('#resumeWho').textContent = me.username; $('#resume').style.display = 'block';
+    $('#resumeGo').onclick = () => location.replace(me.redirect);
+    $('#resumeOut').onclick = () => { del('staffToken'); del('adminKey'); $('#resume').style.display = 'none'; };
+  } catch {}
+})();
+</script>
+</body>
+</html>

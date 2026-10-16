@@ -11,6 +11,7 @@ import '../model/model.dart';
 import '../user/bloc/profile_cubit.dart';
 import '../user/data/user_repository.dart';
 import 'dice_api.dart';
+import '../pages/how_to_play_page.dart';
 
 /// G4. Dice: pick a target, roll under or over. Decided on the server.
 class DicePage extends StatefulWidget {
@@ -23,6 +24,9 @@ class DicePage extends StatefulWidget {
 }
 
 class _DicePageState extends State<DicePage> with GameSessionMixin<DicePage> {
+  @override
+  GameType get guideType => GameType.dice;
+
   late final DiceApi _api;
   final _rnd = math.Random();
 
@@ -171,6 +175,7 @@ class _DicePageState extends State<DicePage> with GameSessionMixin<DicePage> {
       balance: balance,
       lowBalance: walletBalance < _minBet && !_rolling,
       glowColor: res == null ? AppColors.blue : tone,
+      onHelp: () => openGuide(context, GameType.dice),
       onVerify: () => openFairness(context, roundId: res?.roundId),
       stage: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),

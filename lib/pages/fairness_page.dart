@@ -12,6 +12,8 @@ import '../user/data/wallet_api.dart';
 import 'help_page.dart';
 import 'round_format.dart';
 import 'system_pages.dart';
+import '../support/new_ticket_page.dart';
+import '../support/support_models.dart';
 
 /// G7. Verify a round, and manage the seeds behind every result.
 ///
@@ -147,6 +149,23 @@ class _FairnessPageState extends State<FairnessPage> {
           const SizedBox(height: 10),
           if (uid.isNotEmpty) _Revealed(uid: uid),
           const SizedBox(height: 20),
+          if (widget.roundId != null) ...[
+            AppButton(
+              label: 'Report a problem with this round',
+              variant: AppButtonVariant.outline,
+              height: 48,
+              fontSize: 14,
+              onPressed: () => pushPage<void>(
+                context,
+                NewTicketPage(
+                  category: TicketCategory.fairness,
+                  subject: 'Problem with a round',
+                  message: 'Round id: ${widget.roundId}\n\nWhat looked wrong: ',
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           AppButton(label: 'How verification works', variant: AppButtonVariant.ghost, height: 48, fontSize: 14, onPressed: () => pushPage<void>(context, const HelpPage(openFairness: true))),
         ],
       ),

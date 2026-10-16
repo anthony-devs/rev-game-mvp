@@ -7,7 +7,10 @@ import '../games/game_support.dart';
 import '../model/model.dart';
 import '../user/bloc/profile_cubit.dart';
 import '../user/data/user_repository.dart';
+import 'how_to_play_page.dart';
 import 'round_format.dart';
+import '../support/faq_data.dart';
+import 'help_page.dart';
 
 /// L4. Game details: limits, how it works, your last results, Play now.
 class GameDetailPage extends StatelessWidget {
@@ -127,6 +130,18 @@ class GameDetailPage extends StatelessWidget {
                       Text('HOW IT WORKS', style: AppText.label()),
                       const SizedBox(height: 8),
                       Text(_how(game.type), style: AppText.body(14, color: AppColors.textMuted, height: 1.55)),
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: [
+                            PillButton(label: 'How to play', icon: Icons.help_outline_rounded, onPressed: () => openGuide(context, game.type)),
+                            PillButton(label: 'Help & FAQ', icon: Icons.support_agent_rounded, onPressed: () => pushPage<void>(context, HelpPage(category: faqCategoryFor(game.type)))),
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: 22),
                       Text('YOUR LAST RESULTS', style: AppText.label()),
                       const SizedBox(height: 10),

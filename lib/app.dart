@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'auth/auth.dart';
 import 'catalog/catalog_cubit.dart';
 import 'session/session_guard.dart';
+import 'support/support_api.dart';
+import 'support/support_cubit.dart';
 import 'components/components.dart';
 import 'core/api/api_client.dart';
 import 'user/user.dart';
@@ -33,6 +35,7 @@ class _RevAppState extends State<RevApp> {
         RepositoryProvider<UserRepository>.value(value: widget.userRepository),
         RepositoryProvider<ApiClient>.value(value: widget.apiClient),
         RepositoryProvider<WalletApi>(create: (context) => WalletApi(context.read<ApiClient>())),
+        RepositoryProvider<SupportApi>(create: (context) => SupportApi(context.read<ApiClient>())),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -43,6 +46,7 @@ class _RevAppState extends State<RevApp> {
           ),
           BlocProvider(create: (context) => CatalogCubit(context.read<UserRepository>())),
           BlocProvider(create: (context) => SessionGuard(context.read<ProfileCubit>())),
+          BlocProvider(create: (context) => SupportCubit(context.read<UserRepository>())..bind(context.read<AuthBloc>().state.user)),
         ],
         child: MultiBlocListener(
           listeners: [
@@ -52,6 +56,7 @@ class _RevAppState extends State<RevApp> {
               listener: (context, state) {
                 context.read<SessionGuard>().reset();
                 context.read<ProfileCubit>().bind(state.user);
+                context.read<SupportCubit>().bind(state.user);
               },
             ),
             // Close sign up / phone / game pages that are still open on top.

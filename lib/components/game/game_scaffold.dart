@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../buttons/icon_square_button.dart';
+
 import '../core/app_colors.dart';
 import '../navigation/game_top_bar.dart';
 
@@ -21,6 +23,7 @@ class GameScaffold extends StatelessWidget {
     this.panel,
     this.onBack,
     this.onVerify,
+    this.onHelp,
     this.lowBalance = false,
     this.glowColor = AppColors.green,
     this.banner,
@@ -38,6 +41,9 @@ class GameScaffold extends StatelessWidget {
   final Widget? banner;
   final VoidCallback? onBack;
   final VoidCallback? onVerify;
+
+  /// Shows a ? button that opens the how-to-play guide.
+  final VoidCallback? onHelp;
   final Color glowColor;
 
   @override
@@ -51,7 +57,7 @@ class GameScaffold extends StatelessWidget {
         child: SafeArea(
           child: Column(
             children: [
-              GameTopBar(title: title, balance: balance, low: lowBalance, onBack: onBack ?? () => Navigator.maybePop(context), onVerify: onVerify),
+              GameTopBar(title: title, balance: balance, low: lowBalance, onBack: onBack ?? () => Navigator.maybePop(context), onVerify: onVerify, actions: [if (onHelp != null) IconSquareButton(icon: Icons.help_outline_rounded, semanticLabel: 'How to play', onPressed: onHelp)]),
               if (banner != null) banner!,
               Expanded(child: stage),
               if (panel != null) panel!,

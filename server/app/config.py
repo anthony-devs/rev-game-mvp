@@ -44,3 +44,29 @@ class Config:
 
     # Progress: XP per round is bet / this (at least 1)
     xp_bet_divisor: float = _f("XP_BET_DIVISOR", 10)
+
+    # Account standing (bans, suspensions, restrictions, investigations)
+    admin_key: str = os.environ.get("ADMIN_KEY", "")  # empty = admin dashboard disabled
+    probation_hours: int = int(_f("PROBATION_HOURS", 72))  # after a suspension / restriction ends
+    probation_max_bet: float = _f("PROBATION_MAX_BET", 1000)
+    appeal_cooldown_hours: int = int(_f("APPEAL_COOLDOWN_HOURS", 24))
+    risk_window_days: int = int(_f("RISK_WINDOW_DAYS", 3))  # "restricted in the past N days"
+
+    # Staff accounts. The admin login lives in the environment, never in the database.
+    admin_username: str = os.environ.get("ADMIN_USERNAME", "")  # not "admin" / "rev-admin"
+    admin_password: str = os.environ.get("ADMIN_PASSWORD", "")  # or ADMIN_PASSWORD_HASH (see manage.py)
+    admin_password_hash: str = os.environ.get("ADMIN_PASSWORD_HASH", "")
+    session_secret: str = os.environ.get("SESSION_SECRET", "")  # signs staff sessions; set it in production
+    session_hours: float = _f("STAFF_SESSION_HOURS", 8)
+    login_max_fails: int = int(_f("LOGIN_MAX_FAILS", 5))
+    login_lock_minutes: int = int(_f("LOGIN_LOCK_MINUTES", 15))
+
+    # Attachments (appeals and support)
+    storage_bucket: str = os.environ.get("FIREBASE_STORAGE_BUCKET", "")  # empty = save to UPLOAD_DIR
+    upload_dir: str = os.environ.get("UPLOAD_DIR", "")
+    upload_max_mb: float = _f("UPLOAD_MAX_MB", 25)
+    upload_max_files: int = int(_f("UPLOAD_MAX_FILES", 5))  # per message or appeal
+    upload_daily_limit: int = int(_f("UPLOAD_DAILY_LIMIT", 40))
+
+    # Support
+    max_open_tickets: int = int(_f("MAX_OPEN_TICKETS", 5))

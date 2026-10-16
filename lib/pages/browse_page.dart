@@ -11,6 +11,7 @@ import 'help_page.dart';
 import 'history_page.dart';
 import 'limits_page.dart';
 import 'wallet_page.dart';
+import '../support/support_button.dart';
 
 /// L2. Browse menu: jump to a section, search games, open wallet and help.
 class BrowsePage extends StatefulWidget {
@@ -73,7 +74,7 @@ class _BrowsePageState extends State<BrowsePage> {
             children: [
               ListRowTile(icon: Icons.account_balance_wallet_outlined, title: 'Wallet and credits', onTap: () => pushPage<void>(context, const WalletPage())),
               ListRowTile(icon: Icons.history_rounded, title: 'Game history', onTap: () => pushPage<void>(context, const HistoryPage())),
-              ListRowTile(icon: Icons.help_outline_rounded, title: 'Help Centre', onTap: () => pushPage<void>(context, const HelpPage())),
+              ListRowTile(icon: Icons.help_outline_rounded, title: 'Help Centre', trailing: const SupportBadge(), onTap: () => pushPage<void>(context, const HelpPage())),
               ListRowTile(icon: Icons.shield_outlined, title: 'Responsible Play', onTap: () => pushPage<void>(context, const LimitsPage())),
               ListRowTile(icon: Icons.settings_outlined, title: 'Settings', trailingText: 'English', onTap: () => shell.go(ShellTab.settings)),
             ],

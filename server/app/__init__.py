@@ -3,9 +3,16 @@ from __future__ import annotations
 import logging
 import os
 
+from .env import load_env
+
+ENV_FILES = load_env()  # must run before .config reads the environment
+
+from functools import wraps
+
 from flask import Flask, Response, g, jsonify, request, stream_with_context
 
 from .account import AccountService, firebase_account_deleter
+from .admin import make_admin
 from .auth import Verifier, firebase_verifier, require_auth
 from .blackjack import BlackjackService
 from .config import Config
@@ -15,8 +22,25 @@ from .errors import ApiError, bad_request
 from .fairness import FairnessService
 from .roulette import RouletteService
 from .slots import SlotsService
+from .staff import StaffService, make_staff
+from .standing import StandingService
 from .store import FirestoreStore, Store
+from .support import CATEGORIES, SupportService
+from .support_site import make_support_site
+from .uploads import UploadService, file_response
 from .wallet import WalletService
+
+
+def _total_bet(data: dict) -> float | None:
+    """The amount a play request would stake (a single bet, or a roulette table)."""
+    try:
+        if isinstance(data.get("bets"), list):
+            return sum(float(b.get("amount", 0)) for b in data["bets"] if isinstance(b, dict))
+        if data.get("bet") is not None:
+            return float(data["bet"])
+    except (TypeError, ValueError):
+        return None
+    return None
 
 
 def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg: Config | None = None, **services) -> Flask:
@@ -44,6 +68,14 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
     roulette = services.get("roulette") or RouletteService(store, cfg, fair=fair)
     blackjack = services.get("blackjack") or BlackjackService(store, cfg, fair=fair)
     account = services.get("account") or AccountService(store, firebase_account_deleter())
+    standing = services.get("standing") or StandingService(store, cfg)
+    staff = services.get("staff") or StaffService(store, cfg)
+    uploads = services.get("uploads") or UploadService(store, cfg)
+    support = services.get("support") or SupportService(store, cfg, uploads)
+    app.config["MAX_CONTENT_LENGTH"] = int((cfg.upload_max_mb + 1) * 1024 * 1024)
+    app.register_blueprint(make_staff(staff))
+    app.register_blueprint(make_admin(store, standing, cfg, staff, uploads))
+    app.register_blueprint(make_support_site(store, support, standing, uploads, staff))
     fair.replayers = {
         "slots": slots.replay,
         "crash": crash.replay,
@@ -62,6 +94,10 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
     def not_found(_):
         return jsonify({"error": "not_found", "message": "Not found."}), 404
 
+    @app.errorhandler(413)
+    def too_big(_):
+        return jsonify({"error": "file_too_large", "message": f"Files can be up to {cfg.upload_max_mb:g} MB."}), 413
+
     @app.errorhandler(405)
     def not_allowed(_):
         return jsonify({"error": "method_not_allowed", "message": "Method not allowed."}), 405
@@ -77,6 +113,25 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
             raise bad_request("invalid_body", "Send a JSON object.")
         return data
 
+    def gate(kind: str):
+        """Refuse the request if the account's standing doesn't allow ``kind``
+        (play, credits or delete). Put it under ``@require_auth``."""
+
+        def deco(view):
+            @wraps(view)
+            def wrapper(*args, **kwargs):
+                bet = None
+                if kind == "play" and request.method == "POST":
+                    data = request.get_json(silent=True)
+                    if isinstance(data, dict):
+                        bet = _total_bet(data)
+                standing.enforce(g.uid, kind, bet)
+                return view(*args, **kwargs)
+
+            return wrapper
+
+        return deco
+
     # ---- routes --------------------------------------------------------------
 
     @app.get("/healthz")
@@ -90,16 +145,19 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
 
     @app.post("/v1/wallet/claim-daily")
     @require_auth
+    @gate('credits')
     def claim_daily():
         return jsonify(wallet.claim_daily(g.uid))
 
     @app.post("/v1/wallet/top-up")
     @require_auth
+    @gate('credits')
     def top_up():
         return jsonify(wallet.top_up(g.uid))
 
     @app.post("/v1/wallet/reset")
     @require_auth
+    @gate('credits')
     def reset_wallet():
         return jsonify(wallet.reset(g.uid))
 
@@ -125,9 +183,80 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
 
     @app.delete("/v1/account")
     @require_auth
+    @gate('delete')
     def delete_account():
+        try:
+            uploads.purge(g.uid)
+        except Exception:
+            app.logger.exception("could not delete attachments for %s", g.uid)
         account.delete(g.uid)
         return jsonify({"deleted": True})
+
+    @app.get("/v1/account/standing")
+    @require_auth
+    def account_standing():
+        return jsonify(standing.public(standing.summary(g.uid)))
+
+    @app.post("/v1/account/appeal")
+    @require_auth
+    def account_appeal():
+        data = body()
+        atts = uploads.resolve(g.uid, data.get("attachments"))
+        return jsonify(standing.appeal(g.uid, data.get("actionId"), data.get("message"), atts)), 201
+
+    # ---- attachments and support (open to everyone who can sign in, even if restricted) ----
+
+    @app.post("/v1/uploads")
+    @require_auth
+    def upload_file():
+        f = request.files.get("file")
+        if f is None:
+            raise bad_request("no_file", "Attach a file.")
+        return jsonify(uploads.save(g.uid, f.filename or "file", f.read())), 201
+
+    @app.get("/v1/uploads/<fid>")
+    @require_auth
+    def get_upload(fid: str):
+        meta, data = uploads.read(g.uid, fid)
+        return file_response(meta, data)
+
+    @app.get("/v1/support/categories")
+    def support_categories():
+        return jsonify({"categories": [{"id": k, "label": v} for k, v in CATEGORIES.items()], "maxFiles": cfg.upload_max_files, "maxMb": cfg.upload_max_mb})
+
+    @app.get("/v1/support/tickets")
+    @require_auth
+    def tickets_list():
+        return jsonify({"tickets": support.list_for_user(g.uid)})
+
+    @app.post("/v1/support/tickets")
+    @require_auth
+    def tickets_create():
+        d = body()
+        profile = store.read(f"users/{g.uid}") or {}
+        return jsonify(support.create(g.uid, profile, d.get("subject"), d.get("category"), d.get("message"), d.get("attachments"))), 201
+
+    @app.get("/v1/support/tickets/<tid>")
+    @require_auth
+    def tickets_get(tid: str):
+        return jsonify(support.get_for_user(g.uid, tid))
+
+    @app.post("/v1/support/tickets/<tid>/messages")
+    @require_auth
+    def tickets_reply(tid: str):
+        d = body()
+        return jsonify(support.user_reply(g.uid, tid, d.get("message"), d.get("attachments"))), 201
+
+    @app.post("/v1/support/tickets/<tid>/read")
+    @require_auth
+    def tickets_read(tid: str):
+        support.user_mark_read(g.uid, tid)
+        return jsonify({"ok": True})
+
+    @app.post("/v1/support/tickets/<tid>/close")
+    @require_auth
+    def tickets_close(tid: str):
+        return jsonify(support.user_close(g.uid, tid))
 
     @app.get("/v1/fairness")
     @require_auth
@@ -147,12 +276,14 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
 
     @app.post("/v1/dice/roll")
     @require_auth
+    @gate('play')
     def dice_roll():
         data = body()
         return jsonify(dice.roll(g.uid, data.get("bet"), data.get("target"), data.get("mode")))
 
     @app.post("/v1/roulette/spin")
     @require_auth
+    @gate('play')
     def roulette_spin():
         return jsonify(roulette.spin(g.uid, body().get("bets")))
 
@@ -163,6 +294,7 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
 
     @app.post("/v1/blackjack/deal")
     @require_auth
+    @gate('play')
     def blackjack_deal():
         return jsonify(blackjack.deal(g.uid, body().get("bet")))
 
@@ -178,11 +310,13 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
 
     @app.post("/v1/slots/spin")
     @require_auth
+    @gate('play')
     def slots_spin():
         return jsonify(slots.spin(g.uid, body().get("bet")))
 
     @app.post("/v1/crash/rounds")
     @require_auth
+    @gate('play')
     def crash_start():
         data = body()
         return jsonify(crash.start(g.uid, data.get("bet"), data.get("autoCashout")))

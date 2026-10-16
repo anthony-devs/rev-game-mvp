@@ -9,9 +9,11 @@ import '../pages/get_credits_sheet.dart';
 import '../pages/lobby_page.dart';
 import '../pages/settings_page.dart';
 import '../pages/slots_lobby_page.dart';
+import '../pages/account_restricted_page.dart';
 import '../pages/system_pages.dart';
 import '../pages/wallet_page.dart';
 import '../session/session_guard.dart';
+import '../support/support_button.dart';
 import '../user/bloc/profile_cubit.dart';
 import 'shell_cubit.dart';
 
@@ -75,6 +77,7 @@ class _ShellViewState extends State<_ShellView> {
         body: Column(
           children: [
             if (tab != ShellTab.settings) const _Header() else const SizedBox(height: 8),
+            const StandingBanner(),
             Expanded(
               child: IndexedStack(
                 index: tab,
@@ -111,6 +114,7 @@ class _Header extends StatelessWidget {
       balance: balance,
       onBalanceTap: () => pushPage<void>(context, const WalletPage()),
       onAdd: () => showGetCredits(context),
+      action: const SupportButton(size: 42),
     );
   }
 }

@@ -15,6 +15,7 @@ class AppHeader extends StatelessWidget {
     this.title = 'REV GAMES',
     this.onBalanceTap,
     this.onAdd,
+    this.action,
     this.padding = const EdgeInsets.fromLTRB(16, 12, 16, 12),
   });
 
@@ -24,6 +25,9 @@ class AppHeader extends StatelessWidget {
 
   /// Shows the white plus badge when set.
   final VoidCallback? onAdd;
+
+  /// Optional widget between the title and the balance (e.g. the support button).
+  final Widget? action;
   final EdgeInsets padding;
 
   @override
@@ -33,8 +37,15 @@ class AppHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Flexible(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.heading(30, letterSpacing: -1.5))),
-          const SizedBox(width: 12),
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(title, maxLines: 1, style: AppText.heading(30, letterSpacing: -1.5)),
+            ),
+          ),
+          const SizedBox(width: 10),
+          if (action != null) ...[action!, const SizedBox(width: 8)],
           BalancePill(balance: balance, onTap: onBalanceTap, onAdd: onAdd),
         ],
       ),

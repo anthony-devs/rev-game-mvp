@@ -9,6 +9,7 @@ import '../games/game_support.dart';
 import '../model/model.dart';
 import '../user/bloc/profile_cubit.dart';
 import 'blackjack_api.dart';
+import '../pages/how_to_play_page.dart';
 
 /// G3. Blackjack. The deck is shuffled and played on the server.
 class BlackjackPage extends StatefulWidget {
@@ -21,6 +22,9 @@ class BlackjackPage extends StatefulWidget {
 }
 
 class _BlackjackPageState extends State<BlackjackPage> with GameSessionMixin<BlackjackPage> {
+  @override
+  GameType get guideType => GameType.blackjack;
+
   static const _chips = <double>[10, 50, 100, 500, 1000];
 
   late final BlackjackApi _api;
@@ -161,6 +165,7 @@ class _BlackjackPageState extends State<BlackjackPage> with GameSessionMixin<Bla
       balance: balance,
       lowBalance: walletBalance < _minBet && !_playing && !_busy,
       glowColor: tone,
+      onHelp: () => openGuide(context, GameType.blackjack),
       onVerify: () => openFairness(context, roundId: r != null ? h?.roundId : null),
       banner: Container(
         width: double.infinity,

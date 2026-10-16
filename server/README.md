@@ -102,3 +102,58 @@ rotated while a crash round or blackjack hand is still open.
 
 Rate limiting, App Check verification, and shared multiplayer crash rounds.
 Play limits are enforced by the app only. No split or insurance in blackjack.
+
+
+## Account standing, appeals and the moderation dashboard
+
+Four action types, all enforced on the server (`app/standing.py`):
+
+| Type | Play | Daily / top-up / reset | Ends |
+|---|---|---|---|
+| `ban` | blocked | blocked | when staff lift it or an appeal is approved |
+| `suspension` | blocked | blocked | on its end date (needs a duration) |
+| `payout_restriction` | blocked (can be left open) | blocked | on its end date or when lifted |
+| `investigation` | blocked | blocked | when staff close it |
+
+* After a suspension, restriction or ban ends the player is on **probation** (`PROBATION_HOURS`, default 72): bets are capped at `PROBATION_MAX_BET` (1000) and free credits stay off. Clearing an investigation has no probation.
+* Routes that start a round or give credits return `403` with `account_banned | account_suspended | account_restricted | account_under_review | credits_restricted | probation_bet_cap`, plus a `standing` object. Open hands/rounds can still be settled. Account deletion is refused while an action or probation is open.
+* `GET /v1/account/standing` and `POST /v1/account/appeal {actionId, message}` are for the player.
+* Appeals: one pending at a time; after a rejection the player waits `APPEAL_COOLDOWN_HOURS` (24).
+* Firestore: `users/{uid}/account/standing` (the app listens to this), `users/{uid}/standing_actions/*`, `users/{uid}/appeals/*`, `moderation_log/*` (audit). Only the server writes them.
+
+### Dashboard
+
+```bash
+ADMIN_KEY=choose-a-long-random-string python wsgi.py     # or gunicorn
+open http://localhost:8080/admin                          # paste the key
+```
+Search a player, apply or lift actions, answer appeals, and see the risk checks (restricted in the past N days, probation, repeat offender, open appeals). The app updates within a second. Without `ADMIN_KEY` the dashboard is off. It is one shared key; put it behind IAP/VPN before using it for real.
+
+
+## Running
+
+```bash
+cd server
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.local.example .env.local      # then fill in the key path and ADMIN_KEY
+python wsgi.py                        # http://localhost:8080  (dashboard at /admin)
+```
+
+Settings come from `.env.<APP_ENV>` then `.env` (real environment variables win). Only the `*.example` files are committed.
+Production: `gunicorn -b 0.0.0.0:$PORT -w 1 --threads 8 wsgi:app` (see the Dockerfile).
+
+
+## Staff sites
+
+| URL | Who | What |
+|---|---|---|
+| `/staff` | everyone | the one sign-in page |
+| `/admin` | the admin | after signing in, enter `ADMIN_KEY`. Players, bans, bulk actions, appeals, and the Team tab where reps are created |
+| `/support` | support reps | ticket queue, replies with attachments, canned replies, internal notes, read-only view of a player's standing |
+
+* The admin account is `ADMIN_USERNAME` + `ADMIN_PASSWORD` (or `ADMIN_PASSWORD_HASH`). The username can't be `admin` or `rev-admin`.
+* Only the admin creates or edits reps. New reps must change their password at first sign-in.
+* Reasons for bans, suspensions, lifts and appeal decisions come from fixed lists. Free text is accepted only when "Other" is picked.
+* Appeals and tickets accept photos, videos and PDFs (checked by content, 25 MB each, 5 per message). Set `FIREBASE_STORAGE_BUCKET` in production.
+* `python manage.py hash-password | gen-secret | gen-password` help with the secrets above.

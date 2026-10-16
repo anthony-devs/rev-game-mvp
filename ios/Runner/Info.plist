@@ -82,5 +82,11 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose photos or videos to attach to a support message or an appeal.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo or video to attach to a support message or an appeal.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Record sound when you film a video to attach to a support message.</string>
 </dict>
 </plist>

@@ -20,6 +20,8 @@ class ProfileState extends Equatable {
     this.walletReady = false,
     this.profileReady = false,
     this.heldBalance,
+    this.standing = AccountStanding.good,
+    this.standingAt,
   });
 
   final AppUser user;
@@ -43,6 +45,28 @@ class ProfileState extends Equatable {
   /// held for the length of a round animation.
   double get balance => heldBalance ?? wallet.balance;
 
+  /// Bans, suspensions, restrictions, investigations. Live from Firestore.
+  final AccountStanding standing;
+
+  /// Clock for [standing]; moves forward when a suspension or probation ends.
+  final DateTime? standingAt;
+
+  DateTime get _now => standingAt ?? DateTime.now();
+
+  /// The action that currently stops this player from playing, or `null`.
+  StandingAction? get blockingAction => standing.blockingAt(_now);
+  bool get blocksPlay => blockingAction != null;
+
+  /// Free credits (daily, top-up, reset) are paused: an active action or probation.
+  bool get blocksCredits => standing.blocksCreditsAt(_now);
+  bool get onProbation => standing.onProbationAt(_now);
+
+  /// Largest bet while on probation, otherwise `null`.
+  double? get probationMaxBet => onProbation ? standing.probationMaxBet : null;
+
+  /// Active actions that don't stop play (for a banner).
+  List<StandingAction> get softActions => [for (final a in standing.activeAt(_now)) if (!a.blocksPlay) a];
+
   ProfileState copyWith({
     AppUser? user,
     Wallet? wallet,
@@ -52,6 +76,8 @@ class ProfileState extends Equatable {
     bool? walletReady,
     bool? profileReady,
     Object? heldBalance = _keep,
+    AccountStanding? standing,
+    DateTime? standingAt,
   }) {
     return ProfileState(
       user: user ?? this.user,
@@ -62,11 +88,13 @@ class ProfileState extends Equatable {
       walletReady: walletReady ?? this.walletReady,
       profileReady: profileReady ?? this.profileReady,
       heldBalance: identical(heldBalance, _keep) ? this.heldBalance : heldBalance as double?,
+      standing: standing ?? this.standing,
+      standingAt: standingAt ?? this.standingAt,
     );
   }
 
   @override
-  List<Object?> get props => [user, wallet, settings, limits, progress, walletReady, profileReady, heldBalance];
+  List<Object?> get props => [user, wallet, settings, limits, progress, walletReady, profileReady, heldBalance, standing, standingAt];
 }
 
 const Object _keep = Object();
@@ -85,6 +113,7 @@ class ProfileCubit extends Cubit<ProfileState> {
   final WalletApi _walletApi;
   final List<StreamSubscription<Object?>> _subs = [];
   Timer? _holdGuard;
+  Timer? _standingTimer;
 
   /// Call with the auth user whenever sign in changes. Pass [AppUser.empty]
   /// when signed out.
@@ -115,10 +144,46 @@ class ProfileCubit extends Cubit<ProfileState> {
       ..add(_repo.watchProgress(auth.id).listen((p) {
         if (p == null) return;
         emit(state.copyWith(progress: p));
+      }, onError: (_) {}))
+      ..add(_repo.watchStanding(auth.id).listen((st) {
+        emit(state.copyWith(standing: st, standingAt: DateTime.now()));
+        _scheduleStandingTick();
       }, onError: (_) {}));
 
     unawaited(_repo.ensureDocs(auth));
   }
+
+  // ---- Account standing ---------------------------------------------------
+
+  /// Wakes up when a suspension, probation or appeal cooldown ends, so the app
+  /// reacts on time. The server is asked to settle it too (it is the authority).
+  void _scheduleStandingTick() {
+    _standingTimer?.cancel();
+    final next = state.standing.nextChangeAfter(DateTime.now());
+    if (next == null) return;
+    final wait = next.difference(DateTime.now()) + const Duration(seconds: 1);
+    _standingTimer = Timer(wait.isNegative ? const Duration(seconds: 1) : wait, () {
+      emit(state.copyWith(standingAt: DateTime.now()));
+      unawaited(_walletApi.refreshStanding().catchError((Object _) {}));
+      _scheduleStandingTick();
+    });
+  }
+
+  /// Ask the server to re-check (used after it refused something).
+  Future<void> refreshStanding() => _walletApi.refreshStanding();
+
+  /// Appeal an active action. Throws [ApiException].
+  Future<void> appeal(String actionId, String message, {List<String> attachments = const []}) =>
+      _walletApi.appeal(actionId, message, attachments: attachments);
+
+  /// Thrown instead of calling the server when free credits are paused.
+  ApiException get _creditsPaused => ApiException(
+        403,
+        'credits_restricted',
+        state.blockingAction != null || state.standing.activeAt(DateTime.now()).isNotEmpty
+            ? 'Free credits are paused while your account has an open restriction.'
+            : 'Free credits are paused while your account is on probation.',
+      );
 
   // ---- Player edits (UI updates at once through the live listener) --------
 
@@ -167,13 +232,13 @@ class ProfileCubit extends Cubit<ProfileState> {
   // ---- Wallet actions (the new balance arrives through the live listener) --
 
   /// Claims the daily credits. Returns the claim, or throws [ApiException].
-  Future<DailyClaim> claimDaily() => _walletApi.claimDaily();
+  Future<DailyClaim> claimDaily() => state.blocksCredits ? Future.error(_creditsPaused) : _walletApi.claimDaily();
 
   /// Refill to the starting balance when low.
-  Future<void> topUp() => _walletApi.topUp();
+  Future<void> topUp() => state.blocksCredits ? Future.error(_creditsPaused) : _walletApi.topUp();
 
   /// Back to the starting balance. History and level stay.
-  Future<void> resetBalance() => _walletApi.reset();
+  Future<void> resetBalance() => state.blocksCredits ? Future.error(_creditsPaused) : _walletApi.reset();
 
   /// Deletes the account on the server. The caller signs out afterwards.
   Future<void> deleteAccount() => _walletApi.deleteAccount();
@@ -182,6 +247,7 @@ class ProfileCubit extends Cubit<ProfileState> {
   static String errorText(Object e) => e is ApiException ? e.message : 'Something went wrong. Please try again.';
 
   void _cancel() {
+    _standingTimer?.cancel();
     for (final s in _subs) {
       s.cancel();
     }
@@ -191,6 +257,7 @@ class ProfileCubit extends Cubit<ProfileState> {
   @override
   Future<void> close() {
     _holdGuard?.cancel();
+    _standingTimer?.cancel();
     _cancel();
     return super.close();
   }

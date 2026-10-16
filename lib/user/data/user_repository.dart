@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../model/model.dart';
 import '../../model/model_json.dart';
+import '../../support/support_models.dart';
 
 /// A server seed that was revealed after the player rotated.
 class RevealedSeedDoc {
@@ -80,6 +81,38 @@ class UserRepository {
       final data = snap.data();
       return data == null ? null : PlayerProgress.fromFirestore(data);
     });
+  }
+
+  /// Bans, suspensions, restrictions and investigations. Live, so a staff action
+  /// reaches the open app within a second. Empty (good standing) if none.
+  Stream<AccountStanding> watchStanding(String uid) {
+    return _db.collection('users').doc(uid).collection('account').doc('standing').snapshots().map((snap) {
+      final data = snap.data();
+      return data == null ? AccountStanding.good : AccountStanding.fromFirestore(data);
+    });
+  }
+
+  /// The player's support tickets, newest activity first. Live.
+  Stream<List<Ticket>> watchTickets(String uid) {
+    // Sorted in memory so no composite Firestore index is needed.
+    return _db.collection('users').doc(uid).collection('tickets').snapshots().map((s) {
+      final list = [for (final d in s.docs) Ticket.fromFirestore(d.id, d.data())];
+      list.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      return list;
+    });
+  }
+
+  /// One conversation, oldest first. Live, so a reply from support appears on its own.
+  Stream<List<TicketMessage>> watchTicketMessages(String uid, String ticketId) {
+    return _db
+        .collection('users')
+        .doc(uid)
+        .collection('tickets')
+        .doc(ticketId)
+        .collection('messages')
+        .orderBy('createdAt')
+        .snapshots()
+        .map((s) => [for (final d in s.docs) TicketMessage.fromFirestore(d.id, d.data())]);
   }
 
   /// Newest rounds first. Filter by game with [game].

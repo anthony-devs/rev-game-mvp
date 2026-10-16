@@ -18,6 +18,15 @@ Firestore layout (matches the Flutter app):
     crash_rounds/{id}                 server only: the secret crash point
     blackjack_rounds/{id}             server only: the shuffled deck
     blackjack_active/{uid}            server only: the hand in progress
+    users/{uid}/account/standing      moderation summary the app listens to (server writes)
+    users/{uid}/standing_actions/{id} bans, suspensions, restrictions, investigations
+    users/{uid}/appeals/{id}          the player's appeals
+    moderation_log/{id}               server only: audit trail of every moderation event
+    users/{uid}/uploads/{id}          server only: attachment details (bytes live in Storage or on disk)
+    users/{uid}/tickets/{id}          support ticket as the player sees it (+ /messages/{id})
+    tickets/{id}                      support ticket as staff see it (+ /notes/{id}, server only)
+    staff/{username}                  customer service reps (server only)
+    staff_login/{hash}                failed sign-in counters (server only)
 """
 from __future__ import annotations
 
@@ -50,6 +59,22 @@ def seed_history_path(uid: str, seed_hash: str) -> str:
 
 def fair_secret_path(uid: str) -> str:
     return f"fair_secrets/{uid}"
+
+
+def standing_path(uid: str) -> str:
+    return f"users/{uid}/account/standing"
+
+
+def action_path(uid: str, action_id: str) -> str:
+    return f"users/{uid}/standing_actions/{action_id}"
+
+
+def appeal_path(uid: str, appeal_id: str) -> str:
+    return f"users/{uid}/appeals/{appeal_id}"
+
+
+def log_path(log_id: str) -> str:
+    return f"moderation_log/{log_id}"
 
 
 def crash_path(round_id: str) -> str:
@@ -92,6 +117,10 @@ class Store:
 
     def read(self, path: str) -> Optional[Doc]:
         """Plain read outside a transaction."""
+        raise NotImplementedError
+
+    def list(self, collection: str, limit: int = 200) -> list[tuple[str, Doc]]:
+        """Documents directly inside a collection path. Not transactional."""
         raise NotImplementedError
 
     def delete_user(self, uid: str) -> None:
@@ -176,6 +205,16 @@ class MemoryStore(Store):
             d = self.docs.get(path)
             return copy.deepcopy(d) if d is not None else None
 
+    def list(self, collection, limit=200):
+        prefix = collection.rstrip("/") + "/"
+        with self._lock:
+            out = [
+                (path[len(prefix):], copy.deepcopy(doc))
+                for path, doc in self.docs.items()
+                if path.startswith(prefix) and "/" not in path[len(prefix):]
+            ]
+        return out[:limit]
+
     def delete_user(self, uid):
         with self._lock:
             for path in list(self.docs):
@@ -187,6 +226,10 @@ class MemoryStore(Store):
                 ):
                     del self.docs[path]
                 elif path.startswith(("crash_rounds/", "blackjack_rounds/")) and doc.get("uid") == uid:
+                    del self.docs[path]
+            gone = {p.split("/")[1] for p, d in self.docs.items() if p.startswith("tickets/") and p.count("/") == 1 and d.get("uid") == uid}
+            for path in list(self.docs):
+                if path.startswith("tickets/") and path.split("/")[1] in gone:
                     del self.docs[path]
 
 
@@ -245,6 +288,9 @@ class FirestoreStore(Store):
         snap = self._db.document(path).get()
         return snap.to_dict() if snap.exists else None
 
+    def list(self, collection, limit=200):
+        return [(snap.id, snap.to_dict()) for snap in self._db.collection(collection).limit(limit).stream()]
+
     def delete_user(self, uid):
         from google.cloud.firestore_v1.base_query import FieldFilter
 
@@ -252,6 +298,8 @@ class FirestoreStore(Store):
         db.recursive_delete(db.collection("users").document(uid))
         db.document(fair_secret_path(uid)).delete()
         db.document(blackjack_active_path(uid)).delete()
+        for snap in db.collection("tickets").where(filter=FieldFilter("uid", "==", uid)).stream():
+            db.recursive_delete(snap.reference)
         for coll in ("crash_rounds", "blackjack_rounds"):
             for snap in db.collection(coll).where(filter=FieldFilter("uid", "==", uid)).stream():
                 snap.reference.delete()

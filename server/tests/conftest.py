@@ -1,9 +1,11 @@
+import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 
+os.environ.setdefault("APP_ENV", "test")  # no .env.* file is read during tests
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app import create_app  # noqa: E402
@@ -15,6 +17,10 @@ from app.dice import DiceService  # noqa: E402
 from app.fairness import FairnessService  # noqa: E402
 from app.roulette import RouletteService  # noqa: E402
 from app.slots import SlotsService  # noqa: E402
+from app.standing import StandingService  # noqa: E402
+from app.staff import StaffService  # noqa: E402
+from app.support import SupportService  # noqa: E402
+from app.uploads import MemoryBlobs, UploadService  # noqa: E402
 from app.store import MemoryStore  # noqa: E402
 from app.wallet import WalletService  # noqa: E402
 
@@ -59,9 +65,15 @@ def store():
     return MemoryStore()
 
 
+ADMIN_USER = "boss-owner"
+ADMIN_PASS = "Str0ng!Passphrase#1"
+ADMIN_KEY = "secret-key"
+ADMIN = dict(admin_key=ADMIN_KEY, admin_username=ADMIN_USER, admin_password=ADMIN_PASS, session_secret="s" * 32)
+
+
 @pytest.fixture
 def cfg():
-    return Config()
+    return Config(**ADMIN)
 
 
 @pytest.fixture
@@ -70,7 +82,32 @@ def deleted_auth():
 
 
 @pytest.fixture
-def make_client(store, clock, cfg, deleted_auth):
+def standing(store, cfg, clock):
+    return StandingService(store, cfg, clock)
+
+
+@pytest.fixture
+def staff(store, cfg, clock):
+    return StaffService(store, cfg, clock)
+
+
+@pytest.fixture
+def blobs():
+    return MemoryBlobs()
+
+
+@pytest.fixture
+def uploads(store, cfg, clock, blobs):
+    return UploadService(store, cfg, blobs, clock)
+
+
+@pytest.fixture
+def support(store, cfg, uploads, clock):
+    return SupportService(store, cfg, uploads, clock)
+
+
+@pytest.fixture
+def make_client(store, clock, cfg, deleted_auth, standing, staff, uploads, support):
     def make(slots_rng=None, crash_rng=None, dice_rng=None, roulette_rng=None, bj_rng=None):
         # One shared fairness service; a game given a scripted rng gets its own
         # override service so the other games keep real HMAC randomness.
@@ -96,6 +133,10 @@ def make_client(store, clock, cfg, deleted_auth):
             roulette=roulette,
             blackjack=blackjack,
             account=AccountService(store, deleted_auth.append),
+            standing=standing,
+            staff=staff,
+            uploads=uploads,
+            support=support,
         )
         return app.test_client()
 
@@ -104,3 +145,23 @@ def make_client(store, clock, cfg, deleted_auth):
 
 def auth(user="alice"):
     return {"Authorization": f"Bearer {user}"}
+
+
+def staff_login(c, username=ADMIN_USER, password=ADMIN_PASS):
+    r = c.post("/staff/api/login", json={"username": username, "password": password})
+    return r
+
+
+def staff_headers(c, username=ADMIN_USER, password=ADMIN_PASS, key=ADMIN_KEY):
+    r = staff_login(c, username, password)
+    assert r.status_code == 200, r.get_json()
+    h = {"Authorization": "Bearer " + r.get_json()["token"]}
+    if key is not None:
+        h["X-Admin-Key"] = key
+    return h
+
+
+# 1x1 PNG, a tiny MP4-looking header and a PDF header: enough for the type check.
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 40
+PDF = b"%PDF-1.4\n" + b"x" * 40
+MP4 = b"\x00\x00\x00\x18ftypmp42" + b"\x00" * 40

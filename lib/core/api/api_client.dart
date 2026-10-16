@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -51,6 +52,40 @@ class ApiClient {
 
   Future<Json> delete(String path) =>
       _call(() async => _http.delete(await _uri(path), headers: await _headers()));
+
+  /// Sends one file as multipart form data (field name `file`).
+  Future<Json> upload(String path, String filePath, {required String filename}) async {
+    try {
+      final request = http.MultipartRequest('POST', await _uri(path))
+        ..headers.addAll(await _headers())
+        ..files.add(await http.MultipartFile.fromPath('file', filePath, filename: filename));
+      final streamed = await _http.send(request).timeout(const Duration(seconds: 120));
+      final res = await http.Response.fromStream(streamed);
+      if (res.statusCode >= 200 && res.statusCode < 300) return _decode(res.body);
+      throw _fromResponse(res.statusCode, res.body);
+    } on SocketException {
+      throw _offline();
+    } on TimeoutException {
+      throw _offline();
+    } on http.ClientException {
+      throw _offline();
+    }
+  }
+
+  /// Downloads a file (an attachment) as bytes.
+  Future<Uint8List> getBytes(String path) async {
+    try {
+      final res = await _http.get(await _uri(path), headers: await _headers()).timeout(const Duration(seconds: 60));
+      if (res.statusCode >= 200 && res.statusCode < 300) return res.bodyBytes;
+      throw _fromResponse(res.statusCode, res.body);
+    } on SocketException {
+      throw _offline();
+    } on TimeoutException {
+      throw _offline();
+    } on http.ClientException {
+      throw _offline();
+    }
+  }
 
   /// Server-sent events. Cancel the subscription to close the connection.
   Stream<SseEvent> events(String path) async* {

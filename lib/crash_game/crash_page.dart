@@ -15,6 +15,7 @@ import 'crash.dart';
 import 'crash_server.dart';
 import 'widgets/crash_panels.dart';
 import 'widgets/crash_stage.dart';
+import '../pages/how_to_play_page.dart';
 
 /// Dash Crash. The page only talks to a [CrashServer] (the game server). The
 /// balance in the header is the one Firestore balance, held while a round runs.
@@ -29,6 +30,9 @@ class CrashPage extends StatefulWidget {
 }
 
 class _CrashPageState extends State<CrashPage> with SingleTickerProviderStateMixin, GameSessionMixin<CrashPage> {
+  @override
+  GameType get guideType => GameType.crash;
+
   static const double _minBet = 10;
   static const double _maxBetDefault = 500000;
   double get _maxBet => maxBetFor(widget.info?.maxBet ?? _maxBetDefault);
@@ -252,6 +256,7 @@ class _CrashPageState extends State<CrashPage> with SingleTickerProviderStateMix
                 low: _balance < _minBet,
                 onBack: () => Navigator.of(context).maybePop(),
                 onVerify: _showVerify,
+                actions: [IconSquareButton(icon: Icons.help_outline_rounded, semanticLabel: 'How to play', onPressed: () => openGuide(context, GameType.crash))],
               ),
               HistoryStrip(values: _history),
               const SizedBox(height: 12),

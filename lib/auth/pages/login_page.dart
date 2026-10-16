@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../components/components.dart';
+import '../../pages/help_page.dart';
 import '../bloc/auth_form_cubit.dart';
 import '../data/auth_repository.dart';
 import '../data/auth_validators.dart';
@@ -167,6 +168,11 @@ class _LoginViewState extends State<_LoginView> {
               prefix: 'New here?',
               action: 'Create account',
               onTap: state.isBusy ? null : () => _push(const SignUpPage()),
+            ),
+            AuthLink(
+              prefix: 'Need help?',
+              action: 'Help Centre',
+              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const HelpPage())),
             ),
           ],
         );

@@ -55,6 +55,12 @@ dependencies:
   # Game sounds and music.
   audioplayers: ^6.1.0
 
+  # Support: attach photos, videos and PDFs to appeals and messages.
+  image_picker: ^1.1.2
+  file_picker: ^10.0.0
+  path_provider: ^2.1.5
+  open_filex: ^4.7.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
