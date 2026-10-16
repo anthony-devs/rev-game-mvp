@@ -1,42 +1,39 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:rev_game_mvp/crash_game/crash_page.dart';
 
-void main() {
-  runApp(const MyApp());
+import 'app.dart';
+import 'auth/data/auth_repository.dart';
+import 'firebase_options.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  } catch (e) {
+    runApp(_StartupError(message: '$e'));
+    return;
+  }
+  runApp(RevApp(authRepository: AuthRepository()));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class _StartupError extends StatelessWidget {
+  const _StartupError({required this.message});
 
-  // This widget is the root of your application.
+  final String message;
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: const Color(0xFF0B0B0C),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text('Could not start the app.\n\n$message', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70)),
+          ),
+        ),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(child: CrashPage(),),
     );
   }
 }

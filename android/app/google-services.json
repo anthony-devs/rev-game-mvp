@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "499753779409",
+    "project_id": "rev-games",
+    "storage_bucket": "rev-games.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:499753779409:android:439fd26b8ef3c577bc45f0",
+        "android_client_info": {
+          "package_name": "com.example.rev_game_mvp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzyl-F6M2PrrULMyhhfQ4vR9E3rWCaC5s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

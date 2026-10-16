@@ -34,6 +34,20 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  google_fonts: ^9.0.0
+  flutter_svg: ^2.3.0
+
+  # Value equality for models and BLoC states.
+  equatable: ^2.0.7
+
+  # State management.
+  flutter_bloc: ^9.1.1
+
+  # Firebase.
+  firebase_core: ^4.15.0
+  firebase_auth: ^6.7.0
+  cloud_firestore: ^6.10.0
+  google_sign_in: ^7.2.0
 
 dev_dependencies:
   flutter_test:
@@ -51,8 +65,14 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  # Required. Without it the Material icon font is not bundled and icons show as "?".
+  uses-material-design: true
+
   assets:
+  #crash game assets
     - assets/Crash_assets/character/Idle/
     - assets/Crash_assets/character/Run/
     - assets/Crash_assets/character/Dead/
+    # slots game assets
+    - assets/slots/machine_clean.png
 
