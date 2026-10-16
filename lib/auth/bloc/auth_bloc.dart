@@ -60,7 +60,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(const AuthState.unauthenticated());
     } else {
       emit(AuthState.authenticated(event.user));
-      unawaited(_repo.syncProfile());
     }
   }
 

@@ -42,7 +42,9 @@ class SpinResult {
     required this.balanceAfterBet,
     required this.balanceAfter,
     required this.label,
+    this.roundId = '',
   });
+  final String roundId;
   final List<List<SlotSymbol>> columns; // 3 reels x [top, payline, bottom]
   final int multiplier;
   final double payout;

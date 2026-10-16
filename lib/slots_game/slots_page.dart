@@ -1,18 +1,24 @@
 // Golden Reels: 3 reels, 1 payline.
 //
-// Server-driven: the page only talks to [SlotsServer]. Swap [MockSlotsServer]
-// for a class that calls your edge function (GET config, POST spin).
-//
-// Open it with:
-//   Navigator.push(context, MaterialPageRoute(builder: (_) => const SlotsPage()));
+// Server-driven: the page only talks to [SlotsServer] (the game server). The
+// balance shown is the one Firestore wallet balance, held steady while the
+// reels spin so it never jumps before the result.
 
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:rev_game_mvp/components/components.dart';
 
+import '../components/components.dart';
+import '../core/api/api_client.dart';
+import '../games/game_support.dart';
+import '../model/model.dart';
+import '../pages/paytable_page.dart';
+import '../pages/round_format.dart';
+import '../user/bloc/profile_cubit.dart';
+import '../user/data/user_repository.dart';
+import 'api_slots_server.dart';
 import 'reel_widget.dart';
 import 'slots_models.dart';
 import 'slots_painters.dart';
@@ -24,15 +30,17 @@ import 'symbol_view.dart';
 enum SlotsPhase { idle, spinning, win, bigWin }
 
 class SlotsPage extends StatefulWidget {
-  const SlotsPage({super.key, this.server});
-  final SlotsServer? server;
+  const SlotsPage({super.key, this.info});
+
+  /// Catalog entry (names, limits). Optional.
+  final GameInfo? info;
 
   @override
   State<SlotsPage> createState() => _SlotsPageState();
 }
 
-class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin {
-  late final SlotsServer _server = widget.server ?? MockSlotsServer();
+class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, GameSessionMixin<SlotsPage> {
+  late final SlotsServer _server = ApiSlotsServer(context.read<ApiClient>());
   SlotsConfig? _cfg;
 
   final _reelKeys = List.generate(3, (_) => GlobalKey<ReelWidgetState>());
@@ -44,10 +52,10 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin {
 
   SlotsPhase _phase = SlotsPhase.idle;
   bool _sheetOpen = false, _turbo = false, _auto = false, _skip = false;
-  double _balance = 0, _bet = 100, _win = 0;
+  double _bet = 100, _win = 0;
   String _plate = 'Match 3 on the line to win';
   SpinResult? _last;
-  final List<int> _history = [0, 2, 0, 10, 0, 0, 25, 0];
+  final List<int> _history = [];
   List<SlotSymbol> _payline = [SlotSymbol.seven, SlotSymbol.bar, SlotSymbol.bell];
 
   late final AnimationController _fx = AnimationController(vsync: this, duration: const Duration(seconds: 6))..repeat();
@@ -55,15 +63,35 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin {
 
   @override
   void initState() {
-    super.initState();
+    super.initState(); // GameSessionMixin: joins the session, starts music
+    _turbo = context.read<ProfileCubit>().state.settings.turboByDefault;
+    _load();
+  }
+
+  bool _loadFailed = false;
+
+  void _load() {
+    if (_loadFailed) setState(() => _loadFailed = false);
     _server.fetchConfig().then((c) {
       if (!mounted) return;
       setState(() {
         _cfg = c;
-        _balance = c.startBalance;
-        _bet = c.defaultBet;
+        _bet = c.defaultBet.clamp(c.minBet, maxBetFor(c.maxBet)).toDouble();
       });
+      _loadHistory();
+    }).catchError((Object _) {
+      if (mounted) setState(() => _loadFailed = true);
     });
+  }
+
+  /// Last results from the player's own history, so the strip is real.
+  Future<void> _loadHistory() async {
+    try {
+      final uid = profile.state.user.id;
+      final rounds = await context.read<UserRepository>().watchRounds(uid, game: GameType.slots, limit: 12).first.timeout(const Duration(seconds: 4));
+      if (!mounted || _history.isNotEmpty) return;
+      setState(() => _history.addAll([for (final r in rounds.take(12)) r.returned.round()]));
+    } catch (_) {}
   }
 
   @override
@@ -75,16 +103,20 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin {
 
   bool get _isWinLike => _phase == SlotsPhase.win || _phase == SlotsPhase.bigWin;
   bool get _spinning => _phase == SlotsPhase.spinning;
+
+  /// The real wallet balance. The header shows the same number (held while spinning).
+  double get _balance => walletBalance;
   bool get _cantAfford => _balance < _bet;
 
   // ------ Bet controls ------
   void _setBet(double v) {
     if (_spinning || _cfg == null) return;
-    setState(() => _bet = v.clamp(_cfg!.minBet, _cfg!.maxBet).roundToDouble());
+    setState(() => _bet = v.clamp(_cfg!.minBet, maxBetFor(_cfg!.maxBet)).roundToDouble());
   }
 
   void _step(int dir) {
-    final steps = _cfg!.betSteps;
+    final steps = [for (final b in _cfg!.betSteps) if (b <= maxBetFor(_cfg!.maxBet)) b];
+    if (steps.isEmpty) return;
     if (dir > 0) {
       final i = steps.indexWhere((s) => s > _bet);
       _setBet(i == -1 ? steps.last : steps[i]);
@@ -97,11 +129,17 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin {
   // ------ Spin flow ------
   Future<void> _spin() async {
     if (_spinning || _cfg == null) return;
+    if (!checkCanPlay()) {
+      _auto = false;
+      return;
+    }
     if (_cantAfford) {
       _showNoCredits();
       return;
     }
-    HapticFeedback.lightImpact();
+    AppHaptics.light();
+    AppSound.play(Sfx.spin);
+    holdBalance(_balance - _bet); // header shows the bet leaving at once
     _skip = false;
     setState(() {
       _phase = SlotsPhase.spinning;
@@ -117,20 +155,26 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin {
     final SpinResult res;
     try {
       res = await _server.spin(_bet);
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       for (var i = 0; i < 3; i++) {
         _reelKeys[i].currentState?.stopTo([SlotSymbol.cherry, _payline[i], SlotSymbol.bar], fast: true);
       }
+      releaseBalance();
+      _auto = false;
+      AppSound.play(Sfx.error);
       setState(() {
         _phase = SlotsPhase.idle;
-        _plate = 'Something went wrong. Try again';
+        _plate = failKind(e) == FailKind.network ? 'No connection. Try again' : 'Something went wrong. Try again';
       });
-      if (_cantAfford) _showNoCredits();
+      if (failKind(e) == FailKind.noCredits) {
+        _showNoCredits();
+      } else {
+        showToast(context, failText(e), error: true);
+      }
       return;
     }
     if (!mounted) return;
-    setState(() => _balance = res.balanceAfterBet);
 
     final minSpin = Duration(milliseconds: _turbo ? 350 : 900);
     final elapsed = DateTime.now().difference(started);
@@ -141,6 +185,7 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin {
     final stops = <Future<void>>[];
     for (var i = 0; i < 3; i++) {
       stops.add(Future<void>.delayed(Duration(milliseconds: _skip ? 0 : gap * i), () {
+        AppSound.play(Sfx.reelStop, volume: .7);
         return _reelKeys[i].currentState?.stopTo(res.columns[i], fast: _skip || _turbo);
       }));
     }
@@ -152,17 +197,19 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin {
     _history.insert(0, res.multiplier);
     if (_history.length > 12) _history.removeLast();
 
+    reportRound(bet: _bet, payout: res.payout);
     if (res.isWin) {
       final big = res.multiplier >= _cfg!.bigWinMultiplier;
-      HapticFeedback.mediumImpact();
+      AppHaptics.medium();
+      AppSound.play(big ? Sfx.bigWin : Sfx.win);
+      holdBalance(res.balanceAfter); // the win lands in the header with the animation
       setState(() {
         _phase = big ? SlotsPhase.bigWin : SlotsPhase.win;
         _plate = res.label;
-        _balance = res.balanceAfter;
       });
       _count.forward(from: 0);
       if (big) {
-        HapticFeedback.heavyImpact();
+        AppHaptics.heavy();
         _auto = false; // big wins always wait for Continue
       } else {
         await Future<void>.delayed(const Duration(milliseconds: 1400));
@@ -175,7 +222,19 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin {
         _plate = 'No win this time';
       });
     }
+    _settle(res.balanceAfter);
     _afterRound();
+  }
+
+  /// Lets the header follow the live wallet again once Firestore shows the new
+  /// balance (or after 3 seconds, whichever is first).
+  Future<void> _settle(double expected) async {
+    for (var i = 0; i < 30; i++) {
+      if (!mounted) return;
+      if ((walletBalance - expected).abs() < .005) break;
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    if (mounted && !_spinning && _phase != SlotsPhase.bigWin) releaseBalance();
   }
 
   void _afterRound() async {
@@ -197,138 +256,24 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin {
       _phase = SlotsPhase.idle;
       _plate = 'Match 3 on the line to win';
     });
+    releaseBalance();
     _afterRound();
   }
 
-  Future<void> _getCredits() async {
-    final b = await _server.topUp();
-    if (!mounted) return;
-    setState(() => _balance = b);
-  }
+  // ------ Sheets and pages ------
+  void _showFairness() => openFairness(context, roundId: _last?.roundId.isEmpty ?? true ? null : _last!.roundId);
 
-  // ------ Sheets ------
-  Future<void> _openSheet(String? title, Widget child) async {
-    _sheetOpen = true;
-    await showAppBottomSheet<void>(context, title: title, child: child);
-    _sheetOpen = false;
-  }
-
-  void _showFairness() => _openSheet(
-        'Provably fair',
-        const Padding(
-          padding: EdgeInsets.only(bottom: 8),
-          child: InfoCard(
-            icon: Icons.verified_user_outlined,
-            color: AppColors.green,
-            message: 'Every result is decided on the server before the reels stop. '
-                'Your device only plays the animation.',
-          ),
-        ),
-      );
-
+  /// The paytable is a full page with a back button (not a sheet), so it is easy to leave.
   void _showPaytable(SlotsConfig cfg) {
-    Widget stat(String k, String v) => Expanded(child: StatTile(label: k, value: v));
-    _openSheet(
-      'Paytable & rules',
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('PAYOUTS - MATCH ON THE PAYLINE', style: AppText.label()),
-          const SizedBox(height: 10),
-          for (final row in cfg.payRows) ...[
-            Container(
-              height: 48,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceAlt,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                border: Border.all(color: AppColors.line),
-              ),
-              child: Row(children: [
-                SizedBox(
-                  width: 112,
-                  child: Row(children: [
-                    for (final s in row.symbols) ...[SymbolView(s, size: 30), const SizedBox(width: 4)],
-                  ]),
-                ),
-                Expanded(child: Text(row.label, style: AppText.body(14, weight: FontWeight.w600, color: AppColors.textSoft))),
-                Text('x${row.multiplier}', style: AppText.number(17, color: AppColors.gold)),
-              ]),
-            ),
-            const SizedBox(height: 8),
-          ],
-          const SizedBox(height: 10),
-          Text('HOW TO PLAY', style: AppText.label()),
-          const SizedBox(height: 6),
-          Text(
-            'Set your bet, then press SPIN. Three matching symbols on the payline pay your bet times the multiplier. '
-            'The server decides every result before the reels stop.',
-            style: AppText.body(14, weight: FontWeight.w400, color: AppColors.textSoft, height: 1.45),
-          ),
-          const SizedBox(height: 16),
-          Row(children: [stat('Min bet', fmt(cfg.minBet)), const SizedBox(width: 8), stat('Max bet', fmt(cfg.maxBet))]),
-          const SizedBox(height: 8),
-          Row(children: [stat('Max win', fmt(cfg.maxWin)), const SizedBox(width: 8), stat('Return to player', '${(cfg.rtp * 100).round()}%')]),
-          const SizedBox(height: 12),
-          Text('Demo credits only. Values load from this game\'s config.', style: AppText.body(11, weight: FontWeight.w400, color: AppColors.textDim)),
-        ],
-      ),
-    );
+    _sheetOpen = true;
+    pushPage<void>(context, PaytablePage(cfg: cfg)).whenComplete(() => _sheetOpen = false);
   }
 
-  void _showNoCredits() {
-    final cfg = _cfg;
-    if (cfg == null || _sheetOpen) return;
-    final lower = _balance.floorToDouble().clamp(cfg.minBet, cfg.maxBet).toDouble();
-    final canLower = _balance.floorToDouble() >= cfg.minBet;
-    _openSheet(
-      null,
-      Builder(builder: (sheetContext) {
-        return Column(
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.lossStrong.withValues(alpha: .14),
-                border: Border.all(color: AppColors.lossStrong.withValues(alpha: .5)),
-              ),
-              child: const Icon(Icons.error_outline_rounded, size: 28, color: AppColors.loss),
-            ),
-            const SizedBox(height: 14),
-            Text('Not enough credits', style: AppText.body(22, weight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            Text(
-              'You have ${fmt(_balance)} credits but this bet is ${fmt(_bet)}. Lower your bet or get more demo credits.',
-              textAlign: TextAlign.center,
-              style: AppText.body(14, weight: FontWeight.w400, color: AppColors.textMuted, height: 1.45),
-            ),
-            const SizedBox(height: 22),
-            AppButton(
-              label: 'Get demo credits',
-              variant: AppButtonVariant.gold,
-              onPressed: () async {
-                await _getCredits();
-                if (sheetContext.mounted) Navigator.pop(sheetContext);
-              },
-            ),
-            if (canLower) ...[
-              const SizedBox(height: 12),
-              AppButton(
-                label: 'Lower bet to ${fmt(lower)}',
-                variant: AppButtonVariant.outline,
-                height: 52,
-                onPressed: () {
-                  setState(() => _bet = lower);
-                  Navigator.pop(sheetContext);
-                },
-              ),
-            ],
-          ],
-        );
-      }),
-    );
+  Future<void> _showNoCredits() async {
+    if (_sheetOpen) return;
+    _sheetOpen = true;
+    await showNoCredits(context, needed: _bet);
+    _sheetOpen = false;
   }
 
   // ------ UI ------
@@ -338,7 +283,9 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin {
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: cfg == null
-          ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
+          ? (_loadFailed
+              ? SafeArea(child: Column(children: [SubPageBar(title: 'Slots', onBack: () => Navigator.maybePop(context)), Expanded(child: StatusView.offline(onRetry: _load))]))
+              : const Center(child: CircularProgressIndicator(color: AppColors.gold)))
           : Stack(
               children: [
                 Positioned.fill(
@@ -352,7 +299,7 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin {
                         children: [
                           GameTopBar(
                             title: 'Slots',
-                            balance: _balance,
+                            balance: watchBalance(context),
                             low: _cantAfford && !_spinning,
                             onBack: () => Navigator.maybePop(context),
                             onVerify: _showFairness,

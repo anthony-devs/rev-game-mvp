@@ -2,8 +2,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import 'app.dart';
+import 'components/core/app_sound.dart';
 import 'auth/data/auth_repository.dart';
+import 'core/api/api_client.dart';
 import 'firebase_options.dart';
+import 'user/data/user_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,7 +16,9 @@ Future<void> main() async {
     runApp(_StartupError(message: '$e'));
     return;
   }
-  runApp(RevApp(authRepository: AuthRepository()));
+  await AppSound.init();
+  final auth = AuthRepository();
+  runApp(RevApp(authRepository: auth, userRepository: UserRepository(), apiClient: ApiClient(tokenProvider: auth.idToken)));
 }
 
 class _StartupError extends StatelessWidget {

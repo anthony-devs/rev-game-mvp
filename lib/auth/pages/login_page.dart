@@ -76,7 +76,7 @@ class _LoginViewState extends State<_LoginView> {
         final cubit = context.read<AuthFormCubit>();
         return AuthLayout(
           title: 'Welcome back',
-          subtitle: 'Sign in to pick up your credits and keep playing.',
+          subtitle: 'Sign in to keep your credits, level and history.',
           showBack: false,
           children: [
             AuthBanner(error: state.error, info: state.info),
@@ -149,12 +149,18 @@ class _LoginViewState extends State<_LoginView> {
             ),
             const SizedBox(height: 12),
             AppButton(
-              label: 'Continue as guest',
+              label: 'Play as guest',
               variant: AppButtonVariant.ghost,
               height: 52,
               fontSize: 14,
               loading: state.busy == AuthMethod.guest,
               onPressed: state.isBusy ? null : cubit.guest,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Guests start with 10,000 demo credits. Progress is saved to this guest account.',
+              textAlign: TextAlign.center,
+              style: AppText.body(12, color: AppColors.textDim),
             ),
             const SizedBox(height: 20),
             AuthLink(

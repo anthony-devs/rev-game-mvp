@@ -3,6 +3,8 @@
 
 // core
 export 'core/app_colors.dart';
+export 'core/app_haptics.dart';
+export 'core/app_sound.dart';
 export 'core/app_scaffold.dart';
 export 'core/app_text.dart';
 export 'core/app_tokens.dart';

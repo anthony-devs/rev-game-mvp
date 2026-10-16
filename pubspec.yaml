@@ -43,11 +43,17 @@ dependencies:
   # State management.
   flutter_bloc: ^9.1.1
 
+  # Talks to the game server.
+  http: ^1.6.0
+
   # Firebase.
   firebase_core: ^4.15.0
   firebase_auth: ^6.7.0
   cloud_firestore: ^6.10.0
   google_sign_in: ^7.2.0
+
+  # Game sounds and music.
+  audioplayers: ^6.1.0
 
 dev_dependencies:
   flutter_test:
@@ -73,6 +79,8 @@ flutter:
     - assets/Crash_assets/character/Idle/
     - assets/Crash_assets/character/Run/
     - assets/Crash_assets/character/Dead/
+    # sounds
+    - assets/sounds/
     # slots game assets
     - assets/slots/machine_clean.png
 

@@ -1,15 +1,13 @@
 import 'dart:async';
 import 'dart:math';
 
-// --------------------------------------------------------------------------- "Server" side ---------------------------------------------------------------------------
-//
-// Everything that decides the outcome lives here. The page never sees the
-// crash point in advance: it only receives ticks, a cash-out confirmation and
-// a crash event. To go live, implement the same three things (startRound
-// stream, cashOut, balance) against your Edge Function / realtime channel and
-// delete this class. The page code does not change.
+// The crash point is decided on the game server. The page never sees it in
+// advance: it only receives ticks, a cash-out confirmation and a crash event.
 
 enum RoundEventType { tick, cashedOut, crashed }
+
+/// Where the crash page is in a round.
+enum RoundPhase { betting, running, crashed }
 
 class RoundEvent {
   const RoundEvent._(this.type, this.multiplier, this.balance, this.payout);
@@ -30,100 +28,21 @@ class RoundEvent {
   final double payout;
 }
 
-class MockCrashServer {
-  MockCrashServer({
-    this.balance = 100000.0,
-    this.houseEdge = 0.03,
-    this.growthRate = 0.12,
-    this.maxCrash = 5000.0,
-  });
+/// What the Crash page needs from the game server (see ApiCrashServer).
+abstract class CrashServer {
+  /// Credits the player has right now. The page reads it after each event.
+  double get balance;
+  set balance(double value);
 
-  /// Virtual credits only.
-  double balance;
-  final double houseEdge;
-  final double growthRate;
-  final double maxCrash;
+  /// Takes the bet and streams ticks, then `cashedOut` and/or `crashed`.
+  /// Errors on the stream mean the bet was not taken.
+  Stream<RoundEvent> startRound({required double bet, double? autoCashout});
 
-  final Random _rng = Random();
-  final Stopwatch _clock = Stopwatch();
-  StreamController<RoundEvent>? _ctrl;
-  Timer? _timer;
-  double _crashPoint = 1.0;
-  double _bet = 0;
-  double? _autoCashout;
-  bool _cashedOut = false;
+  /// Asks to cash out now. The answer arrives as a `cashedOut` event.
+  void cashOut();
 
-  double _multiplierNow() =>
-      exp(growthRate * (_clock.elapsedMicroseconds / 1000000));
+  /// Id of the current or last round, for the Verify screen. `null` before the first.
+  String? get roundId;
 
-  double _drawCrashPoint() {
-    final r = _rng.nextDouble();
-    final raw = (100 * (1 - houseEdge) / (1 - r)).floorToDouble() / 100;
-    return raw.clamp(1.0, maxCrash).toDouble();
-  }
-
-  Stream<RoundEvent> startRound({required double bet, double? autoCashout}) {
-    _timer?.cancel();
-    _ctrl?.close();
-
-    balance -= bet;
-    _bet = bet;
-    _autoCashout =
-        autoCashout == null ? null : (autoCashout * 100).round() / 100;
-    _cashedOut = false;
-    _crashPoint = _drawCrashPoint();
-
-    final ctrl = StreamController<RoundEvent>();
-    _ctrl = ctrl;
-    _clock
-      ..reset()
-      ..start();
-    _timer = Timer.periodic(const Duration(milliseconds: 16), (_) => _tick());
-    return ctrl.stream;
-  }
-
-  void _tick() {
-    final ctrl = _ctrl;
-    if (ctrl == null || ctrl.isClosed) return;
-
-    final m = _multiplierNow();
-
-    if (m >= _crashPoint) {
-      _timer?.cancel();
-      ctrl.add(RoundEvent.crashed(_crashPoint, balance));
-      ctrl.close();
-      _ctrl = null;
-      return;
-    }
-
-    final auto = _autoCashout;
-    if (!_cashedOut && auto != null && m >= auto) {
-      _settleCashout(auto);
-    }
-    ctrl.add(RoundEvent.tick(m, balance));
-  }
-
-  void _settleCashout(double at) {
-    _cashedOut = true;
-    final payout = _bet * at;
-    balance += payout;
-    _ctrl?.add(RoundEvent.cashedOut(at, payout, balance));
-  }
-
-  /// The server clock is the truth: too late means the round already crashed.
-  bool cashOut() {
-    if (_ctrl == null || _cashedOut) return false;
-    final m = _multiplierNow();
-    if (m >= _crashPoint) return false;
-    _settleCashout((m * 100).floorToDouble() / 100);
-    return true;
-  }
-
-  void dispose() {
-    _timer?.cancel();
-    _ctrl?.close();
-  }
+  void dispose();
 }
-
-/// Where the round is. Shared by the page and the widgets.
-enum RoundPhase { betting, running, crashed }

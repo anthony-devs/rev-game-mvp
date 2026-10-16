@@ -9,6 +9,7 @@ class PlayLimits extends Equatable {
     this.realityCheckMinutes = 60,
     this.sessionLimitMinutes = 0,
     this.maxBetCap,
+    this.sessionLossLimit,
     this.coolOffUntil,
   });
 
@@ -23,6 +24,9 @@ class PlayLimits extends Equatable {
   /// Highest bet the player allows themselves.
   final double? maxBetCap;
 
+  /// Stop play when the player has lost this many credits in one session.
+  final double? sessionLossLimit;
+
   /// Play is blocked until this time.
   final DateTime? coolOffUntil;
 
@@ -33,11 +37,18 @@ class PlayLimits extends Equatable {
   /// Clamp a bet to the player's own cap.
   double capBet(double bet) => maxBetCap == null ? bet : (bet > maxBetCap! ? maxBetCap! : bet);
 
-  PlayLimits copyWith({int? realityCheckMinutes, int? sessionLimitMinutes, double? maxBetCap, DateTime? coolOffUntil}) {
+  PlayLimits copyWith({
+    int? realityCheckMinutes,
+    int? sessionLimitMinutes,
+    double? maxBetCap,
+    double? sessionLossLimit,
+    DateTime? coolOffUntil,
+  }) {
     return PlayLimits(
       realityCheckMinutes: realityCheckMinutes ?? this.realityCheckMinutes,
       sessionLimitMinutes: sessionLimitMinutes ?? this.sessionLimitMinutes,
       maxBetCap: maxBetCap ?? this.maxBetCap,
+      sessionLossLimit: sessionLossLimit ?? this.sessionLossLimit,
       coolOffUntil: coolOffUntil ?? this.coolOffUntil,
     );
   }
@@ -46,6 +57,7 @@ class PlayLimits extends Equatable {
         realityCheckMinutes: parseInt(json['realityCheckMinutes'], 60),
         sessionLimitMinutes: parseInt(json['sessionLimitMinutes']),
         maxBetCap: json['maxBetCap'] == null ? null : parseDouble(json['maxBetCap']),
+        sessionLossLimit: json['sessionLossLimit'] == null ? null : parseDouble(json['sessionLossLimit']),
         coolOffUntil: parseDate(json['coolOffUntil']),
       );
 
@@ -53,6 +65,7 @@ class PlayLimits extends Equatable {
         'realityCheckMinutes': realityCheckMinutes,
         'sessionLimitMinutes': sessionLimitMinutes,
         'maxBetCap': maxBetCap,
+        'sessionLossLimit': sessionLossLimit,
         'coolOffUntil': dateToMs(coolOffUntil),
       };
 
@@ -62,9 +75,10 @@ class PlayLimits extends Equatable {
         'realityCheckMinutes': realityCheckMinutes,
         'sessionLimitMinutes': sessionLimitMinutes,
         'maxBetCap': maxBetCap,
+        'sessionLossLimit': sessionLossLimit,
         'coolOffUntil': coolOffUntil,
       };
 
   @override
-  List<Object?> get props => [realityCheckMinutes, sessionLimitMinutes, maxBetCap, coolOffUntil];
+  List<Object?> get props => [realityCheckMinutes, sessionLimitMinutes, maxBetCap, sessionLossLimit, coolOffUntil];
 }

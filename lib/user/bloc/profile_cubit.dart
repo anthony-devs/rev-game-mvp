@@ -1,0 +1,197 @@
+import 'dart:async';
+
+import 'package:equatable/equatable.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../components/core/app_haptics.dart';
+import '../../components/core/app_sound.dart';
+import '../../core/api/api_client.dart';
+import '../../model/model.dart';
+import '../data/user_repository.dart';
+import '../data/wallet_api.dart';
+
+class ProfileState extends Equatable {
+  const ProfileState({
+    this.user = AppUser.empty,
+    this.wallet = Wallet.empty,
+    this.settings = UserSettings.defaults,
+    this.limits = PlayLimits.defaults,
+    this.progress = PlayerProgress.initial,
+    this.walletReady = false,
+    this.profileReady = false,
+    this.heldBalance,
+  });
+
+  final AppUser user;
+  final Wallet wallet;
+  final UserSettings settings;
+  final PlayLimits limits;
+  final PlayerProgress progress;
+
+  /// `false` until the wallet has loaded, so screens can show a placeholder
+  /// instead of a wrong 0 balance.
+  final bool walletReady;
+
+  /// `false` until the profile document has loaded (needed before the age gate).
+  final bool profileReady;
+
+  /// While a round is animating the screen keeps showing this number, so the
+  /// balance never jumps before the player sees the result. `null` = live.
+  final double? heldBalance;
+
+  /// THE balance every screen shows. One source: the Firestore wallet, optionally
+  /// held for the length of a round animation.
+  double get balance => heldBalance ?? wallet.balance;
+
+  ProfileState copyWith({
+    AppUser? user,
+    Wallet? wallet,
+    UserSettings? settings,
+    PlayLimits? limits,
+    PlayerProgress? progress,
+    bool? walletReady,
+    bool? profileReady,
+    Object? heldBalance = _keep,
+  }) {
+    return ProfileState(
+      user: user ?? this.user,
+      wallet: wallet ?? this.wallet,
+      settings: settings ?? this.settings,
+      limits: limits ?? this.limits,
+      progress: progress ?? this.progress,
+      walletReady: walletReady ?? this.walletReady,
+      profileReady: profileReady ?? this.profileReady,
+      heldBalance: identical(heldBalance, _keep) ? this.heldBalance : heldBalance as double?,
+    );
+  }
+
+  @override
+  List<Object?> get props => [user, wallet, settings, limits, progress, walletReady, profileReady, heldBalance];
+}
+
+const Object _keep = Object();
+
+/// The signed-in player's live data: profile, wallet, settings, limits and
+/// progress. Lives for the whole app and re-binds when the player changes.
+///
+/// ```dart
+/// final balance = context.select((ProfileCubit c) => c.state.wallet.balance);
+/// context.read<ProfileCubit>().updateSettings(settings.copyWith(soundEnabled: false));
+/// ```
+class ProfileCubit extends Cubit<ProfileState> {
+  ProfileCubit(this._repo, this._walletApi) : super(const ProfileState());
+
+  final UserRepository _repo;
+  final WalletApi _walletApi;
+  final List<StreamSubscription<Object?>> _subs = [];
+  Timer? _holdGuard;
+
+  /// Call with the auth user whenever sign in changes. Pass [AppUser.empty]
+  /// when signed out.
+  void bind(AppUser auth) {
+    _cancel();
+    if (auth.isEmpty) {
+      AppHaptics.enabled = true;
+      AppSound.stopMusic();
+      unfreeze();
+      emit(const ProfileState());
+      return;
+    }
+
+    // Show something instantly (name from sign in); Firestore fills in after.
+    emit(ProfileState(user: auth, wallet: Wallet(userId: auth.id)));
+
+    _subs
+      ..add(_repo.watchProfile(auth.id).listen((p) {
+        if (p == null) return;
+        AppHaptics.enabled = p.settings.hapticsEnabled;
+        AppSound.apply(sound: p.settings.soundEnabled, music: p.settings.musicEnabled);
+        emit(state.copyWith(user: p.user, settings: p.settings, limits: p.limits, profileReady: true));
+      }, onError: (_) {}))
+      ..add(_repo.watchWallet(auth.id).listen((w) {
+        if (w == null) return;
+        emit(state.copyWith(wallet: w, walletReady: true));
+      }, onError: (_) {}))
+      ..add(_repo.watchProgress(auth.id).listen((p) {
+        if (p == null) return;
+        emit(state.copyWith(progress: p));
+      }, onError: (_) {}));
+
+    unawaited(_repo.ensureDocs(auth));
+  }
+
+  // ---- Player edits (UI updates at once through the live listener) --------
+
+  Future<void> updateSettings(UserSettings settings) {
+    AppHaptics.enabled = settings.hapticsEnabled;
+    AppSound.apply(sound: settings.soundEnabled, music: settings.musicEnabled);
+    emit(state.copyWith(settings: settings)); // instant, no wait for the network
+    return _repo.saveSettings(state.user.id, settings);
+  }
+
+  Future<void> updateLimits(PlayLimits limits) {
+    emit(state.copyWith(limits: limits));
+    return _repo.saveLimits(state.user.id, limits);
+  }
+
+  Future<void> rename(String name) => _repo.rename(state.user.id, name);
+
+  Future<void> confirmAge() async {
+    emit(state.copyWith(user: state.user.copyWith(ageConfirmed: true))); // instant
+    try {
+      await _repo.confirmAge(state.user.id);
+    } catch (_) {
+      emit(state.copyWith(user: state.user.copyWith(ageConfirmed: false)));
+      rethrow;
+    }
+  }
+
+  // ---- One balance, held during animations --------------------------------
+
+  /// Keep showing [shown] (usually balance minus the bet) until [unfreeze].
+  /// A safety timer releases it after 3 minutes so a crash can never leave the
+  /// header stuck.
+  void freeze(double shown) {
+    _holdGuard?.cancel();
+    _holdGuard = Timer(const Duration(minutes: 3), unfreeze);
+    emit(state.copyWith(heldBalance: shown));
+  }
+
+  /// Show the live Firestore balance again.
+  void unfreeze() {
+    _holdGuard?.cancel();
+    _holdGuard = null;
+    if (state.heldBalance != null) emit(state.copyWith(heldBalance: null));
+  }
+
+  // ---- Wallet actions (the new balance arrives through the live listener) --
+
+  /// Claims the daily credits. Returns the claim, or throws [ApiException].
+  Future<DailyClaim> claimDaily() => _walletApi.claimDaily();
+
+  /// Refill to the starting balance when low.
+  Future<void> topUp() => _walletApi.topUp();
+
+  /// Back to the starting balance. History and level stay.
+  Future<void> resetBalance() => _walletApi.reset();
+
+  /// Deletes the account on the server. The caller signs out afterwards.
+  Future<void> deleteAccount() => _walletApi.deleteAccount();
+
+  /// Friendly text for any failure.
+  static String errorText(Object e) => e is ApiException ? e.message : 'Something went wrong. Please try again.';
+
+  void _cancel() {
+    for (final s in _subs) {
+      s.cancel();
+    }
+    _subs.clear();
+  }
+
+  @override
+  Future<void> close() {
+    _holdGuard?.cancel();
+    _cancel();
+    return super.close();
+  }
+}

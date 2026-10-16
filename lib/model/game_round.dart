@@ -4,7 +4,7 @@ import 'fairness_proof.dart';
 import 'game_type.dart';
 import 'model_json.dart';
 
-enum RoundStatus { pending, won, lost, cashedOut, voided }
+enum RoundStatus { pending, won, lost, cashedOut, push, voided }
 
 /// One played round. Firestore path: `users/{uid}/rounds/{id}`.
 /// Powers History, the Wallet activity list and Verify a round.
@@ -20,6 +20,7 @@ class GameRound extends Equatable {
     this.status = RoundStatus.pending,
     this.settledAt,
     this.fairness,
+    this.label = '',
     this.details = const {},
   });
 
@@ -36,6 +37,9 @@ class GameRound extends Equatable {
   final DateTime? settledAt;
   final FairnessProof? fairness;
 
+  /// Short result text from the server, e.g. "Dice 52.38, over 50".
+  final String label;
+
   /// Game-specific result: reels, cards, dice roll, winning number.
   final Map<String, dynamic> details;
 
@@ -43,6 +47,7 @@ class GameRound extends Equatable {
   double get net => payout - bet;
   bool get isSettled => status != RoundStatus.pending;
   bool get isWin => status == RoundStatus.won || status == RoundStatus.cashedOut;
+  bool get isPush => status == RoundStatus.push;
 
   GameRound copyWith({
     double? payout,
@@ -51,6 +56,7 @@ class GameRound extends Equatable {
     DateTime? settledAt,
     FairnessProof? fairness,
     Map<String, dynamic>? details,
+    String? label,
   }) {
     return GameRound(
       id: id,
@@ -63,6 +69,7 @@ class GameRound extends Equatable {
       status: status ?? this.status,
       settledAt: settledAt ?? this.settledAt,
       fairness: fairness ?? this.fairness,
+      label: label ?? this.label,
       details: details ?? this.details,
     );
   }
@@ -78,6 +85,7 @@ class GameRound extends Equatable {
         createdAt: parseDate(json['createdAt']) ?? DateTime.fromMillisecondsSinceEpoch(0),
         settledAt: parseDate(json['settledAt']),
         fairness: json['fairness'] == null ? null : FairnessProof.fromJson(parseMap(json['fairness'])),
+        label: parseString(json['label']) ?? '',
         details: parseMap(json['details']),
       );
 
@@ -92,6 +100,7 @@ class GameRound extends Equatable {
         'createdAt': dateToMs(createdAt),
         'settledAt': dateToMs(settledAt),
         'fairness': fairness?.toJson(),
+        'label': label,
         'details': details,
       };
 
@@ -100,5 +109,5 @@ class GameRound extends Equatable {
   Json toFirestore() => {...toJson()..remove('id'), 'createdAt': createdAt, 'settledAt': settledAt};
 
   @override
-  List<Object?> get props => [id, userId, game, bet, payout, multiplier, status, createdAt, settledAt, fairness, details];
+  List<Object?> get props => [id, userId, game, bet, payout, multiplier, status, createdAt, settledAt, fairness, label, details];
 }

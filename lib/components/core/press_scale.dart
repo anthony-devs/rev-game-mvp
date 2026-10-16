@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'app_haptics.dart';
+import 'app_sound.dart';
 
 /// Wraps any widget with a tap and a small press-down animation.
 /// Pass `onTap: null` to disable.
@@ -39,7 +40,10 @@ class _PressScaleState extends State<PressScale> {
       onTap: widget.onTap == null
           ? null
           : () {
-              if (widget.haptic) HapticFeedback.lightImpact();
+              if (widget.haptic) {
+                AppHaptics.light();
+                AppSound.play(Sfx.tap, volume: .5);
+              }
               widget.onTap!();
             },
       child: AnimatedScale(

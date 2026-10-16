@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -24,17 +23,15 @@ class PhoneCodeResult {
   final bool signedIn;
 }
 
-/// The only class that talks to Firebase Auth, Google and Firestore.
+/// The only class that talks to Firebase Auth and Google sign in.
 /// BLoCs depend on this, never on Firebase directly.
 class AuthRepository {
-  AuthRepository({FirebaseAuth? auth, GoogleSignIn? google, FirebaseFirestore? firestore})
+  AuthRepository({FirebaseAuth? auth, GoogleSignIn? google})
       : _auth = auth ?? FirebaseAuth.instance,
-        _google = google ?? GoogleSignIn.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+        _google = google ?? GoogleSignIn.instance;
 
   final FirebaseAuth _auth;
   final GoogleSignIn _google;
-  final FirebaseFirestore _firestore;
 
   Future<void>? _googleReady;
 
@@ -121,6 +118,9 @@ class AuthRepository {
     return _guard(() => _auth.signInWithCredential(credential));
   }
 
+  /// Firebase ID token for the game server. Refreshed automatically when it expires.
+  Future<String?> idToken() async => _auth.currentUser?.getIdToken();
+
   // ---- Session ------------------------------------------------------------
 
   Future<void> signOut() async {
@@ -128,24 +128,6 @@ class AuthRepository {
       await _google.signOut();
     } catch (_) {}
     await _auth.signOut();
-  }
-
-  /// Saves the player's profile to `users/{uid}`. Safe to call on every
-  /// sign-in, and never throws: signing in must not depend on Firestore.
-  Future<void> syncProfile() async {
-    final u = _auth.currentUser;
-    if (u == null) return;
-    try {
-      final player = _toUser(u);
-      await _firestore.collection('users').doc(u.uid).set({
-        'displayName': player.displayName,
-        'email': u.email,
-        'photoUrl': u.photoURL,
-        'isAnonymous': u.isAnonymous,
-        'createdAt': u.metadata.creationTime,
-        'lastLoginAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true)).timeout(const Duration(seconds: 10));
-    } catch (_) {}
   }
 
   // ---- helpers ------------------------------------------------------------
