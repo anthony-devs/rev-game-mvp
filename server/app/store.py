@@ -212,6 +212,19 @@ class Store:
         """Documents directly inside a collection path. Not transactional."""
         raise NotImplementedError
 
+    def merge(self, path: str, data: Doc) -> None:
+        """Set only these fields (create the document if missing). Not transactional."""
+        raise NotImplementedError
+
+    def incr(self, path: str, deltas: dict) -> None:
+        """Add numbers to (possibly nested) counters, atomically and safely from many servers.
+        ``{"live": {"dice": {"bets": 3}}}`` adds 3 to ``live.dice.bets``."""
+        raise NotImplementedError
+
+    def count(self, collection: str, where: tuple | None = None) -> int:
+        """How many documents match ``(field, op, value)``. Billed as ONE read per 1,000 matches."""
+        raise NotImplementedError
+
     def watch_list(self, collection: str, limit: int = 200, order_by: str | None = None) -> "WatchedList":
         """A list that keeps itself current. Same rows as :meth:`list`, but on Firestore it is
         fed by a snapshot listener: billed once when it starts, then only for documents that
@@ -299,6 +312,45 @@ class MemoryStore(Store):
         with self._lock:
             d = self.docs.get(path)
             return copy.deepcopy(d) if d is not None else None
+
+    def merge(self, path, data):
+        with self._lock:
+            self.docs[path] = {**self.docs.get(path, {}), **copy.deepcopy(data)}
+
+    def incr(self, path, deltas):
+        def add(dst, src):
+            for k, v in src.items():
+                if isinstance(v, dict):
+                    add(dst.setdefault(k, {}), v)
+                else:
+                    dst[k] = dst.get(k, 0) + v
+
+        with self._lock:
+            doc = self.docs.setdefault(path, {})
+            add(doc, deltas)
+
+    def count(self, collection, where=None):
+        import operator
+
+        ops = {"==": operator.eq, ">=": operator.ge, ">": operator.gt, "<": operator.lt, "<=": operator.le, "!=": operator.ne}
+        prefix = collection.rstrip("/") + "/"
+        n = 0
+        with self._lock:
+            for path, doc in self.docs.items():
+                if not path.startswith(prefix) or "/" in path[len(prefix):]:
+                    continue
+                if where is not None:
+                    f, op, v = where
+                    cur = doc.get(f)
+                    if cur is None:
+                        continue
+                    try:
+                        if not ops[op](cur, v):
+                            continue
+                    except TypeError:
+                        continue
+                n += 1
+        return n
 
     def list(self, collection, limit=200, order_by=None):
         prefix = collection.rstrip("/") + "/"
@@ -406,6 +458,25 @@ class FirestoreStore(Store):
 
             q = q.order_by(order_by, direction=Query.DESCENDING)
         return [(snap.id, snap.to_dict()) for snap in q.limit(limit).stream()]
+
+    def merge(self, path, data):
+        self._db.document(path).set(data, merge=True)
+
+    def incr(self, path, deltas):
+        Increment = self._firestore.Increment
+
+        def conv(d):
+            return {k: (conv(v) if isinstance(v, dict) else Increment(v)) for k, v in d.items()}
+
+        self._db.document(path).set(conv(deltas), merge=True)
+
+    def count(self, collection, where=None):
+        from google.cloud.firestore_v1.base_query import FieldFilter
+
+        q = self._db.collection(collection)
+        if where is not None:
+            q = q.where(filter=FieldFilter(*where))
+        return int(q.count().get()[0][0].value)
 
     def watch_list(self, collection, limit=200, order_by=None):
         from google.cloud.firestore_v1 import Query

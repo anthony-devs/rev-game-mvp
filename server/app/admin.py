@@ -29,7 +29,7 @@ UI_DIR = Path(__file__).parent / "admin_ui"
 MAX_BULK = 200
 
 
-def make_admin(store: Store, standing: StandingService, cfg: Config, staff: StaffService, uploads: UploadService, live=None) -> Blueprint:
+def make_admin(store: Store, standing: StandingService, cfg: Config, staff: StaffService, uploads: UploadService, live=None, insights=None, messaging=None) -> Blueprint:
     bp = Blueprint("admin", __name__)
     session = staff.require("admin")
 
@@ -54,6 +54,7 @@ def make_admin(store: Store, standing: StandingService, cfg: Config, staff: Staf
     CACHE_SECONDS = 90  # 1.5 min; any staff action clears it sooner
     _cache: dict = {}
     users_watch = store.watch_list("users", 150, order_by="lastLoginAt")
+    bp.users_watch = users_watch
 
     def cached(key, ttl: float, build):
         now = time.monotonic()
@@ -98,6 +99,63 @@ def make_admin(store: Store, standing: StandingService, cfg: Config, staff: Staf
     @bp.get("/admin/payments")
     def payments_page():
         return html_page(Path(__file__).parent / "payments_ui" / "index.html")
+
+    @bp.get("/admin/insights")
+    def insights_page():
+        return html_page(Path(__file__).parent / "insights_ui" / "index.html")
+
+    if insights is not None:
+        @bp.get("/admin/api/insights/overview")
+        @guarded
+        def ins_overview():
+            return jsonify(cached("ins_overview", CACHE_SECONDS, insights.overview))
+
+        @bp.get("/admin/api/insights/profit")
+        @guarded
+        def ins_profit():
+            days = request.args.get("days", type=int) or 30
+            return jsonify(cached(("ins_profit", days), CACHE_SECONDS, lambda: insights.profit(days)))
+
+        @bp.get("/admin/api/insights/activity")
+        @guarded
+        def ins_activity():
+            return jsonify(cached("ins_activity", CACHE_SECONDS, lambda: {**insights.activity(), **insights.recent_players(users_watch.rows())}))
+
+        @bp.get("/admin/api/insights/crashes")
+        @guarded
+        def ins_crashes():
+            return jsonify({"crashes": insights.crashes(request.args.get("status", ""))[:100]})
+
+        @bp.post("/admin/api/insights/crashes/<fp>/status")
+        @guarded
+        def ins_crash_status(fp: str):
+            status = str(body().get("status") or "")
+            if status not in ("open", "resolved", "ignored"):
+                raise bad_request("bad_status", "Use open, resolved or ignored.")
+            insights.set_crash_status(fp, status, g.actor)
+            return jsonify({"ok": True})
+
+        @bp.get("/admin/api/insights/accounts/<uid>")
+        @guarded
+        def ins_account(uid: str):
+            return jsonify(cached(("ins_account", uid), CACHE_SECONDS, lambda: insights.account(uid)))
+
+    if messaging is not None:
+        @bp.post("/admin/api/email/count")
+        @guarded
+        def email_count():
+            return jsonify({"count": messaging.count(str(body().get("audience") or "")), "mode": messaging.mailer.mode})
+
+        @bp.post("/admin/api/email/send")
+        @guarded
+        def email_send():
+            d = body()
+            return jsonify(messaging.send(g.actor, str(d.get("audience") or ""), d.get("subject"), d.get("body"), str(d.get("key") or ""), str(d.get("confirm") or ""))), 202
+
+        @bp.get("/admin/api/email/campaigns")
+        @guarded
+        def email_campaigns():
+            return jsonify({"campaigns": messaging.recent(), "mode": messaging.mailer.mode})
 
     if live is not None:
         # ---- money: every payout is approved on its own, by name, with its reference typed in

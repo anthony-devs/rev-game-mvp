@@ -1,0 +1,4 @@
+[
+  {"name": "production", "url": "https://rev-games-server-xxxxx-ew.a.run.app", "secretEnv": "PROD_DEV_API_SECRET"},
+  {"name": "local",      "url": "http://127.0.0.1:8080",                         "secretEnv": "LOCAL_DEV_API_SECRET"}
+]

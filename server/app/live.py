@@ -60,6 +60,7 @@ def _iso(value) -> str | None:
 class LiveService:
     def __init__(self, store: Store, cfg: Config, providers: dict[str, Provider], standing: StandingService, clock: Clock = utcnow):
         self.store, self.cfg, self.providers, self.standing, self.clock = store, cfg, providers, standing, clock
+        self.on_money = None  # set by create_app: (kind, payment id, amount) for the profit tracker
         self._payments_watch = store.watch_list("payments", 300, order_by="createdAt")
 
     # ------------------------------------------------------------------ gates
@@ -282,6 +283,13 @@ class LiveService:
             return self.public(self._fail_deposit(uid, pid, by, "The provider reported the payment as failed."))
         return self.public(d)
 
+    def _money(self, kind: str, pid: str, amount: float) -> None:
+        if self.on_money is not None:
+            try:
+                self.on_money(kind, pid, amount)
+            except Exception:
+                pass
+
     def _credit(self, uid: str, pid: str, res: dict, by: str) -> Doc:
         def fn(txn: Txn):
             d = txn.get(user_payment_path(uid, pid))
@@ -301,6 +309,7 @@ class LiveService:
             txn.set(payment_ref_path(d["provider"], d["providerRef"]), {**ref, "credited": True})
             self._log(d, "succeeded", by, f"Credited. Balance {bal:g}.", now)
             self._write(txn, d)
+            self._money("deposit", d["id"], d["amount"])
             return d
 
         return self.store.run(fn)
@@ -492,6 +501,7 @@ class LiveService:
                 cur["providerRef"] = res["ref"]
             if status == "success":
                 self._log(cur, "paid", actor, f"Provider paid it ({cur['providerRef']}).", now)
+                self._money("payout", cur["id"], cur["amount"])
             elif status == "failed":
                 cur["failReason"] = res.get("reason") or "The provider could not send it."
                 self._log(cur, "failed", actor, cur["failReason"], now)
@@ -524,6 +534,7 @@ class LiveService:
             cur["reviewedBy"], cur["reviewNote"] = actor, reason[:300]
             self._log(cur, "rejected", actor, f"Rejected: {reason[:200]}. Funds returned.", now)
             self._write(txn, cur)
+            self._money("refund", cur["id"], cur["amount"])
             return cur
 
         return self.public(self.store.run(fn))

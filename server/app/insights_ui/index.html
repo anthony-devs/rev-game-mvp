@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>REV Games · Insights</title>
+<style>
+  :root{--bg:#0b0b0d;--panel:#141417;--panel2:#1b1b1f;--line:#2a2a30;--text:#f2f2f4;--dim:#9a9aa5;--green:#2ee59d;--red:#ff6b6d;--gold:#ffc83d;--blue:#5aa9ff}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  header{display:flex;gap:12px;align-items:center;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+  h1{font-size:16px;margin:0} h1 b{color:var(--gold)} h2{margin:0 0 8px;font-size:15px} h3{font-size:12px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin:16px 0 6px}
+  input,select,textarea,button{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+  button{cursor:pointer} button:disabled{opacity:.45;cursor:not-allowed}
+  button.primary{background:var(--green);color:#04170f;border-color:var(--green);font-weight:700}
+  button.small{padding:3px 9px;font-size:12px}
+  a{color:var(--blue);text-decoration:none}
+  .spacer{flex:1}
+  nav{display:flex;gap:6px;padding:12px 18px 0;flex-wrap:wrap;max-width:1300px;margin:0 auto}
+  nav button.on{background:var(--gold);color:#201700;border-color:var(--gold);font-weight:700}
+  main{padding:14px 18px;max-width:1300px;margin:0 auto}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+  .kv{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:12px;color:var(--dim)} .kv b{display:block;font-size:20px;color:var(--text);margin-top:2px}
+  .pos{color:var(--green)!important} .neg{color:var(--red)!important}
+  table{width:100%;border-collapse:collapse;font-size:13px} td,th{padding:6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top} th{color:var(--dim);font-weight:600;font-size:12px}
+  .s{color:var(--dim);font-size:12px}
+  .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid var(--line)}
+  .open{color:var(--red);border-color:var(--red)} .resolved{color:var(--green);border-color:var(--green)} .ignored{color:var(--dim)}
+  .warn{background:#2a2205;border:1px solid var(--gold);color:var(--gold);padding:8px 10px;border-radius:10px;margin-bottom:10px;font-size:12px}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:10px;display:none;z-index:9}
+  .toast.err{border-color:var(--red);color:var(--red)}
+  label{display:block;margin:10px 0 4px;color:var(--dim);font-size:12px}
+  pre{white-space:pre-wrap;word-break:break-word;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px;font-size:12px;max-height:220px;overflow:auto;margin:6px 0}
+  .row{padding:9px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;cursor:pointer;background:var(--panel2)}
+  svg text{fill:var(--dim);font-size:10px}
+</style>
+</head>
+<body>
+<header>
+  <h1>REV <b>Games</b> · Insights</h1>
+  <span class="spacer"></span>
+  <a href="/admin/payments">Payout desk</a><a href="/admin">← Moderation</a>
+</header>
+<nav id="tabs"></nav>
+<main id="view"><div class="s">Loading…</div></main>
+<div id="toast" class="toast"></div>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ss = k => { try { return sessionStorage.getItem(k) || ''; } catch { return ''; } };
+const TOKEN = ss('staffToken'), KEY = ss('adminKey');
+if (!TOKEN || !KEY) location.replace('/admin');
+let CUR = 'NGN';
+
+function toast(m, err) { const t = $('#toast'); t.textContent = m; t.className = 'toast' + (err ? ' err' : ''); t.style.display = 'block'; clearTimeout(toast.h); toast.h = setTimeout(() => t.style.display = 'none', 4500); }
+async function api(path, body) {
+  const res = await fetch(path, {method: body === undefined ? 'GET' : 'POST', headers: {'Authorization': 'Bearer ' + TOKEN, 'X-Admin-Key': KEY, 'Content-Type': 'application/json'}, body: body === undefined ? undefined : JSON.stringify(body)});
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) { if (res.status === 401) location.replace('/admin'); throw new Error(d.message || 'HTTP ' + res.status); }
+  return d;
+}
+const num = n => Number(n ?? 0).toLocaleString(undefined, {maximumFractionDigits: 2});
+const money = n => CUR + ' ' + num(n);
+const pct = n => n == null ? '—' : (n * 100).toFixed(1) + '%';
+const fmt = iso => iso ? new Date(iso).toLocaleString() : '—';
+const sign = n => n > 0 ? 'pos' : n < 0 ? 'neg' : '';
+const kv = (label, val, cls = '') => `<div class="kv">${esc(label)}<b class="${cls}">${val}</b></div>`;
+
+// ---- tiny bar chart (inline SVG, no libraries). Bars above the line are green, below are red.
+function bars(series, key, w = 760, h = 150) {
+  if (!series.length) return '';
+  const vals = series.map(r => r[key]), max = Math.max(1, ...vals.map(Math.abs)), mid = h / 2 + 4, bw = w / series.length;
+  return `<svg viewBox="0 0 ${w} ${h + 18}" width="100%" role="img" aria-label="${esc(key)} by day"><line x1="0" x2="${w}" y1="${mid}" y2="${mid}" stroke="#2a2a30"/>` +
+    series.map((r, i) => { const v = r[key], bh = Math.abs(v) / max * (h / 2 - 4), y = v >= 0 ? mid - bh : mid;
+      return `<rect x="${i * bw + 1}" y="${y}" width="${Math.max(1, bw - 2)}" height="${Math.max(bh, v ? 1 : 0)}" fill="${v >= 0 ? '#2ee59d' : '#ff6b6d'}"><title>${esc(r.day)}: ${num(v)}</title></rect>`; }).join('') +
+    `<text x="0" y="${h + 14}">${esc(series[0].day)}</text><text x="${w}" y="${h + 14}" text-anchor="end">${esc(series.at(-1).day)}</text></svg>`;
+}
+
+const TABS = {
+  overview: {label: 'Overview', run: async () => {
+    const d = await api('/admin/api/insights/overview'); CUR = d.currency; const a = d.activity;
+    return `<div class="grid">
+      ${kv('Live profit today', money(d.todayLiveGgr), sign(d.todayLiveGgr))}${kv('Live wagered today', money(d.todayLiveWagered))}
+      ${kv('Payouts waiting for you', d.pendingPayouts, d.pendingPayouts ? 'neg' : '')}${kv('Open crashes', d.openCrashes, d.openCrashes ? 'neg' : '')}
+      ${kv('Players', num(a.total))}${kv('Active today', num(a.active24h))}${kv('Active this week', num(a.active7d))}${kv('Inactive (' + a.activeDays + 'd+)', num(a.inactive))}</div>
+      <p class="s">${esc(a.note)}</p>`;
+  }},
+  profit: {label: 'Profit', run: async () => {
+    const days = +($('#range')?.value || 30), d = await api('/admin/api/insights/profit?days=' + days); CUR = d.currency; const L = d.live, M = d.money;
+    const games = Object.entries(L.games).map(([g, r]) => `<tr><td>${esc(g)}</td><td>${num(r.rounds)}</td><td>${money(r.wagered)}</td><td>${money(r.paid)}</td><td class="${sign(r.ggr)}">${money(r.ggr)}</td><td>${pct(r.rtp)}</td></tr>`).join('');
+    return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><select id="range">${[7, 14, 30, 60, 90].map(n => `<option ${n === days ? 'selected' : ''}>${n}</option>`).join('')}</select><span class="s">days</span></div>
+      <div class="grid">${kv('House profit (live)', money(L.ggr), sign(L.ggr))}${kv('Wagered (live)', money(L.wagered))}${kv('Paid back to players', money(L.paid))}${kv('Return to player', pct(L.rtp))}
+      ${kv('Deposits received', money(M.deposits))}${kv('Payouts sent', money(M.payouts))}${kv('Net cash', money(M.netCash), sign(M.netCash))}${kv('Refunded (rejected payouts)', money(M.refunds))}</div>
+      <div class="card" style="margin-top:14px"><h2>Live profit per day</h2>${bars(d.series, 'liveGgr')}</div>
+      <div class="card"><h2>Live profit by game</h2><table><tr><th>Game</th><th>Rounds</th><th>Wagered</th><th>Paid</th><th>Profit</th><th>RTP</th></tr>${games}</table></div>
+      <div class="card"><h2>Demo credits (not real money)</h2><div class="grid">${kv('Rounds', num(d.demo.rounds))}${kv('Credits wagered', num(d.demo.wagered))}${kv('Win rate', pct(d.demo.winRate))}${kv('Return to player', pct(d.demo.rtp))}</div></div>
+      <p class="s">${esc(d.note)}</p>`;
+  },
+    after: () => { $('#range').onchange = () => show('profit'); }},
+  payouts: {label: 'Payouts', run: async () => {
+    const d = await api('/admin/api/payments?kind=payout&status=pending_review'); CUR = d.currency;
+    return `<div class="card"><h2>Waiting for your approval (${d.payments.length})</h2>` + (d.mock ? '<div class="warn">Mock payments: no real money moves.</div>' : '') +
+      (d.payments.length ? `<table><tr><th>Player</th><th>Amount</th><th>Via</th><th>Requested</th></tr>${d.payments.map(p => `<tr><td>${esc(p.player)}</td><td>${money(p.amount)}</td><td>${esc(p.provider)}</td><td>${fmt(p.createdAt)}</td></tr>`).join('')}</table>` : '<div class="s">Nothing waiting.</div>') +
+      `<p><a href="/admin/payments">Open the payout desk</a>: every payout is approved there one at a time by typing its own reference.</p></div>`;
+  }},
+  accounts: {label: 'Accounts', run: async () => `<div class="card"><input id="q" placeholder="Search name, email or id" style="width:100%"><div id="hits" style="margin-top:10px"></div></div><div id="acct"></div>`,
+    after: () => { let h; $('#q').oninput = () => { clearTimeout(h); h = setTimeout(async () => {
+      const d = await api('/admin/api/users?q=' + encodeURIComponent($('#q').value));
+      $('#hits').innerHTML = d.users.slice(0, 12).map(u => `<div class="row" data-u="${esc(u.uid)}"><b>${esc(u.displayName || u.email || u.uid)}</b> <span class="s">${esc(u.email || '')} · ${esc(u.state)}</span></div>`).join('') || '<div class="s">No one found.</div>';
+      document.querySelectorAll('[data-u]').forEach(r => r.onclick = () => account(r.dataset.u)); }, 300); }; $('#q').oninput(); }},
+  activity: {label: 'Activity', run: async () => {
+    const d = await api('/admin/api/insights/activity'), list = rows => rows.map(r => `<tr><td>${esc(r.name || r.email || r.uid)}</td><td class="s">${fmt(r.lastSeenAt)}</td></tr>`).join('') || '<tr><td class="s">None</td></tr>';
+    return `<div class="grid">${kv('Players', num(d.total))}${kv('Active today', num(d.active24h))}${kv('Active this week', num(d.active7d))}${kv('Active ' + d.activeDays + ' days', num(d['active' + d.activeDays + 'd']))}${kv('Inactive', num(d.inactive))}${kv('Daily / monthly', d.stickiness == null ? '—' : pct(d.stickiness))}</div>
+      <div class="grid" style="margin-top:14px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))"><div class="card"><h2>Active (newest players)</h2><table>${list(d.active)}</table></div><div class="card"><h2>Gone quiet</h2><table>${list(d.quiet)}</table><p class="s">Email them from the Email tab.</p></div></div>
+      <p class="s">${esc(d.note)}</p>`;
+  }},
+  crashes: {label: 'Crashes', run: async () => {
+    const d = await api('/admin/api/insights/crashes');
+    return `<div class="card"><h2>Crash groups</h2><p class="s">The same bug is counted once with a total. Reported by the app and by the server.</p>` + (d.crashes.length ? d.crashes.map(c => `<div class="row" style="cursor:default"><div><span class="pill ${esc(c.status)}">${esc(c.status)}</span> <b>${esc(c.kind)}</b> · ${esc(c.source)} · ×${num(c.count)}</div><div class="s">${esc(c.message)}</div><div class="s">${esc(c.platform || '')} ${esc(c.appVersion || '')} ${esc(c.path || '')} · first ${fmt(c.firstSeenAt)} · last ${fmt(c.lastSeenAt)}</div><details><summary class="s">Stack</summary><pre>${esc(c.stack)}</pre></details>
+      <button class="small" data-c="${esc(c.id)}" data-s="resolved">Resolve</button> <button class="small" data-c="${esc(c.id)}" data-s="ignored">Ignore</button> <button class="small" data-c="${esc(c.id)}" data-s="open">Reopen</button></div>`).join('') : '<div class="s">No crashes reported. 🎉</div>') + '</div>';
+  },
+    after: () => document.querySelectorAll('[data-c]').forEach(b => b.onclick = async () => { try { await api(`/admin/api/insights/crashes/${b.dataset.c}/status`, {status: b.dataset.s}); show('crashes'); } catch (e) { toast(e.message, true); } })},
+  email: {label: 'Email', run: async () => {
+    const c = await api('/admin/api/email/campaigns');
+    return `<div class="card"><h2>New message</h2>${c.mode === 'mock' ? '<div class="warn">Mock mode: set SMTP_HOST on the server to really send. Nothing leaves the server now.</div>' : ''}
+      <label>To</label><select id="aud"><option value="all">Everyone</option><option value="active">Active players</option><option value="inactive">Inactive players</option><option value="user">One player…</option></select>
+      <input id="one" placeholder="player id or email" style="display:none;width:100%;margin-top:6px"><span class="s" id="cnt"></span>
+      <label>Subject</label><input id="sub" maxlength="150" style="width:100%"><label>Message (plain text, {name} becomes their first name)</label><textarea id="msg" rows="6" style="width:100%" maxlength="5000"></textarea>
+      <label>Type <b>SEND</b> to confirm</label><div style="display:flex;gap:8px"><input id="conf" autocomplete="off" style="width:120px"><button class="primary" id="go" disabled>Send</button></div></div>
+      <div class="card"><h2>Recent campaigns</h2><table><tr><th>When</th><th>To</th><th>Subject</th><th>Result</th></tr>${c.campaigns.map(x => `<tr><td>${fmt(x.createdAt)}</td><td>${esc(x.audience)}</td><td>${esc(x.subject)}<div class="s">${esc(x.preview)}</div></td><td>${esc(x.status)}${x.mode === 'mock' ? ' (mock)' : ''}<div class="s">${x.sent}/${x.total} sent${x.failed ? ', ' + x.failed + ' failed' : ''}${x.skipped ? ', ' + x.skipped + ' skipped' : ''}</div></td></tr>`).join('') || '<tr><td class="s" colspan="4">None yet.</td></tr>'}</table></div>`;
+  },
+    after: () => {
+    let key = crypto.randomUUID(); const aud = () => $('#aud').value === 'user' ? 'user:' + $('#one').value.trim() : $('#aud').value;
+    const check = () => $('#go').disabled = $('#conf').value !== 'SEND';
+    $('#aud').onchange = async () => { $('#one').style.display = $('#aud').value === 'user' ? '' : 'none'; if ($('#aud').value !== 'user') { try { $('#cnt').textContent = ' ≈ ' + num((await api('/admin/api/email/count', {audience: aud()})).count) + ' players'; } catch {} } else $('#cnt').textContent = ''; };
+    $('#aud').onchange(); $('#conf').oninput = check;
+    $('#go').onclick = async () => { $('#go').disabled = true; try { await api('/admin/api/email/send', {audience: aud(), subject: $('#sub').value, body: $('#msg').value, key, confirm: $('#conf').value}); key = crypto.randomUUID(); toast('Queued'); show('email'); } catch (e) { toast(e.message, true); check(); } };
+  }},
+};
+
+async function account(uid) {
+  const a = await api('/admin/api/insights/accounts/' + encodeURIComponent(uid)); CUR = a.money.currency;
+  $('#acct').innerHTML = `<div class="card"><h2>${esc(a.name || a.email || a.uid)} <span class="pill">${esc(a.state)}</span></h2><div class="s">${esc(a.email || 'no email')} · ${esc(a.uid)}${a.anonymous ? ' · guest' : ''}</div>
+    <div class="grid" style="margin-top:10px">${kv('Joined', fmt(a.createdAt))}${kv('Last sign-in', fmt(a.lastLoginAt))}${kv('Last seen', fmt(a.lastSeenAt))}${kv('Demo balance', num(a.demo.balance))}${kv('Live balance', money(a.live.balance))}${kv('Deposited', money(a.money.deposited))}${kv('Paid out', money(a.money.paidOut))}${kv('Payout pending', money(a.money.payoutPending))}${kv('House result on this player', money(a.money.netToHouse), sign(a.money.netToHouse))}${kv('Live rounds', num(a.live.totalRounds))}${kv('Demo rounds', num(a.demo.totalRounds))}${kv('Level (live / demo)', (a.live.level ?? '—') + ' / ' + (a.demo.level ?? '—'))}</div>
+    <h3>Timeline</h3><table>${a.timeline.map(e => `<tr><td class="s">${fmt(e.at)}</td><td>${esc(e.kind)}</td><td>${esc(e.text)}</td></tr>`).join('') || '<tr><td class="s">Nothing yet.</td></tr>'}</table>
+    <p class="s">To restrict or ban, use <a href="/admin">Moderation</a> and search this player.</p></div>`;
+}
+
+let cur = 'overview';
+async function show(t) {
+  cur = t; $('#tabs').innerHTML = Object.entries(TABS).map(([k, v]) => `<button data-t="${k}" class="${k === t ? 'on' : ''}">${v.label}</button>`).join('');
+  document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => show(b.dataset.t));
+  try { $('#view').innerHTML = await TABS[t].run(); if (TABS[t].after) TABS[t].after(); } catch (e) { $('#view').innerHTML = `<div class="card">${esc(e.message)}</div>`; }
+}
+show('overview');
+</script>
+</body>
+</html>

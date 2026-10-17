@@ -5,6 +5,7 @@ import 'app.dart';
 import 'components/core/app_sound.dart';
 import 'auth/data/auth_repository.dart';
 import 'core/api/api_client.dart';
+import 'core/telemetry/crash_reporter.dart';
 import 'firebase_options.dart';
 import 'theme/theme_cubit.dart';
 import 'user/data/user_repository.dart';
@@ -20,7 +21,9 @@ Future<void> main() async {
   await AppSound.init();
   final theme = await ThemeCubit.load();
   final auth = AuthRepository();
-  runApp(RevApp(themeCubit: theme, authRepository: auth, userRepository: UserRepository(), apiClient: ApiClient(tokenProvider: auth.idToken, tokenRefresher: () => auth.idToken(force: true))));
+  final api = ApiClient(tokenProvider: auth.idToken, tokenRefresher: () => auth.idToken(force: true));
+  CrashReporter.install(api);
+  runApp(RevApp(themeCubit: theme, authRepository: auth, userRepository: UserRepository(), apiClient: api));
 }
 
 class _StartupError extends StatelessWidget {

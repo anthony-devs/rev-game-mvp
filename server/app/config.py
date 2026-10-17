@@ -100,3 +100,18 @@ class Config:
     allow_mock_in_cloud: bool = os.environ.get("ALLOW_MOCK_PAYMENTS", "0") in ("1", "true", "yes")
     webhook_secret: str = os.environ.get("PAYMENT_WEBHOOK_SECRET", "dev-webhook-secret")
 
+
+    # Email (founder dashboard). No SMTP_HOST = mock mode: messages are logged, nothing is sent.
+    smtp_host: str = os.environ.get("SMTP_HOST", "")
+    smtp_port: int = int(_f("SMTP_PORT", 587))
+    smtp_user: str = os.environ.get("SMTP_USER", "")
+    smtp_password: str = os.environ.get("SMTP_PASSWORD", "")
+    mail_from: str = os.environ.get("MAIL_FROM", "REV Games <no-reply@example.com>")
+    campaign_max_recipients: int = int(_f("CAMPAIGN_MAX_RECIPIENTS", 1000))
+    active_days: int = int(_f("ACTIVE_DAYS", 30))  # "active" = seen in this many days
+
+    # Developer console link. Off unless DEV_API_SECRET is set (32+ characters). Requests must be
+    # signed with it, so the console is the only thing that can call /internal/dev/*.
+    dev_api_secret: str = os.environ.get("DEV_API_SECRET", "")
+    dev_allowed_ips: str = os.environ.get("DEV_ALLOWED_IPS", "")  # optional, comma separated
+    app_version: str = os.environ.get("APP_VERSION", "dev")

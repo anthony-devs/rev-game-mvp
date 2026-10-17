@@ -16,7 +16,14 @@ from flask import Flask, Response, g, jsonify, request, stream_with_context
 from .account import AccountService, firebase_account_deleter
 from .admin import make_admin
 from .catalog import CatalogService
+from .insights import Insights
 from .live import LiveService
+from .messaging import MessagingService, build_mailer
+from .metrics import Metrics
+from .migrations import Migrator
+from .system import SystemFlags
+from .devapi import make_devapi
+from . import rounds as rounds_module
 from .live_routes import make_live
 from .providers import build_providers
 from .auth import Verifier, firebase_verifier, require_auth
@@ -97,10 +104,21 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
     support = services.get("support") or SupportService(store, cfg, uploads)
     live = services.get("live") or LiveService(store, cfg, services.get("providers") or build_providers(store, cfg), standing)
     app.extensions["live"] = live
+    metrics = services.get("metrics") or Metrics(store, background=isinstance(store, FirestoreStore))
+    app.extensions["metrics"] = metrics
+    rounds_module.ROUND_HOOK = metrics.record_round
+    live.on_money = metrics.record_money
+    flags = services.get("flags") or SystemFlags(store)
+    app.extensions["flags"] = flags
+    messaging = services.get("messaging") or MessagingService(store, cfg, build_mailer(cfg))
+    insights = Insights(store, cfg, metrics, live, standing)
+    migrator = Migrator(store)
     app.config["MAX_CONTENT_LENGTH"] = int((cfg.upload_max_mb + 1) * 1024 * 1024)
     app.register_blueprint(make_staff(staff))
     app.register_blueprint(make_live(live))
-    app.register_blueprint(make_admin(store, standing, cfg, staff, uploads, live))
+    admin_bp = make_admin(store, standing, cfg, staff, uploads, live, insights=insights, messaging=messaging)
+    app.register_blueprint(admin_bp)
+    app.register_blueprint(make_devapi(store, cfg, metrics, flags, migrator, insights, {"live": live, "standing": standing, "campaigns": messaging.campaigns, "users_watch": getattr(admin_bp, "users_watch", None)}))
     app.register_blueprint(make_support_site(store, support, standing, uploads, staff))
     fair.replayers = {
         "slots": slots.replay,
@@ -117,9 +135,19 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
     def _start_timer():
         g._t0 = time.perf_counter()
 
+    @app.before_request
+    def _maintenance():
+        # The developer can pause new bets and deposits (all play, or only live money).
+        if request.method == "POST" and request.path.startswith("/v1/"):
+            msg = flags.blocks(request.method, request.path, request.headers.get("X-Play-Mode", "").lower() == "live")
+            if msg:
+                return jsonify({"error": "maintenance", "message": msg}), 503
+
     @app.after_request
     def _log_timing(resp):
         t0 = g.get("_t0")
+        if t0 is not None and not request.path.startswith("/internal/"):
+            metrics.observe(request.method, request.path, resp.status_code, (time.perf_counter() - t0) * 1000)
         if t0 is not None and not request.path.startswith(("/staff", "/admin/api", "/support/api")):
             ms = (time.perf_counter() - t0) * 1000
             level = logging.WARNING if ms >= cfg.slow_ms else logging.INFO
@@ -147,9 +175,13 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
     @app.errorhandler(Exception)
     def crash_guard(e: Exception):
         if type(e).__name__ in ("ResourceExhausted", "TooManyRequests"):  # Firestore quota / rate limit
+            metrics.record_error(e, request.path, "")
             app.logger.warning("database quota exceeded (resets daily on the free plan)")
             return jsonify({"error": "database_busy", "message": "The database quota is used up for now. Try again later."}), 503
         app.logger.exception("unhandled error")
+        import traceback
+
+        metrics.record_error(e, request.path, traceback.format_exc())
         return jsonify({"error": "server_error", "message": "Something went wrong."}), 500
 
     def body() -> dict:
@@ -178,6 +210,17 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
         return deco
 
     # ---- routes --------------------------------------------------------------
+
+    @app.post("/v1/telemetry/crash")
+    @require_auth
+    def telemetry_crash():
+        """The app reports a crash. Grouped by fingerprint; rate limited per player."""
+        d = body()
+        if not metrics.allow_crash_report(g.real_uid):
+            return jsonify({"ok": True, "dropped": True})
+        metrics.record_crash("client", str(d.get("kind") or "Error"), str(d.get("message") or ""), str(d.get("stack") or ""),
+                             {"platform": d.get("platform"), "appVersion": d.get("appVersion")})
+        return jsonify({"ok": True})
 
     @app.get("/healthz")
     def healthz():

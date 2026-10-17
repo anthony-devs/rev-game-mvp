@@ -190,3 +190,22 @@ gambling stakes, so Apple Pay / Google Pay are card-wallet payments settled thro
 **Before launch** you still need: a gambling licence for your market, KYC/age checks before
 the first payout, wagering requirements (to stop deposit-and-withdraw laundering), and daily
 payout limits. None of that is built yet.
+
+## Founder insights (`/admin/insights`)
+
+Profit tracker (live profit = wagered - paid; deposits, payouts, net cash; per game), account tracking
+(one player's balances, deposits, payouts, level, timeline), payouts waiting for approval, active / inactive
+players, crash groups (from the app and the server) and email to one player or an audience.
+
+It is built to be cheap on Firestore: rounds, money, crashes and "last seen" are counted in memory and written
+as atomic increments every 30 s (`stats_daily/<date>`, `crash_groups/<id>`, `users/<uid>.lastSeenAt`), and the
+active / inactive numbers are database-side counts. Opening the page reads a handful of documents.
+
+Run `python manage.py migrate` (dry run) then `python manage.py migrate --apply` once after deploying: it gives
+existing players a `lastSeenAt` so the activity numbers are right immediately.
+
+## Developer link (`/internal/dev/*`)
+
+Used only by the separate developer console (`../devconsole`). Off unless `DEV_API_SECRET` is set. Every call is
+HMAC-signed (method, path, time, nonce, body). It offers health numbers, recent errors, crash groups, a database
+read/write check, maintenance mode (pause new bets and deposits) and data migrations. It never returns secrets.

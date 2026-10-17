@@ -12,6 +12,10 @@ from .store import Doc, Txn
 from .util import money
 
 
+# Set by create_app: called for every settled round (the metrics collector counts it).
+ROUND_HOOK = None
+
+
 def xp_for_next(level: int) -> int:
     """XP needed to leave this level. Level 7 needs 2,000."""
     return 500 + 250 * (level - 1)
@@ -54,6 +58,11 @@ def record_round(
 ) -> Doc:
     """Writes the history entry and updates progress. Returns the new progress."""
     bet, payout = money(bet), money(payout)
+    if ROUND_HOOK is not None:
+        try:
+            ROUND_HOOK(uid, round_id, game, bet, payout)
+        except Exception:  # counting must never break a bet
+            pass
     txn.add_round(
         uid,
         round_id,

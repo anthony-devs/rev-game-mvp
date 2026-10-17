@@ -38,6 +38,9 @@ def require_auth(view):
         except Exception as e:
             current_app.logger.warning("token rejected on %s %s: %s", request.method, request.path, e)
             raise ApiError(401, "unauthenticated", "Your session expired. Sign in again.")
+        metrics = current_app.extensions.get("metrics")
+        if metrics is not None:
+            metrics.touch(g.uid)  # "last seen", written at most every few hours
         g.real_uid = g.uid  # who signed in; g.uid becomes the live record below in live mode
         if request.headers.get("X-Play-Mode", "").lower() == "live" and request.path.startswith(LIVE_PLAY_PREFIXES):
             live = current_app.extensions.get("live")
