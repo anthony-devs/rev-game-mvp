@@ -42,11 +42,19 @@ class LiveCubit extends Cubit<LiveState> {
       return status.enabled ? null : (status.message.isEmpty ? 'Live play is not available right now.' : status.message);
     } on ApiException catch (e) {
       emit(LiveState(status: state.status, payments: state.payments, error: e.message));
-      return e.isNetwork ? "Can't reach the game server." : e.message;
+      return e.message;
     } catch (_) {
       emit(LiveState(status: state.status, payments: state.payments, error: 'Something went wrong.'));
       return 'Something went wrong. Please try again.';
     }
+  }
+
+  /// Makes sure [LiveState.status] is loaded (the app may have been restarted while in live mode).
+  /// Returns `true` when it is.
+  Future<bool> ensureStatus() async {
+    if (state.status != null) return true;
+    await enter();
+    return state.status != null;
   }
 
   Future<void> refresh() async {

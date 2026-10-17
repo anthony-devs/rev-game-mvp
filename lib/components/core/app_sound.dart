@@ -115,6 +115,9 @@ class AppSound {
     stopMusic();
   }
 
+  /// Games that share another game's loop.
+  static const Map<String, String> _musicFile = {'plinko': 'dice'};
+
   static String? _track;
   static String? _playing;
   static Future<void> _chain = Future.value();
@@ -138,7 +141,7 @@ class AppSound {
     final m = _music ??= AudioPlayer();
     await m.setReleaseMode(ReleaseMode.loop);
     await m.setVolume(_musicVolume);
-    await m.play(AssetSource('sounds/music_$want.wav'), volume: _musicVolume);
+    await m.play(AssetSource('sounds/music_${_musicFile[want] ?? want}.wav'), volume: _musicVolume);
     _playing = want;
   }
 }

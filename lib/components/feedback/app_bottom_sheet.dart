@@ -52,10 +52,16 @@ class AppBottomSheet extends StatelessWidget {
                 decoration: BoxDecoration(color: AppColors.handle, borderRadius: BorderRadius.circular(2)),
               ),
             ),
-            if (title != null) ...[
-              const SizedBox(height: 16),
-              Text(title!, style: AppText.body(20, weight: FontWeight.w700)),
-            ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _CloseButton(onTap: () => _close(context)),
+                if (title != null) ...[
+                  const SizedBox(width: 14),
+                  Expanded(child: Text(title!, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.body(20, weight: FontWeight.w700))),
+                ],
+              ],
+            ),
             const SizedBox(height: 16),
             Flexible(child: SingleChildScrollView(child: child)),
           ],
@@ -63,4 +69,35 @@ class AppBottomSheet extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Closes this sheet, once. A second tap while the sheet is still sliding away must never pop the
+/// page underneath it (that left the app on a black screen).
+void _close(BuildContext context) {
+  final route = ModalRoute.of(context);
+  if (route == null || !route.isCurrent) return;
+  Navigator.of(context).pop();
+}
+
+/// Round close button at the top left of every sheet, so people don't have to know to swipe down.
+class _CloseButton extends StatelessWidget {
+  const _CloseButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        label: 'Close',
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(color: AppColors.surfaceRaised, shape: BoxShape.circle, border: Border.all(color: AppColors.line)),
+            child: Icon(Icons.close_rounded, size: 20, color: AppColors.text),
+          ),
+        ),
+      );
 }

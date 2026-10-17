@@ -7,6 +7,7 @@ import 'package:rev_game_mvp/components/components.dart';
 
 import '../core/api/api_client.dart';
 import '../games/game_support.dart';
+import '../rounds/rounds_sheet.dart';
 import '../model/model.dart';
 import '../user/bloc/profile_cubit.dart';
 import '../user/data/user_repository.dart';
@@ -152,7 +153,9 @@ class _CrashPageState extends State<CrashPage> with SingleTickerProviderStateMix
       if (started) _round--;
     });
     AppSound.play(Sfx.error);
-    if (failKind(error) == FailKind.noCredits) {
+    if (failKind(error) == FailKind.noRounds) {
+      showRoundsSheet(context);
+    } else if (failKind(error) == FailKind.noCredits) {
       showNoCredits(context, needed: _bet);
     } else {
       _showError(error);
@@ -237,7 +240,9 @@ class _CrashPageState extends State<CrashPage> with SingleTickerProviderStateMix
   // --------------------------- UI ---------------------------
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ContentWidth(maxWidth: 640, child: _page(context));
+
+  Widget _page(BuildContext context) {
     final running = _phase == RoundPhase.running;
     return Scaffold(
       backgroundColor: AppColors.bg,

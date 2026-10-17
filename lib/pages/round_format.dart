@@ -17,6 +17,8 @@ extension GameTypeX on GameType {
         return 'Dice';
       case GameType.crash:
         return 'Dash Crash';
+      case GameType.plinko:
+        return 'Plinko';
     }
   }
 
@@ -32,6 +34,8 @@ extension GameTypeX on GameType {
         return 'DI';
       case GameType.crash:
         return 'CR';
+      case GameType.plinko:
+        return 'PL';
     }
   }
 
@@ -47,6 +51,8 @@ extension GameTypeX on GameType {
         return Icons.casino_rounded;
       case GameType.crash:
         return Icons.show_chart_rounded;
+      case GameType.plinko:
+        return Icons.scatter_plot_rounded;
     }
   }
 
@@ -62,6 +68,8 @@ extension GameTypeX on GameType {
         return GameKind.dice;
       case GameType.crash:
         return GameKind.crash;
+      case GameType.plinko:
+        return GameKind.plinko;
     }
   }
 }

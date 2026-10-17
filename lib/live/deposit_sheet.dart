@@ -5,12 +5,26 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../components/components.dart';
 import '../core/api/api_client.dart';
+import '../games/game_support.dart' show showToast;
+import 'agreement_page.dart';
 import 'live_cubit.dart';
 import 'live_models.dart';
 import 'mock_gateway.dart';
+import 'method_list.dart';
 import 'payment_logo.dart';
 
-Future<void> showDepositSheet(BuildContext context) {
+Future<void> showDepositSheet(BuildContext context) async {
+  // The status may be missing (app restarted in live mode). Load it first so the sheet never hangs.
+  final cubit = context.read<LiveCubit>();
+  if (!await cubit.ensureStatus()) {
+    if (context.mounted) showToast(context, cubit.state.error ?? 'Could not load your payment options. Please try again in a moment.', error: true);
+    return;
+  }
+  if (!context.mounted) return;
+  if (cubit.state.status!.needsAgreement && !await showLiveAgreement(context)) return;
+  if (!context.mounted) return;
+  await cubit.refresh();
+  if (!context.mounted) return;
   return showAppBottomSheet<void>(context, title: 'Add money', child: const _DepositBody());
 }
 
@@ -29,7 +43,7 @@ class _DepositBody extends StatefulWidget {
 
 class _DepositBodyState extends State<_DepositBody> {
   final _amount = TextEditingController(text: '5000');
-  String? _provider;
+  String? _provider; // null = still choosing a method
 
   /// One key per attempt. Taps and retries of the same attempt reuse it, so the server
   /// can only ever create one payment for it. It changes only once the attempt has an answer.
@@ -113,7 +127,7 @@ class _DepositBodyState extends State<_DepositBody> {
       }
     } on ApiException catch (e) {
       // A dropped connection keeps the same key: trying again is safe and can't charge twice.
-      if (mounted) setState(() => _error = e.isNetwork ? 'No connection. Tap Pay again; you will not be charged twice.' : e.message);
+      if (mounted) setState(() => _error = e.isNetwork ? '${e.message} Tap Pay again; you will not be charged twice.' : e.message);
     } finally {
       cubit.refresh();
       if (mounted) setState(() => _busy = false);
@@ -123,9 +137,8 @@ class _DepositBodyState extends State<_DepositBody> {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LiveCubit>().state.status;
-    if (s == null) return const Padding(padding: EdgeInsets.all(30), child: Center(child: CircularProgressIndicator()));
+    if (s == null) return const Padding(padding: EdgeInsets.all(30), child: Center(child: AppLoader()));
     final providers = [for (final p in s.providers) if (p.deposit && _availableHere(p.id)) p];
-    final chosen = _provider ?? (providers.isEmpty ? null : providers.first.id);
 
     if (_done != null) {
       return Column(children: [
@@ -137,9 +150,10 @@ class _DepositBodyState extends State<_DepositBody> {
       ]);
     }
 
-    return PopScope(
-      canPop: !_busy, // can't close the sheet while a payment is being confirmed
-      child: Column(
+    final chosen = providers.where((p) => p.id == _provider).firstOrNull;
+    if (chosen == null) {
+      // Step 1: how do you want to pay?
+      return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -147,6 +161,32 @@ class _DepositBodyState extends State<_DepositBody> {
             InfoCard(message: 'Test mode: payments are simulated, no real money moves.', icon: Icons.science_outlined, color: AppColors.blue),
             const SizedBox(height: 14),
           ],
+          Text('Choose how to add money', style: AppText.body(14, color: AppColors.textMuted)),
+          const SizedBox(height: 12),
+          if (providers.isEmpty)
+            Text('No payment methods are available right now.', style: AppText.body(14, color: AppColors.textMuted))
+          else
+            MethodList(providers: providers, onPick: (p) => setState(() => _provider = p.id)),
+        ],
+      );
+    }
+
+    // Step 2: how much?
+    final quote = _value == null ? '' : chosen.payText(_value!);
+    return PopScope(
+      canPop: !_busy, // can't close the sheet while a payment is being confirmed
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(children: [
+            IconSquareButton(icon: Icons.chevron_left_rounded, semanticLabel: 'Back', size: 40, iconSize: 22, onPressed: _busy ? null : () => setState(() => _provider = null)),
+            const SizedBox(width: 12),
+            PaymentLogo(chosen.id, width: 52, height: 36),
+            const SizedBox(width: 10),
+            Expanded(child: Text(chosen.label, style: AppText.body(16, weight: FontWeight.w800))),
+          ]),
+          const SizedBox(height: 16),
           Text('AMOUNT (${s.currency})', style: AppText.label()),
           const SizedBox(height: 8),
           Wrap(spacing: 8, runSpacing: 8, children: [
@@ -163,10 +203,19 @@ class _DepositBodyState extends State<_DepositBody> {
             inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
             onChanged: (_) => setState(() => _error = null),
           ),
-          const SizedBox(height: 16),
-          Text('PAY WITH', style: AppText.label()),
-          const SizedBox(height: 8),
-          ProviderPicker(providers: providers, chosen: chosen, onChanged: _busy ? null : (id) => setState(() => _provider = id)),
+          const SizedBox(height: 12),
+          _Facts(rows: [
+            ('Minimum', PlayMode.money(s.minDeposit, decimals: 0)),
+            ('Maximum', PlayMode.money(s.maxDeposit, decimals: 0)),
+            if (chosen.eta.isNotEmpty) ('Time', chosen.eta),
+            if (chosen.fee.isNotEmpty) ('Fee', chosen.fee),
+            if (quote.isNotEmpty) ('You pay', '$quote  (1 ${chosen.payCurrency} = ${PlayMode.money(chosen.rate, decimals: 0)})'),
+            if (chosen.isCrypto) ('Network', chosen.network),
+          ]),
+          if (chosen.isCrypto) ...[
+            const SizedBox(height: 10),
+            Text('Send only ${chosen.payCurrency} on the ${chosen.network} network. Money sent on a different network is lost.', style: AppText.body(12, color: AppColors.loss, height: 1.4)),
+          ],
           if (_error != null) ...[
             const SizedBox(height: 14),
             Text(_error!, style: AppText.body(13, color: AppColors.loss, height: 1.4)),
@@ -176,7 +225,7 @@ class _DepositBodyState extends State<_DepositBody> {
             label: _busy ? _phase : 'Pay ${_value == null ? '' : PlayMode.money(_value!, decimals: 0)}',
             variant: AppButtonVariant.gold,
             loading: _busy,
-            onPressed: _busy || providers.isEmpty ? null : () => _pay(s, providers),
+            onPressed: _busy ? null : () => _pay(s, providers),
           ),
           if (_unfinished != null) ...[
             const SizedBox(height: 8),
@@ -184,6 +233,32 @@ class _DepositBodyState extends State<_DepositBody> {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// A small table of facts (limits, time, fee) under the amount.
+class _Facts extends StatelessWidget {
+  const _Facts({required this.rows});
+
+  final List<(String, String)> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(color: AppColors.surfaceAlt, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.line)),
+      child: Column(children: [
+        for (final r in rows)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(r.$1, style: AppText.body(12.5, color: AppColors.textDim)),
+              const SizedBox(width: 16),
+              Expanded(child: Text(r.$2, textAlign: TextAlign.right, style: AppText.body(12.5, weight: FontWeight.w600))),
+            ]),
+          ),
+      ]),
     );
   }
 }

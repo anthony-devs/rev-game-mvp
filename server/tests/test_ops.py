@@ -77,6 +77,34 @@ def test_profit_endpoint_totals_live_only_as_profit(c, store):
     assert d["money"]["netCash"] == 2000 and len(d["series"]) == 7
 
 
+def test_dashboard_has_windows_and_all_time(c, store):
+    m = c.application.extensions["metrics"]
+    m.record_round("L_alice", "a", "dice", 1000, 400)
+    m.record_round("L_bob", "b", "slots", 500, 0)
+    m.record_round("bob", "c", "dice", 999, 0)
+    m.record_money("deposit", "d1", 2000)
+    m.flush()
+    h = staff_headers(c)
+    d = c.get("/admin/api/insights/dashboard", headers=h).get_json()
+    w = d["windows"]
+    assert w["today"]["live"]["ggr"] == 1100 and w["today"]["live"]["rounds"] == 2 and w["today"]["demo"]["wagered"] == 999
+    assert w["all"]["live"]["wagered"] == 1500 and w["all"]["money"]["deposits"] == 2000
+    assert w["today"]["live"]["games"]["dice"]["rtp"] == 0.4
+    assert len(d["series"]) == 30 and d["players"]["total"] >= 0 and "p95" in d["health"]
+    assert c.get("/admin/api/insights/dashboard", headers=auth()).status_code == 401
+
+
+def test_all_time_adds_finished_days_once(c, store):
+    from datetime import timedelta
+    m = c.application.extensions["metrics"]
+    day = (m.clock() - timedelta(days=3)).strftime("%Y-%m-%d")
+    store.merge(f"stats_daily/{day}", {"live": {"dice": {"rounds": 4, "wagered": 400.0, "paid": 100.0, "wins": 1}}})
+    h = staff_headers(c)
+    first = c.get("/admin/api/insights/dashboard", headers=h).get_json()
+    assert first["windows"]["all"]["live"]["wagered"] == 400 and first["since"] == day
+    assert store.read("stats_total/closed")["through"]
+
+
 def test_insights_need_the_admin(c):
     assert c.get("/admin/api/insights/profit").status_code == 401
     assert c.get("/admin/api/insights/profit", headers=auth()).status_code == 401
@@ -180,6 +208,44 @@ def test_live_only_maintenance_leaves_demo_open(c):
     c.application.extensions["flags"].set_maintenance(True, "live", "Payments upgrade", "dev")
     assert c.post("/v1/dice/roll", json={"bet": 100, "target": 50, "mode": "under"}, headers=auth()).status_code == 200
     assert c.post("/v1/live/deposits", json={"provider": "paystack", "amount": 5000, "key": "k" * 10}, headers=auth()).status_code == 503
+
+
+def test_catalog_tells_the_app_when_it_is_paused(c):
+    assert c.get("/v1/games", headers=auth()).get_json()["maintenance"] is None
+    c.application.extensions["flags"].set_maintenance(True, "live", "Payments upgrade", "dev")
+    m = c.get("/v1/games", headers=auth()).get_json()["maintenance"]
+    assert m == {"message": "Payments upgrade", "scope": "live"}
+
+
+def test_status_works_without_login_and_without_the_database(c, store, monkeypatch):
+    flags = c.application.extensions["flags"]
+
+    def boom(*a, **k):
+        raise RuntimeError("429 Quota exceeded")
+
+    monkeypatch.setattr(store, "merge", boom)  # the database refuses writes
+    doc = flags.set_maintenance(True, "all", "Upgrading", "dev")
+    assert doc["shared"] is False  # saved on this server only, and the developer is told
+    r = c.get("/v1/status")  # no token
+    assert r.status_code == 200 and r.get_json()["maintenance"] == {"message": "Upgrading", "scope": "all"}
+    flags.set_maintenance(False, "all", "", "dev")
+    assert c.get("/v1/status").get_json()["maintenance"] is None
+
+
+def test_maintenance_survives_a_restart(store, tmp_path):
+    from app.system import SystemFlags
+
+    path = tmp_path / "maintenance.json"
+    SystemFlags(store, path=path).set_maintenance(True, "live", "Payments upgrade", "dev")
+    again = SystemFlags(store, path=path)
+    assert again.public() == {"message": "Payments upgrade", "scope": "live"}
+
+
+def test_status_reports_database_trouble(c):
+    m = c.application.extensions["metrics"]
+    assert c.get("/v1/status").get_json()["degraded"] is False
+    m.record_error(RuntimeError("429 Quota exceeded"), "/v1/games", "")
+    assert c.get("/v1/status").get_json()["degraded"] is True
 
 
 # ---------------------------------------------------------------- developer API

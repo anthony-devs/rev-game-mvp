@@ -9,6 +9,9 @@ import '../../pages/round_format.dart';
 import '../bloc/profile_cubit.dart';
 
 /// The player's profile. Sign out and Delete account live here and only here.
+// Set while the delete flow is open, so a second tap can't start it twice.
+bool _deleting = false;
+
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
@@ -140,8 +143,13 @@ class ProfilePage extends StatelessWidget {
   }
 
   Future<void> _delete(BuildContext context) async {
+    if (_deleting) return;
+    _deleting = true;
     final confirmed = await showAppDialog<bool>(context, const _DeleteDialog(), dismissible: true);
-    if (confirmed != true || !context.mounted) return;
+    if (confirmed != true || !context.mounted) {
+      _deleting = false;
+      return;
+    }
 
     final cubit = context.read<ProfileCubit>();
     final auth = context.read<AuthBloc>();
@@ -151,13 +159,14 @@ class ProfilePage extends StatelessWidget {
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.black.withValues(alpha: .8),
-      builder: (_) => PopScope(canPop: false, child: Center(child: CircularProgressIndicator(color: AppColors.gold))),
+      builder: (_) => PopScope(canPop: false, child: Center(child: AppLoader())),
     );
     try {
       await cubit.deleteAccount();
       nav.popUntil((r) => r.isFirst);
       auth.add(const AuthSignOutRequested());
     } catch (e) {
+      _deleting = false;
       nav.pop(); // the progress dialog
       if (context.mounted) showToast(context, ProfileCubit.errorText(e), error: true);
     }
@@ -240,13 +249,16 @@ class _RenameForm extends StatefulWidget {
 
 class _RenameFormState extends State<_RenameForm> {
   String? _error;
+  bool _saving = false;
 
   Future<void> _save() async {
+    if (_saving) return; // a double tap must not pop twice
     final error = AuthValidators.name(widget.controller.text);
     if (error != null) {
       setState(() => _error = error);
       return;
     }
+    _saving = true;
     Navigator.of(context).pop();
     try {
       await widget.cubit.rename(widget.controller.text);

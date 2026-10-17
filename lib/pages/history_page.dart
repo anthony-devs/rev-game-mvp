@@ -25,6 +25,7 @@ class _HistoryPageState extends State<HistoryPage> {
     'Roulette': GameType.roulette,
     'Blackjack': GameType.blackjack,
     'Dice': GameType.dice,
+    'Plinko': GameType.plinko,
     'Crash': GameType.crash,
   };
 

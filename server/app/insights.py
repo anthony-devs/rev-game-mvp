@@ -5,14 +5,14 @@ page costs a handful of reads, not a scan of every player.
 """
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
-from .metrics import Metrics
+from .metrics import Metrics, day_key
 from .standing import _iso
 from .store import Store, live_uid, wallet_path
 from .util import Clock, as_utc, money, utcnow
 
-GAMES = ("slots", "crash", "dice", "roulette", "blackjack")
+GAMES = ("slots", "crash", "dice", "plinko", "roulette", "blackjack")
 
 
 def _mode_totals(day: dict, mode: str) -> dict:
@@ -24,6 +24,41 @@ def _mode_totals(day: dict, mode: str) -> dict:
         for k in ("rounds", "wagered", "paid", "wins"):
             t[k] += row[k]
     return t
+
+
+def _add(dst: dict, src: dict) -> None:
+    """dst += src for nested dicts of numbers."""
+    for k, v in (src or {}).items():
+        if isinstance(v, dict):
+            _add(dst.setdefault(k, {}), v)
+        elif isinstance(v, (int, float)) and not isinstance(v, bool):
+            dst[k] = round(dst.get(k, 0) + v, 2)
+
+
+def _window(days: list[dict]) -> dict:
+    """Totals over some daily summaries: live and demo play, plus the money that moved."""
+    acc: dict = {}
+    for d in days:
+        _add(acc, {"live": d.get("live") or {}, "demo": d.get("demo") or {}, "money": d.get("money") or {}})
+    out = {}
+    for mode in ("live", "demo"):
+        t = _mode_totals(acc, mode)
+        t["ggr"] = money(t["wagered"] - t["paid"])
+        t["rtp"] = round(t["paid"] / t["wagered"], 4) if t["wagered"] else None
+        t["winRate"] = round(t["wins"] / t["rounds"], 4) if t["rounds"] else None
+        t["avgBet"] = money(t["wagered"] / t["rounds"]) if t["rounds"] else 0
+        t["hold"] = round(t["ggr"] / t["wagered"], 4) if t["wagered"] else None
+        for g in t["games"].values():
+            g["ggr"] = money(g["wagered"] - g["paid"])
+            g["rtp"] = round(g["paid"] / g["wagered"], 4) if g["wagered"] else None
+            g["winRate"] = round(g["wins"] / g["rounds"], 4) if g["rounds"] else None
+        t["wagered"], t["paid"] = money(t["wagered"]), money(t["paid"])
+        out[mode] = t
+    m = acc.get("money") or {}
+    out["money"] = {k: money(float(m.get(k, 0) or 0)) for k in ("deposits", "payouts", "refunds", "roundpacks")}
+    out["money"].update({k: int(m.get(k, 0) or 0) for k in ("deposit_count", "payout_count", "roundpack_count")})
+    out["money"]["netCash"] = money(out["money"]["deposits"] - out["money"]["payouts"])
+    return out
 
 
 class Insights:
@@ -163,4 +198,69 @@ class Insights:
             "activity": self.activity(),
             "todayLiveGgr": money(lv["wagered"] - lv["paid"]), "todayLiveWagered": money(lv["wagered"]),
             "pendingPayouts": pending, "openCrashes": open_crashes, "currency": self.cfg.live_currency,
+        }
+
+    # --------------------------------------------------------------- dashboard
+
+    ALLTIME_LOOKBACK = 180  # days read the very first time; after that only the new days
+
+    def _closed_days(self) -> dict:
+        """Totals of every finished day, kept in one small document and topped up with yesterday's numbers."""
+        now = self.clock().replace(hour=0, minute=0, second=0, microsecond=0)
+        doc = self.store.read("stats_total/closed") or {}
+        through = doc.get("through")
+        yesterday = now - timedelta(days=1)
+        if through:
+            start = as_utc(datetime.strptime(through, "%Y-%m-%d")) + timedelta(days=1)
+        else:
+            start = now - timedelta(days=self.ALLTIME_LOOKBACK)
+        start = max(start, now - timedelta(days=self.ALLTIME_LOOKBACK))
+        totals = {"live": doc.get("live") or {}, "demo": doc.get("demo") or {}, "money": doc.get("money") or {}}
+        first = doc.get("since")
+        day, new = start, False
+        while day <= yesterday:
+            key = day_key(day)
+            d = self.store.read(f"stats_daily/{key}")
+            if d:
+                _add(totals, {"live": d.get("live") or {}, "demo": d.get("demo") or {}, "money": d.get("money") or {}})
+                first = first or key
+            day += timedelta(days=1)
+            new = True
+        if new:
+            self.store.merge("stats_total/closed", {**totals, "through": day_key(yesterday), "since": first})
+        return {**totals, "since": first}
+
+    def dashboard(self) -> dict:
+        now = self.clock()
+        days = self.metrics.daily(30)  # oldest first, today last
+        today, yday = days[-1], days[-2]
+        closed = self._closed_days()
+        all_time = _window([{"live": closed["live"], "demo": closed["demo"], "money": closed["money"]}, today])
+        windows = {
+            "today": _window([today]), "yesterday": _window([yday]),
+            "week": _window(days[-7:]), "month": _window(days), "all": all_time,
+        }
+        series = []
+        for d in days:
+            lv, dm = _mode_totals(d, "live"), _mode_totals(d, "demo")
+            m = d.get("money") or {}
+            series.append({"day": d["day"], "ggr": money(lv["wagered"] - lv["paid"]), "wagered": money(lv["wagered"]), "paid": money(lv["paid"]),
+                           "rounds": int(lv["rounds"]), "demoRounds": int(dm["rounds"]),
+                           "deposits": money(m.get("deposits", 0) or 0), "payouts": money(m.get("payouts", 0) or 0)})
+        act = self.activity()
+        midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        new_today = self.store.count("users", ("createdAt", ">=", midnight))
+        new_week = self.store.count("users", ("createdAt", ">=", midnight - timedelta(days=6)))
+        pending = self.live.staff_list("payout", "pending_review", limit=100) if self.live is not None else []
+        crashes_open = sum(1 for _ in self.crashes("open"))
+        health = self.metrics.snapshot()
+        return {
+            "currency": self.cfg.live_currency, "asOf": _iso(now), "since": closed.get("since"),
+            "windows": windows, "series": series,
+            "players": {**act, "newToday": new_today, "newWeek": new_week},
+            "payouts": {"pending": len(pending), "pendingAmount": money(sum(float(p.get("amount") or 0) for p in pending))},
+            "health": {"requests": health["requests"], "errorRate": health["errorRate"], "p50": health["p50"], "p95": health["p95"],
+                       "uptimeSeconds": health["uptimeSeconds"], "quotaErrors": health["quotaErrors"], "flushFailures": health["flushFailures"],
+                       "openCrashes": crashes_open},
+            "note": "Live figures are real money. Demo credits are practice and are never counted as profit. Profit (GGR) = wagered minus paid back to players.",
         }

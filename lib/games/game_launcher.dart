@@ -7,11 +7,16 @@ import '../blackjack_game/blackjack_page.dart';
 import '../catalog/catalog_cubit.dart';
 import '../crash_game/crash_page.dart';
 import '../dice_game/dice_page.dart';
+import '../catalog/upcoming.dart';
+import '../pages/coming_soon_page.dart';
+import '../user/bloc/profile_cubit.dart';
+import '../plinko_game/plinko_page.dart';
 import '../model/model.dart';
 import '../pages/game_detail_page.dart';
 import '../pages/system_pages.dart';
 import '../roulette_game/roulette_page.dart';
 import '../session/session_guard.dart';
+import '../catalog/server_banner.dart';
 import '../slots_game/slots_page.dart';
 import 'game_support.dart';
 
@@ -19,7 +24,7 @@ import 'game_support.dart';
 /// coming soon, paused (maintenance), a break or limit in force.
 void openGame(BuildContext context, GameInfo game, {bool viaDetails = false}) {
   if (game.comingSoon) {
-    pushPage<void>(context, GameUnavailablePage(name: game.name, comingSoon: true));
+    pushPage<void>(context, ComingSoonPage(game: game));
     return;
   }
   if (!game.enabled) {
@@ -27,15 +32,15 @@ void openGame(BuildContext context, GameInfo game, {bool viaDetails = false}) {
     return;
   }
   final catalog = context.read<CatalogCubit>();
-  if (catalog.state.offline) {
+  if (catalog.state.locked) {
     unawaited(catalog.refresh());
     pushPage<void>(
       context,
       GameUnavailablePage(
         name: game.name,
-        title: 'Server unavailable',
-        icon: Icons.cloud_off_rounded,
-        message: '${catalog.state.message ?? "Can't reach the game server."} Your credits are safe. Try again in a moment.',
+        title: catalog.state.noticeTitle,
+        icon: catalog.state.noticeIcon,
+        message: catalog.state.noticeBody,
       ),
     );
     return;
@@ -44,6 +49,12 @@ void openGame(BuildContext context, GameInfo game, {bool viaDetails = false}) {
   if (reason != null) {
     pushPage<void>(context, BreakPage(reason: reason));
     return;
+  }
+  // A game the player was waiting for: opening it clears the NEW mark.
+  final profile = context.read<ProfileCubit>();
+  final slug = slugOf(game.id);
+  if (profile.state.settings.waitlist.contains(slug)) {
+    unawaited(profile.updateSettings(profile.state.settings.copyWith(waitlist: [for (final w in profile.state.settings.waitlist) if (w != slug) w])));
   }
   if (viaDetails) {
     pushPage<void>(context, GameDetailPage(game: game));
@@ -65,6 +76,8 @@ Widget gamePage(GameInfo game) {
       return BlackjackPage(info: game);
     case GameType.dice:
       return DicePage(info: game);
+    case GameType.plinko:
+      return PlinkoPage(info: game);
   }
 }
 

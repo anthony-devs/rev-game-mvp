@@ -428,6 +428,11 @@ class _FsTxn(Txn):
                 self._t.set(ref, data)
 
 
+# Fail fast instead of retrying for a minute when Firestore is throttling (out of quota) or slow:
+# a clear error in seconds beats a screen that hangs and gets clicked again.
+_FS_TIMEOUT = 10.0
+
+
 class FirestoreStore(Store):
     def __init__(self, db):
         from google.cloud import firestore
@@ -445,10 +450,10 @@ class FirestoreStore(Store):
             txn.flush()
             return result
 
-        return attempt(self._db.transaction())
+        return attempt(self._db.transaction(max_attempts=3))
 
     def read(self, path):
-        snap = self._db.document(path).get()
+        snap = self._db.document(path).get(timeout=_FS_TIMEOUT)
         return snap.to_dict() if snap.exists else None
 
     def list(self, collection, limit=200, order_by=None):
@@ -457,10 +462,10 @@ class FirestoreStore(Store):
             from google.cloud.firestore_v1 import Query
 
             q = q.order_by(order_by, direction=Query.DESCENDING)
-        return [(snap.id, snap.to_dict()) for snap in q.limit(limit).stream()]
+        return [(snap.id, snap.to_dict()) for snap in q.limit(limit).stream(timeout=_FS_TIMEOUT)]
 
     def merge(self, path, data):
-        self._db.document(path).set(data, merge=True)
+        self._db.document(path).set(data, merge=True, timeout=_FS_TIMEOUT)
 
     def incr(self, path, deltas):
         Increment = self._firestore.Increment
@@ -468,7 +473,7 @@ class FirestoreStore(Store):
         def conv(d):
             return {k: (conv(v) if isinstance(v, dict) else Increment(v)) for k, v in d.items()}
 
-        self._db.document(path).set(conv(deltas), merge=True)
+        self._db.document(path).set(conv(deltas), merge=True, timeout=_FS_TIMEOUT)
 
     def count(self, collection, where=None):
         from google.cloud.firestore_v1.base_query import FieldFilter

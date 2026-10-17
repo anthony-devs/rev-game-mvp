@@ -81,6 +81,19 @@ _Guide _guideFor(GameType t) {
         ],
         tip: 'A high win chance gives small, frequent wins. A low win chance gives big, rare ones.',
       );
+    case GameType.plinko:
+      return _Guide(
+        name: 'Plinko',
+        accent: AppColors.mint,
+        intro: 'Drop a ball through rows of pegs. It lands in a slot, and each slot pays a multiplier on your bet.',
+        steps: [
+          _Step(Icons.tune_rounded, 'Choose risk and rows', 'Low risk pays small, steady multipliers. High risk pays huge multipliers at the edges and little in the middle. More rows add slots and make the edges bigger.'),
+          _Step(Icons.paid_rounded, 'Set your bet', 'The highest bet allowed depends on the board you chose, because the biggest multiplier is capped by a payout limit.'),
+          _Step(Icons.arrow_downward_rounded, 'Drop the ball', 'Press DROP. The result is decided on the server first, then you watch the ball fall to its slot.'),
+          _Step(Icons.emoji_events_rounded, 'Get paid', 'You receive your bet times the multiplier of the slot where the ball lands. Under 1x returns part of your bet.'),
+        ],
+        tip: 'The middle slots are the most likely. Each drop is independent, and any round can be verified with the shield icon.',
+      );
     case GameType.crash:
       return _Guide(
         name: 'Dash Crash',

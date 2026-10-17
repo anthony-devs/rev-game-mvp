@@ -8,6 +8,7 @@ from __future__ import annotations
 import math
 import uuid
 
+from .allowance import spend, view as rounds_view
 from .config import Config
 from .errors import ApiError, bad_request
 from .fairness import FairnessService
@@ -67,6 +68,7 @@ class RouletteService:
             wallet = load_wallet(txn, uid, self.cfg, now)
             if wallet["balance"] < total:
                 raise ApiError(402, "insufficient_credits", "Not enough credits for these bets.")
+            wallet = spend(wallet, self.cfg, uid, now)
             rng, fair = self.fair.begin(txn, uid, now)
             number = spin_number(rng)
             results = []
@@ -74,11 +76,14 @@ class RouletteService:
             for b in bets:
                 won = wins(b, number)
                 pay = money(b["amount"] * RETURNS[b["type"]]) if won else 0.0
-                if won and not is_live(uid):  # demo: winnings (above the stake) pay extra
-                    pay = money(pay + (pay - b["amount"]) * self.cfg.demo_win_boost)
                 payout += pay
                 results.append({**b, "won": won, "payout": pay})
             payout = money(payout)
+            # Demo pays the round's profit extra; live can pay less. Judged on the whole round (not per bet),
+            # so covering the table can never turn a losing round into a profit.
+            boost = self.cfg.live_win_boost if is_live(uid) else self.cfg.demo_win_boost
+            if boost and payout > total:
+                payout = money(payout + (payout - total) * boost)
             after_bet = money(wallet["balance"] - total)
             balance = money(after_bet + payout)
             txn.set_wallet(uid, {**wallet, "balance": balance, "updatedAt": now})
@@ -111,6 +116,7 @@ class RouletteService:
                 "balanceAfterBet": after_bet,
                 "balance": balance,
                 "fairness": fair,
+                "rounds": rounds_view(wallet, self.cfg, uid, now),
             }
 
         return self.store.run(fn)
@@ -146,4 +152,12 @@ class RouletteService:
         total = sum(b["amount"] for b in out)
         if total > self.cfg.roulette_max_total:
             raise bad_request("invalid_bet", f"Total bet cannot be above {self.cfg.roulette_max_total:g}.")
+        # Worst case for the house: the number that pays the most. Many chips on a few numbers can
+        # stack up, so the table is limited by what it could pay, not only by what it costs.
+        worst = max(sum(b["amount"] * RETURNS[b["type"]] for b in out if wins(b, n)) for n in range(37))
+        if worst > self.cfg.roulette_max_payout:
+            raise bad_request(
+                "invalid_bet",
+                f"This table could pay more than the limit of {self.cfg.roulette_max_payout:,.0f} on one spin. Lower some of your bets.",
+            )
         return out

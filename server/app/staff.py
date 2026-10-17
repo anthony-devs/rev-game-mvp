@@ -285,6 +285,9 @@ class StaffService:
 
         def fn(txn: Txn):
             d = txn.get(f"staff/{username}")
+            if d is None or d.get("passwordHash") != doc["passwordHash"]:
+                # Two changes raced (a double click, two tabs): the first one wins, never both.
+                raise ApiError(409, "password_just_changed", "Your password was just changed. Sign in again with the new one.")
             d["passwordHash"] = hash_password(new)
             d["mustChange"] = False
             d["ver"] = int(d.get("ver", 1)) + 1

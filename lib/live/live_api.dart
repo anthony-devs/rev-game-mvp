@@ -28,18 +28,19 @@ class LiveApi {
     await _api.post('/v1/live/mock/pay', {'paymentId': id, 'outcome': success ? 'success' : 'fail'});
   }
 
+  /// [destination] depends on the method: bank (`bankName`, `accountName`, `accountNumber`),
+  /// crypto (`address`) or PayPal (`email`).
   Future<LivePayment> payout({
     required String provider,
     required double amount,
-    required String bankName,
-    required String accountName,
-    required String accountNumber,
+    required Map<String, String> destination,
     required String key,
   }) async =>
-      LivePayment.fromJson(await _api.post('/v1/live/payouts', {
-        'provider': provider,
-        'amount': amount,
-        'key': key,
-        'destination': {'bankName': bankName, 'accountName': accountName, 'accountNumber': accountNumber},
-      }));
+      LivePayment.fromJson(await _api.post('/v1/live/payouts', {'provider': provider, 'amount': amount, 'key': key, 'destination': destination}));
+
+  Future<LiveAgreement> agreement() async => LiveAgreement.fromJson(await _api.get('/v1/live/agreement'));
+
+  Future<void> acceptAgreement(String version, List<String> confirmed) async {
+    await _api.post('/v1/live/agreement', {'version': version, 'confirmed': confirmed});
+  }
 }

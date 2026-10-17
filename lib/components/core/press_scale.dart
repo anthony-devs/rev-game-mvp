@@ -11,6 +11,7 @@ class PressScale extends StatefulWidget {
     required this.onTap,
     this.scale = 0.97,
     this.haptic = false,
+    this.cooldown = Duration.zero,
   });
 
   final Widget child;
@@ -18,12 +19,17 @@ class PressScale extends StatefulWidget {
   final double scale;
   final bool haptic;
 
+  /// Taps that come sooner than this after the last accepted tap are ignored. Use it on buttons
+  /// that start something (a bet, a payment, a save) so a double tap or a slow response can't run it twice.
+  final Duration cooldown;
+
   @override
   State<PressScale> createState() => _PressScaleState();
 }
 
 class _PressScaleState extends State<PressScale> {
   bool _down = false;
+  DateTime? _lastTap;
 
   void _set(bool v) {
     if (widget.onTap == null) return;
@@ -32,7 +38,9 @@ class _PressScaleState extends State<PressScale> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return MouseRegion(
+      cursor: widget.onTap == null ? MouseCursor.defer : SystemMouseCursors.click,
+      child: GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTapDown: (_) => _set(true),
       onTapCancel: () => _set(false),
@@ -40,6 +48,12 @@ class _PressScaleState extends State<PressScale> {
       onTap: widget.onTap == null
           ? null
           : () {
+              if (widget.cooldown > Duration.zero) {
+                final now = DateTime.now();
+                final last = _lastTap;
+                if (last != null && now.difference(last) < widget.cooldown) return;
+                _lastTap = now;
+              }
               if (widget.haptic) {
                 AppHaptics.light();
                 AppSound.play(Sfx.tap, volume: .5);
@@ -51,6 +65,6 @@ class _PressScaleState extends State<PressScale> {
         duration: const Duration(milliseconds: 80),
         child: widget.child,
       ),
-    );
+    ));
   }
 }

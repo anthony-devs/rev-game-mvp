@@ -32,6 +32,8 @@ class GameDetailPage extends StatelessWidget {
         return 'Set your odds, roll under or over';
       case GameType.crash:
         return 'Cash out before the multiplier crashes';
+      case GameType.plinko:
+        return 'Drop the ball and hit a big multiplier';
     }
   }
 
@@ -45,6 +47,8 @@ class GameDetailPage extends StatelessWidget {
         return 'Get closer to 21 than the dealer without going over. Hit to take a card, Stand to hold, or Double to double your bet for one more card. The dealer stands on every 17.';
       case GameType.dice:
         return 'Pick a target and choose roll under or over. The lower your chance of winning, the higher the multiplier. The roll is a number from 0.00 to 99.99.';
+      case GameType.plinko:
+        return 'Choose your risk and the number of rows, then drop the ball. It bounces left or right at every peg and lands in a slot that pays its multiplier. Slots at the edges pay the most.';
       case GameType.crash:
         return 'The multiplier climbs from 1.00x. Cash out any time to win your bet times the multiplier, but if it crashes first the bet is lost.';
     }
@@ -62,11 +66,15 @@ class GameDetailPage extends StatelessWidget {
         return '×48.5';
       case GameType.crash:
         return '×5,000';
+      case GameType.plinko:
+        return '×400';
     }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ContentWidth(maxWidth: 720, child: _page(context));
+
+  Widget _page(BuildContext context) {
     final favs = context.select((ProfileCubit c) => c.state.settings.favourites);
     final settings = context.select((ProfileCubit c) => c.state.settings);
     final uid = context.select((ProfileCubit c) => c.state.dataId);
@@ -159,10 +167,10 @@ class GameDetailPage extends StatelessWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: AppButton(
-                          label: context.watch<CatalogCubit>().state.offline ? 'SERVER OFFLINE' : 'PLAY NOW',
+                          label: context.watch<CatalogCubit>().state.locked ? (context.watch<CatalogCubit>().state.paused ? 'MAINTENANCE' : 'UNAVAILABLE') : 'PLAY NOW',
                           variant: AppButtonVariant.success,
                           height: 64,
-                          onPressed: context.watch<CatalogCubit>().state.offline ? null : () {
+                          onPressed: context.watch<CatalogCubit>().state.locked ? null : () {
                             final nav = Navigator.of(context);
                             nav.pushReplacement(MaterialPageRoute<void>(builder: (_) => gamePage(game)));
                           },

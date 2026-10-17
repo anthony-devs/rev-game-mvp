@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../components/components.dart';
 import '../core/api/api_client.dart';
 import '../games/game_support.dart';
+import '../rounds/rounds_sheet.dart';
 import '../model/model.dart';
 import '../user/bloc/profile_cubit.dart';
 import '../user/data/user_repository.dart';
@@ -123,7 +124,9 @@ class _DicePageState extends State<DicePage> with GameSessionMixin<DicePage> {
         _rolling = false;
         _display = null;
       });
-      if (failKind(e) == FailKind.noCredits) {
+      if (failKind(e) == FailKind.noRounds) {
+      showRoundsSheet(context);
+    } else if (failKind(e) == FailKind.noCredits) {
         showNoCredits(context, needed: _bet);
       } else {
         showToast(context, failText(e), error: true);

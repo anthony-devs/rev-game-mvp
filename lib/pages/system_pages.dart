@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../components/components.dart';
+import '../core/api/api_client.dart';
 import '../session/session_guard.dart';
 import 'limits_page.dart';
 
@@ -22,8 +23,8 @@ class OfflinePage extends StatelessWidget {
           Expanded(
             child: StatusView(
               icon: Icons.wifi_off_rounded,
-              title: 'No connection',
-              message: message ?? 'Check your internet and try again. Your credits and progress are safe on the server.',
+              title: "You're offline",
+              message: message ?? 'Check your internet connection and try again. Your balance is safe.',
               actionLabel: onRetry == null ? null : 'Try again',
               onAction: onRetry,
             ),
@@ -36,19 +37,28 @@ class OfflinePage extends StatelessWidget {
 
 /// X1 inline. Use inside a page body instead of a whole screen.
 class OfflineView extends StatelessWidget {
-  const OfflineView({super.key, required this.onRetry, this.message});
+  const OfflineView({super.key, required this.onRetry, this.message, this.error});
 
   final VoidCallback onRetry;
   final String? message;
 
+  /// The failure being shown. A failure that is not "phone has no internet" reads as downtime.
+  final Object? error;
+
   @override
-  Widget build(BuildContext context) => StatusView(
-        icon: Icons.wifi_off_rounded,
-        title: 'No connection',
-        message: message ?? 'Check your internet and try again. Your credits are safe.',
-        actionLabel: 'Try again',
-        onAction: onRetry,
-      );
+  Widget build(BuildContext context) {
+    final down = error is ApiException && !(error as ApiException).isOffline;
+    return StatusView(
+      icon: down ? Icons.cloud_off_rounded : Icons.wifi_off_rounded,
+      title: down ? "We're experiencing downtime" : "You're offline",
+      message: message ??
+          (down
+              ? "Our service is temporarily unavailable. We're working to restore it. Your balance is safe."
+              : 'Check your internet connection and try again. Your balance is safe.'),
+      actionLabel: 'Try again',
+      onAction: onRetry,
+    );
+  }
 }
 
 /// X2. A game that is paused or not out yet.

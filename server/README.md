@@ -86,6 +86,9 @@ All routes need `Authorization: Bearer <Firebase ID token>` except `/healthz` an
 | `GET /v1/wallet`, `POST /v1/wallet/claim-daily`, `/top-up`, `/reset` | credits (daily streak: 1000, 1000, 1500, 2000, 2500, 3000, 10000) |
 | `POST /v1/slots/spin`, `/v1/crash/...` | slots and crash |
 | `POST /v1/dice/roll {bet,target,mode}` | dice, 3% edge |
+| `GET /v1/plinko/quote?rows=&risk=` | the slot multipliers for a board, for the wallet being played |
+| `POST /v1/plinko/drop {bet,rows,risk}` | plinko: 8 to 16 rows, low / medium / high risk, 96% live return (`PLINKO_HOUSE_EDGE`), one drop never pays more than `PLINKO_MAX_PAYOUT` |
+| `GET /v1/status` | public, no login, never touches the database: maintenance message and database trouble flag |
 | `POST /v1/roulette/spin {bets:[{type,value?,amount}]}` | European roulette |
 | `GET /v1/blackjack/active`, `POST /deal {bet}`, `POST /<id>/hit\|stand\|double` | blackjack, 3:2 |
 | `GET /v1/fairness`, `POST /v1/fairness/rotate`, `GET /v1/fairness/verify/<round>` | provably fair seeds |

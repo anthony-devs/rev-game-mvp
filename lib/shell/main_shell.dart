@@ -60,6 +60,7 @@ class _ShellViewState extends State<_ShellView> {
   @override
   Widget build(BuildContext context) {
     final tab = context.select((ShellCubit c) => c.state.tab);
+    final wide = context.isWide;
 
     return BlocListener<SessionGuard, SessionState>(
       listenWhen: (a, b) => a.alertSerial != b.alertSerial && b.alert != SessionAlert.none,
@@ -72,15 +73,28 @@ class _ShellViewState extends State<_ShellView> {
       },
       child: AppScaffold(
         glowColor: AppColors.purple,
-        bottomBar: AppTabBar(items: _tabs, currentIndex: tab, onTap: (i) => context.read<ShellCubit>().go(i)),
-        body: Column(
+        maxWidth: double.infinity, // the shell lays itself out (see below)
+        bottomBar: wide ? null : AppTabBar(items: _tabs, currentIndex: tab, onTap: (i) => context.read<ShellCubit>().go(i)),
+        body: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (tab != ShellTab.settings) const _Header() else const SizedBox(height: 8),
-            const StandingBanner(),
+            // iPad landscape, Mac and browser: tabs live in a side rail.
+            if (wide) _SideRail(items: _tabs, currentIndex: tab, onTap: (i) => context.read<ShellCubit>().go(i)),
             Expanded(
-              child: IndexedStack(
-                index: tab,
-                children: const [BrowsePage(), LobbyPage(), SlotsLobbyPage(), SettingsPage()],
+              child: ContentWidth(
+                maxWidth: wide ? 1120 : 900,
+                child: Column(
+                  children: [
+                    if (tab != ShellTab.settings) const _Header() else const SizedBox(height: 8),
+                    const StandingBanner(),
+                    Expanded(
+                      child: IndexedStack(
+                        index: tab,
+                        children: const [BrowsePage(), LobbyPage(), SlotsLobbyPage(), ContentWidth(maxWidth: 720, child: SettingsPage())],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -115,6 +129,63 @@ class _Header extends StatelessWidget {
       dropdown: true,
       onAdd: () => openAddFunds(context),
       action: const SupportButton(size: 42),
+    );
+  }
+}
+
+/// Vertical tab bar for wide screens.
+class _SideRail extends StatelessWidget {
+  const _SideRail({required this.items, required this.currentIndex, required this.onTap});
+
+  final List<AppTabItem> items;
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 96,
+      margin: const EdgeInsets.fromLTRB(12, 8, 0, 12),
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        children: [
+          Text('REV', style: AppText.heading(20, letterSpacing: -0.6)),
+          const SizedBox(height: 20),
+          for (var i = 0; i < items.length; i++)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+              child: Semantics(
+                button: true,
+                selected: i == currentIndex,
+                label: items[i].label,
+                child: PressScale(
+                  onTap: () => onTap(i),
+                  scale: .95,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: i == currentIndex ? AppColors.text.withValues(alpha: .08) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(i == currentIndex ? (items[i].activeIcon ?? items[i].icon) : items[i].icon, size: 24, color: i == currentIndex ? AppColors.text : AppColors.textDim),
+                        const SizedBox(height: 6),
+                        Text(items[i].label, style: AppText.body(11, weight: FontWeight.w600, color: i == currentIndex ? AppColors.text : AppColors.textDim, height: 1)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

@@ -9,6 +9,27 @@ from pathlib import Path
 BASE = Path(__file__).resolve().parents[1]
 
 
+def load_env_files() -> None:
+    """Read .env.local then .env next to manage.py. Real environment variables always win; no $-expansion."""
+    for name in (".env.local", ".env"):
+        f = BASE / name
+        if not f.is_file():
+            continue
+        for line in f.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            k, v = k.strip(), v.strip()
+            if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+                v = v[1:-1]
+            if k and k not in os.environ:
+                os.environ[k] = v
+
+
+load_env_files()
+
+
 def _bool(name: str, default: bool) -> bool:
     v = os.environ.get(name)
     return default if v is None else v.lower() in ("1", "true", "yes")

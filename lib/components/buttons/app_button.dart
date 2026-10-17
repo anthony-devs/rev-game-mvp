@@ -73,18 +73,13 @@ class AppButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = _style();
-    final fg = _disabled && variant != AppButtonVariant.outline && variant != AppButtonVariant.ghost
+    final off = onPressed == null && !loading; // a working (loading) button keeps its colours and label, just a little softer
+    final fg = off && variant != AppButtonVariant.outline && variant != AppButtonVariant.ghost
         ? AppColors.textDim
         : s.fg;
 
     Widget content;
-    if (loading) {
-      content = SizedBox(
-        width: 22,
-        height: 22,
-        child: CircularProgressIndicator(strokeWidth: 2.4, color: fg),
-      );
-    } else if (sublabel != null) {
+    if (sublabel != null) {
       content = Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -117,10 +112,10 @@ class AppButton extends StatelessWidget {
       padding: expanded ? null : const EdgeInsets.symmetric(horizontal: 22),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: _disabled && s.bg != Colors.transparent ? AppColors.handle.withValues(alpha: .55) : s.bg,
+        color: off && s.bg != Colors.transparent ? AppColors.handle.withValues(alpha: .55) : s.bg,
         borderRadius: BorderRadius.circular(radius),
         border: s.border == null ? null : Border.all(color: s.border!),
-        boxShadow: _disabled ? null : s.shadows,
+        boxShadow: off ? null : s.shadows,
       ),
       child: content,
     );
@@ -129,7 +124,12 @@ class AppButton extends StatelessWidget {
       button: true,
       enabled: !_disabled,
       label: label,
-      child: PressScale(onTap: _disabled ? null : onPressed, haptic: haptic, child: box),
+      child: PressScale(
+        onTap: _disabled ? null : onPressed,
+        haptic: haptic,
+        cooldown: const Duration(milliseconds: 700),
+        child: AnimatedOpacity(opacity: loading ? .65 : 1, duration: const Duration(milliseconds: 120), child: box),
+      ),
     );
   }
 

@@ -8,6 +8,7 @@ import '../model/model.dart';
 import '../pages/fairness_page.dart';
 import '../pages/get_credits_sheet.dart';
 import '../pages/how_to_play_page.dart';
+import '../rounds/rounds_sheet.dart';
 import '../session/session_guard.dart';
 import '../user/bloc/profile_cubit.dart';
 
@@ -93,17 +94,25 @@ void showToast(BuildContext context, String message, {bool error = false}) {
 }
 
 /// What went wrong with a server call, in plain words.
-enum FailKind { network, noCredits, other }
+enum FailKind { network, down, noCredits, noRounds, other }
 
 FailKind failKind(Object e) {
   if (e is ApiException) {
-    if (e.isNetwork) return FailKind.network;
+    if (e.isOffline) return FailKind.network;
+    if (e.isNetwork || e.isServerDown) return FailKind.down;
     if (e.code == 'insufficient_credits') return FailKind.noCredits;
+    if (e.code == 'no_rounds') return FailKind.noRounds;
   }
   return FailKind.other;
 }
 
-String failText(Object e) => e is ApiException ? e.message : 'Something went wrong. Please try again.';
+String failText(Object e) {
+  if (e is ApiException) {
+    if (e.code == 'agreement_required') return 'We updated the Live Money Agreement. Switch to Demo and back to Live to read and accept it.';
+    return e.message;
+  }
+  return 'Something went wrong. Please try again.';
+}
 
 /// Shared behaviour of every game screen. Mix into the page's `State`:
 ///

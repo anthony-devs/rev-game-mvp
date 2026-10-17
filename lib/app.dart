@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'live/live_api.dart';
 import 'live/live_cubit.dart';
@@ -80,9 +81,17 @@ class _RevAppState extends State<RevApp> {
               title: 'REV GAMES',
               debugShowCheckedModeBanner: false,
               theme: buildAppTheme(),
+              // Mouse and trackpad can drag lists (Mac, browser), like a finger does.
+              scrollBehavior: const MaterialScrollBehavior().copyWith(
+                dragDevices: {PointerDeviceKind.touch, PointerDeviceKind.mouse, PointerDeviceKind.trackpad, PointerDeviceKind.stylus},
+              ),
               builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
                 value: theme.light ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light,
-                child: child ?? const SizedBox.shrink(),
+                // On very wide screens the app stops growing and sits in the middle.
+                child: ColoredBox(
+                  color: AppColors.bg,
+                  child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: Breakpoints.app), child: child ?? const SizedBox.shrink())),
+                ),
               ),
               home: const AuthGate(),
             ),

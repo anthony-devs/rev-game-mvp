@@ -1,4 +1,41 @@
 'use strict';
+/* Click guard: a button that starts a change is locked until the answer is back plus a short cool-off,
+   and an identical change sent twice while the first is still running is sent only once. */
+(function () {
+  if (window.__clickGuard) return;
+  window.__clickGuard = true;
+  var COOL = 1000, WINDOW = 4000, inflight = {}, lastBtn = null, lastClick = 0, realFetch = window.fetch.bind(window);
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('button, [role=button], input[type=submit]') : null;
+    if (!b) return;
+    if (b.getAttribute('data-guard') === '1') { e.preventDefault(); e.stopImmediatePropagation(); return; }
+    lastBtn = b; lastClick = Date.now();
+  }, true);
+  function lock(b) {
+    if (!b || !b.isConnected || b.getAttribute('data-guard') === '1') return;
+    b.setAttribute('data-guard', '1'); b._wasDisabled = b.disabled; b.disabled = true;
+    b.setAttribute('aria-busy', 'true'); b.style.opacity = '.6'; b.style.cursor = 'progress';
+  }
+  function unlock(b) {
+    if (!b || b.getAttribute('data-guard') !== '1') return;
+    b.removeAttribute('data-guard'); b.disabled = !!b._wasDisabled; b.removeAttribute('aria-busy'); b.style.opacity = ''; b.style.cursor = '';
+  }
+  window.fetch = function (input, init) {
+    init = init || {};
+    var method = String(init.method || (input && input.method) || 'GET').toUpperCase();
+    if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return realFetch(input, init);
+    var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+    var key = typeof init.body === 'string' || init.body == null ? method + ' ' + url + ' ' + (init.body || '') : null;
+    if (key && inflight[key]) return inflight[key].then(function (r) { return r.clone(); }); // same change already running: share its answer
+    var btn = Date.now() - lastClick < WINDOW ? lastBtn : null;
+    lock(btn);
+    var p = realFetch(input, init), master = null;
+    if (key) { master = p.then(function (r) { return r.clone(); }); master.catch(function () {}); inflight[key] = master; }
+    var done = function () { setTimeout(function () { if (key && inflight[key] === master) delete inflight[key]; unlock(btn); }, COOL); };
+    p.then(done, done);
+    return p;
+  };
+})();
 // Builds the page with DOM calls (never innerHTML), so nothing a server sends can run as markup.
 const $root = document.getElementById('root');
 let CSRF = '', TARGETS = [], target = '', tab = 'overview', polling = null;
@@ -115,7 +152,7 @@ VIEWS.errors = async view => {
 VIEWS.controls = async view => {
   const code = () => h('input', {class: 'w140', placeholder: 'NEW 6-digit code', inputmode: 'numeric', maxlength: '7', autocomplete: 'off'});
   const mc = code(), mscope = h('select', {}, h('option', {value: 'all'}, 'All new bets and deposits'), h('option', {value: 'live'}, 'Live money only')), mmsg = h('input', {class: 'w100', placeholder: 'Message players will see', maxlength: '200', value: "We're making things better. Back shortly."}), mconf = h('input', {class: 'w140', placeholder: 'type PAUSE', autocomplete: 'off'});
-  const send = async (on, btn) => { btn.disabled = true; try { const d = await api(`/api/targets/${target}/maintenance`, {on, scope: mscope.value, message: mmsg.value, confirm: on ? mconf.value : 'RESUME', totp: mc.value}); toast(d.on ? 'Maintenance is ON' : 'Maintenance is OFF'); } catch (e) { toast(e.message, true); } btn.disabled = false; mc.value = ''; };
+  const send = async (on, btn) => { btn.disabled = true; try { const d = await api(`/api/targets/${target}/maintenance`, {on, scope: mscope.value, message: mmsg.value, confirm: on ? mconf.value : 'RESUME', totp: mc.value}); toast((d.on ? 'Maintenance is ON' : 'Maintenance is OFF') + (d.shared === false ? ' (this server only: the database is unreachable, other servers update when it is back)' : '')); } catch (e) { toast(e.message, true); } btn.disabled = false; mc.value = ''; };
   const b1 = h('button', {class: 'danger', onclick: () => send(true, b1)}, 'Pause'), b2 = h('button', {onclick: () => send(false, b2)}, 'Resume');
   const mig = h('div'), gc = code(), gconf = h('input', {class: 'w140', placeholder: 'type MIGRATE', autocomplete: 'off'});
   const drawMig = async () => { const d = await api(`/api/targets/${target}/migrations`).catch(e => ({migrations: [], error: e.message})); mig.replaceChildren(d.error ? h('div', {class: 'err'}, d.error) : null, h('table', {}, d.migrations.map(m => h('tr', {}, h('td', {}, pill(m.applied ? 'ok' : 'warning', m.applied ? 'APPLIED' : 'PENDING')), h('td', {}, h('b', {}, m.id), h('div', {class: 's'}, m.description)), h('td', {class: 's'}, m.applied ? `${m.appliedAt || ''} by ${m.by || '?'} ${JSON.stringify(m.result || {})}` : ''))))); };

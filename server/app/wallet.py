@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+from . import allowance
 from .config import Config
 from .errors import ApiError
 from .rounds import load_progress
@@ -25,12 +26,13 @@ def load_wallet(txn: Txn, uid: str, cfg: Config, now) -> Doc:
 class WalletService:
     def __init__(self, store: Store, cfg: Config, clock: Clock = utcnow):
         self.store, self.cfg, self.clock = store, cfg, clock
+        self.on_money = None  # set by the app: records round-pack revenue for the dashboard
 
     def get(self, uid: str) -> dict:
         # Fast path: one plain read. Only a brand-new player needs the transaction that creates the wallet.
         doc = self.store.read(wallet_path(uid))
         if doc is not None:
-            return self._public(doc)
+            return self._public(doc, uid)
 
         def fn(txn: Txn):
             now = self.clock()
@@ -40,7 +42,7 @@ class WalletService:
                 txn.set_wallet(uid, w)
             return w
 
-        return self._public(self.store.run(fn))
+        return self._public(self.store.run(fn), uid)
 
     def claim_daily(self, uid: str) -> dict:
         """One reward per 24h. Claim within 48h of the last one and the streak grows."""
@@ -66,6 +68,7 @@ class WalletService:
             reward = rewards[(streak - 1) % len(rewards)]
 
             w = {
+                **w,
                 "balance": money(w["balance"] + reward),
                 "lastDailyClaimAt": now,
                 "updatedAt": now,
@@ -76,7 +79,7 @@ class WalletService:
             return w, reward, streak
 
         w, reward, streak = self.store.run(fn)
-        out = self._public(w)
+        out = self._public(w, uid)
         out["claimed"] = reward
         out["streakDays"] = streak
         return out
@@ -95,7 +98,7 @@ class WalletService:
                 txn.set_wallet(uid, w)
             return w
 
-        return self._public(self.store.run(fn))
+        return self._public(self.store.run(fn), uid)
 
     def reset(self, uid: str) -> dict:
         """Back to the starting balance (up or down). History and level stay."""
@@ -107,12 +110,34 @@ class WalletService:
             txn.set_wallet(uid, w)
             return w
 
-        return self._public(self.store.run(fn))
+        return self._public(self.store.run(fn), uid)
 
-    @staticmethod
-    def _public(w: Doc) -> dict:
+    def buy_rounds(self, uid: str, size, key=None) -> dict:
+        """Buy a pack of extra rounds with the wallet balance (credits in demo, money in live)."""
+        if isinstance(size, bool) or not isinstance(size, int):
+            raise ApiError(400, "bad_pack", "Choose one of the round packs shown.")
+        key = str(key)[:64] if key else None
+
+        def fn(txn: Txn):
+            now = self.clock()
+            w = load_wallet(txn, uid, self.cfg, now)
+            w, cost = allowance.buy(w, self.cfg, uid, now, size, key)
+            if cost:
+                txn.set_wallet(uid, w)
+            return w, cost
+
+        w, cost = self.store.run(fn)
+        if cost and is_live(uid) and self.on_money is not None:
+            self.on_money("roundpack", key or f"{uid}:{w.get('rExtra')}:{w.get('balance')}", cost)
+        out = self._public(w, uid)
+        out["bought"] = size if cost else 0
+        out["charged"] = cost
+        return out
+
+    def _public(self, w: Doc, uid: str = "") -> dict:
         last = _as_utc(w.get("lastDailyClaimAt"))
         return {
             "balance": money(w["balance"]),
             "lastDailyClaimAt": last.isoformat() if last else None,
+            "rounds": allowance.view(w, self.cfg, uid, self.clock()),
         }

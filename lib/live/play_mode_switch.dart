@@ -4,13 +4,26 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../components/components.dart';
 import '../games/game_support.dart';
 import '../user/bloc/profile_cubit.dart';
+import 'agreement_page.dart';
 import 'live_cubit.dart';
 
 bool _understood = false;
 
 /// Moves the whole app to live money or demo credits. Going live asks the player to confirm
 /// once and checks with the server that live play is open for them. Returns true if it switched.
+bool _switching = false;
+
 Future<bool> requestPlayMode(BuildContext context, bool live) async {
+  if (_switching) return false; // a second tap while the first is still working
+  _switching = true;
+  try {
+    return await _requestPlayMode(context, live);
+  } finally {
+    _switching = false;
+  }
+}
+
+Future<bool> _requestPlayMode(BuildContext context, bool live) async {
   final profile = context.read<ProfileCubit>();
   final cubit = context.read<LiveCubit>();
   if (profile.state.live == live) return true;
@@ -18,17 +31,23 @@ Future<bool> requestPlayMode(BuildContext context, bool live) async {
     profile.setLive(false);
     return true;
   }
-  if (!_understood) {
-    final ok = await showAppBottomSheet<bool>(context, title: 'Play with real money?', child: const _Intro());
-    if (ok != true || !context.mounted) return false;
-  }
+  // Load the live status first: it says whether live play is open and whether this player still has to
+  // accept the Live Money Agreement.
   final err = await cubit.enter();
   if (!context.mounted) return false;
   if (err != null) {
     showToast(context, err, error: true);
     return false;
   }
-  _understood = true;
+  final status = cubit.state.status;
+  if (status != null && status.needsAgreement) {
+    if (!await showLiveAgreement(context) || !context.mounted) return false;
+    await cubit.refresh();
+  } else if (!_understood && !(status?.agreementRequired ?? false)) {
+    final ok = await showAppBottomSheet<bool>(context, title: 'Play with real money?', child: const _Intro());
+    if (ok != true || !context.mounted) return false;
+    _understood = true;
+  }
   profile.setLive(true);
   return true;
 }
@@ -46,7 +65,7 @@ class _Intro extends StatelessWidget {
           style: AppText.body(14, color: AppColors.textMuted, height: 1.5),
         ),
         const SizedBox(height: 12),
-        for (final t in const ['You must be 18 or older.', 'Only play with money you can afford to lose.', 'Every payout is checked by our team before it is sent.', 'You can set limits any time in Settings.'])
+        for (final t in const ['You must be 18 or older.', 'Only play with money you can afford to lose.', 'Every payout is checked by our team before it is sent.', 'Playing uses rounds: you get free rounds that refresh over time, and can buy extra rounds.', 'You can set limits any time in Settings.'])
           Padding(
             padding: const EdgeInsets.only(bottom: 6),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [

@@ -16,6 +16,7 @@ const Map<String, String> _assets = {
 const Map<String, (String, Color)> _wordmarks = {
   'paystack': ('paystack', Color(0xFF00C3F7)),
   'flutterwave': ('flutterwave', Color(0xFFFB9129)),
+  'paypal': ('PayPal', Color(0xFF003087)),
 };
 
 const Map<String, String> _subtitles = {
@@ -38,7 +39,18 @@ class PaymentLogo extends StatelessWidget {
     final asset = _assets[id];
     final word = _wordmarks[id];
     Widget child;
-    if (asset != null) {
+    if (id.startsWith('usdt')) {
+      // Tether's green coin. The network (TRC20, BEP20...) is written in the method's name.
+      child = Container(
+        width: height * .62,
+        height: height * .62,
+        alignment: Alignment.center,
+        decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF26A17B)),
+        child: const Text('\u20AE', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800, height: 1)),
+      );
+    } else if (id == 'bank_ng') {
+      child = const Icon(Icons.account_balance_rounded, size: 20, color: Color(0xFF1B3A6B));
+    } else if (asset != null) {
       child = SvgPicture.asset(asset, height: height * 0.56, fit: BoxFit.contain, placeholderBuilder: (_) => const SizedBox.shrink());
     } else if (word != null) {
       child = FittedBox(
@@ -83,7 +95,8 @@ class ProviderTile extends StatelessWidget {
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(provider.label, style: AppText.body(14, weight: FontWeight.w700)),
-              if (_subtitles[provider.id] != null) Text(_subtitles[provider.id]!, style: AppText.body(12, color: AppColors.textMuted)),
+              if ((provider.blurb.isNotEmpty ? provider.blurb : _subtitles[provider.id]) != null)
+                Text(provider.blurb.isNotEmpty ? provider.blurb : _subtitles[provider.id]!, style: AppText.body(12, color: AppColors.textMuted)),
             ]),
           ),
           Icon(selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded, size: 22, color: selected ? AppColors.gold : AppColors.textMuted),

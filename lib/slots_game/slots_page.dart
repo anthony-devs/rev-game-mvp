@@ -13,6 +13,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../components/components.dart';
 import '../core/api/api_client.dart';
 import '../games/game_support.dart';
+import '../rounds/rounds_sheet.dart';
 import '../model/model.dart';
 import '../pages/paytable_page.dart';
 import '../user/bloc/profile_cubit.dart';
@@ -80,6 +81,7 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
   }
 
   bool _loadFailed = false;
+  Object? _loadError;
 
   void _load() {
     if (_loadFailed) setState(() => _loadFailed = false);
@@ -93,8 +95,11 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
         if (!ok) _bet = c.defaultBet.clamp(c.minBet, maxBetFor(c.maxBet)).toDouble();
       });
       if (!hadConfig) _loadHistory();
-    }).catchError((Object _) {
-      if (mounted && !hadConfig) setState(() => _loadFailed = true);
+    }).catchError((Object e) {
+      if (mounted && !hadConfig) setState(() {
+        _loadFailed = true;
+        _loadError = e;
+      });
     });
   }
 
@@ -123,14 +128,17 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
   bool get _cantAfford => _balance < _bet;
 
   // ------ Bet controls ------
-  void _setBet(double v) {
+  void _setBet(double v, {bool roundUp = false}) {
     if (_spinning || _cfg == null) return;
-    // The server only accepts its own bet steps (MIN, 1/2, 2x and MAX can land between them),
-    // so snap to the nearest step at or below the requested amount.
+    // The server only accepts its own bet steps (10, 20, 50, 100, 200, 500...), and MIN, 1/2, 2x and MAX
+    // can land between them. Going up (2x) moves to the next step at or above the amount, so pressing
+    // it again always keeps climbing. Going down (1/2) moves to the step at or below it.
     final allowed = [for (final b in _cfg!.betSteps) if (b <= maxBetFor(_cfg!.maxBet)) b]..sort();
     var snapped = v.clamp(_cfg!.minBet, maxBetFor(_cfg!.maxBet)).toDouble();
     if (allowed.isNotEmpty) {
-      snapped = allowed.lastWhere((b) => b <= snapped, orElse: () => allowed.first).toDouble();
+      snapped = roundUp
+          ? allowed.firstWhere((b) => b >= snapped, orElse: () => allowed.last).toDouble()
+          : allowed.lastWhere((b) => b <= snapped, orElse: () => allowed.first).toDouble();
     }
     setState(() => _bet = snapped);
   }
@@ -186,9 +194,12 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
       AppSound.play(Sfx.error);
       setState(() {
         _phase = SlotsPhase.idle;
-        _plate = failKind(e) == FailKind.network ? 'No connection. Try again' : 'Something went wrong. Try again';
+        final k = failKind(e);
+        _plate = k == FailKind.noRounds ? 'Out of rounds' : k == FailKind.network ? "You're offline. Try again" : (k == FailKind.down ? 'Temporarily unavailable. Try again' : 'Something went wrong. Try again');
       });
-      if (failKind(e) == FailKind.noCredits) {
+      if (failKind(e) == FailKind.noRounds) {
+      showRoundsSheet(context);
+    } else if (failKind(e) == FailKind.noCredits) {
         _showNoCredits();
       } else {
         showToast(context, failText(e), error: true);
@@ -299,14 +310,16 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
 
   // ------ UI ------
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ContentWidth(maxWidth: 640, child: _page(context));
+
+  Widget _page(BuildContext context) {
     final cfg = _cfg;
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: cfg == null
           ? (_loadFailed
-              ? SafeArea(child: Column(children: [SubPageBar(title: 'Slots', onBack: () => Navigator.maybePop(context)), Expanded(child: StatusView.offline(onRetry: _load))]))
-              : Center(child: CircularProgressIndicator(color: AppColors.gold)))
+              ? SafeArea(child: Column(children: [SubPageBar(title: 'Slots', onBack: () => Navigator.maybePop(context)), Expanded(child: StatusView.offline(onRetry: _load, down: _loadError is ApiException && !(_loadError as ApiException).isOffline))]))
+              : Center(child: AppLoader()))
           : Stack(
               children: [
                 Positioned.fill(
@@ -505,7 +518,7 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
                       BrassButton(width: 44, icon: Icons.remove_rounded, semanticLabel: 'Decrease bet', onPressed: () => _step(-1)),
                       BrassButton(label: 'MIN', fontSize: 13, semanticLabel: 'Minimum bet', onPressed: () => _setBet(cfg.minBet)),
                       BrassButton(label: '1/2', fontSize: 15, semanticLabel: 'Half the bet', onPressed: () => _setBet(_bet / 2)),
-                      BrassButton(label: '2x', fontSize: 15, semanticLabel: 'Double the bet', onPressed: () => _setBet(_bet * 2)),
+                      BrassButton(label: '2x', fontSize: 15, semanticLabel: 'Double the bet', onPressed: () => _setBet(_bet * 2, roundUp: true)),
                       BrassButton(label: 'MAX', fontSize: 13, semanticLabel: 'Maximum bet', onPressed: () => _setBet(cfg.maxBet)),
                       BrassButton(width: 44, icon: Icons.add_rounded, semanticLabel: 'Increase bet', onPressed: () => _step(1)),
                     ]),

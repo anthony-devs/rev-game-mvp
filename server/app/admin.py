@@ -105,6 +105,11 @@ def make_admin(store: Store, standing: StandingService, cfg: Config, staff: Staf
         return html_page(Path(__file__).parent / "insights_ui" / "index.html")
 
     if insights is not None:
+        @bp.get("/admin/api/insights/dashboard")
+        @guarded
+        def ins_dashboard():
+            return jsonify(cached("ins_dash", CACHE_SECONDS, insights.dashboard))
+
         @bp.get("/admin/api/insights/overview")
         @guarded
         def ins_overview():

@@ -17,6 +17,7 @@ import uuid
 from datetime import datetime
 from typing import Iterator
 
+from .allowance import spend, view as rounds_view
 from .config import Config
 from .errors import ApiError, bad_request
 from .fairness import FairnessService, lock_for
@@ -74,8 +75,11 @@ class CrashService:
             wallet = load_wallet(txn, uid, self.cfg, now)
             if wallet["balance"] < bet:
                 raise ApiError(402, "insufficient_credits", "Not enough credits for this bet.")
+            wallet = spend(wallet, self.cfg, uid, now)
             balance = money(wallet["balance"] - bet)
             txn.set_wallet(uid, {**wallet, "balance": balance, "updatedAt": now})
+            nonlocal rounds
+            rounds = rounds_view(wallet, self.cfg, uid, now)
             # Peek at the nonce first so the seed stays locked until this round is over.
             rng, fair = self.fair.begin(txn, uid, now, lock_until=lock_for(now, 120))
             edge = self.edge_for(uid)
@@ -95,9 +99,11 @@ class CrashService:
             )
             return balance
 
+        rounds: dict = {}
         balance = self.store.run(fn)
         return {
             "roundId": round_id,
+            "rounds": rounds,
             "balance": balance,
             "growthRate": self.cfg.crash_growth_rate,
             "serverTime": self.clock().isoformat(),

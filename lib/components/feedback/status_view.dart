@@ -22,14 +22,19 @@ class StatusView extends StatelessWidget {
     this.color,
   });
 
-  factory StatusView.offline({Key? key, VoidCallback? onRetry}) => StatusView(
-        key: key,
-        icon: Icons.wifi_off_rounded,
-        title: 'You are offline',
-        message: 'Check your connection and try again. Your credits are safe.',
-        actionLabel: onRetry == null ? null : 'Try again',
-        onAction: onRetry,
-      );
+  /// [down] is true when the phone is online but our service did not answer.
+  factory StatusView.offline({Key? key, VoidCallback? onRetry, bool down = false}) {
+    return StatusView(
+      key: key,
+      icon: down ? Icons.cloud_off_rounded : Icons.wifi_off_rounded,
+      title: down ? "We're experiencing downtime" : "You're offline",
+      message: down
+          ? "Our service is temporarily unavailable. We're working to restore it. Your balance is safe."
+          : 'Check your internet connection and try again. Your balance is safe.',
+      actionLabel: onRetry == null ? null : 'Try again',
+      onAction: onRetry,
+    );
+  }
 
   factory StatusView.maintenance({Key? key, String message = 'We are making things better. Please check back soon.'}) =>
       StatusView(key: key, icon: Icons.build_circle_outlined, title: 'Under maintenance', message: message, color: AppColors.gold);

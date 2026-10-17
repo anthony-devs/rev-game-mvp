@@ -2,20 +2,82 @@ import 'package:equatable/equatable.dart';
 
 import '../model/model_json.dart';
 
+/// One way to pay in or get paid out. The server decides which exist and what they say.
 class LiveProvider extends Equatable {
-  const LiveProvider({required this.id, required this.label, required this.deposit, required this.payout});
-  final String id, label;
+  const LiveProvider({
+    required this.id,
+    required this.label,
+    required this.deposit,
+    required this.payout,
+    this.category = 'cards',
+    this.blurb = '',
+    this.eta = '',
+    this.fee = '',
+    this.payCurrency = '',
+    this.rate = 1,
+    this.destination = 'bank',
+    this.network = '',
+  });
+
+  final String id, label, category, blurb, eta, fee, payCurrency, destination, network;
   final bool deposit, payout;
+
+  /// Wallet units for one unit of [payCurrency] (USDT, USD). 1 when the method pays in the wallet currency.
+  final double rate;
+
+  bool get isCrypto => category == 'crypto';
+  bool get convertsCurrency => payCurrency.isNotEmpty && rate > 0;
+
+  /// What the player really pays for [walletAmount], e.g. `10.0000 USDT`.
+  String payText(double walletAmount) {
+    if (!convertsCurrency) return '';
+    final v = walletAmount / rate;
+    return '${v.toStringAsFixed(payCurrency == 'USD' ? 2 : 4)} $payCurrency';
+  }
 
   factory LiveProvider.fromJson(Json j) => LiveProvider(
         id: parseString(j['id']) ?? '',
         label: parseString(j['label']) ?? '',
         deposit: j['deposit'] == true,
         payout: j['payout'] == true,
+        category: parseString(j['category']) ?? 'cards',
+        blurb: parseString(j['blurb']) ?? '',
+        eta: parseString(j['eta']) ?? '',
+        fee: parseString(j['fee']) ?? '',
+        payCurrency: parseString(j['payCurrency']) ?? '',
+        rate: parseDouble(j['rate'], 1),
+        destination: parseString(j['destination']) ?? 'bank',
+        network: parseString(j['network']) ?? '',
       );
 
   @override
-  List<Object?> get props => [id, label, deposit, payout];
+  List<Object?> get props => [id, label, deposit, payout, category, rate];
+}
+
+/// The Live Money Agreement, as the server sends it.
+class LiveAgreement extends Equatable {
+  const LiveAgreement({required this.version, required this.title, required this.intro, required this.sections, required this.confirmations, required this.accepted});
+
+  final String version, title, intro;
+  final List<({String title, String body})> sections;
+  final List<({String id, String text})> confirmations;
+  final bool accepted;
+
+  factory LiveAgreement.fromJson(Json j) => LiveAgreement(
+        version: parseString(j['version']) ?? '1',
+        title: parseString(j['title']) ?? 'Live Money Agreement',
+        intro: parseString(j['intro']) ?? '',
+        sections: [
+          for (final s in (j['sections'] as List? ?? const [])) (title: parseString(parseMap(s)['title']) ?? '', body: parseString(parseMap(s)['body']) ?? ''),
+        ],
+        confirmations: [
+          for (final c in (j['confirmations'] as List? ?? const [])) (id: parseString(parseMap(c)['id']) ?? '', text: parseString(parseMap(c)['text']) ?? ''),
+        ],
+        accepted: j['accepted'] == true,
+      );
+
+  @override
+  List<Object?> get props => [version, accepted];
 }
 
 class LivePayment extends Equatable {
@@ -32,9 +94,10 @@ class LivePayment extends Equatable {
     this.bank = '',
     this.accountLast4 = '',
     this.checkoutRef = '',
+    this.masked = '',
   });
 
-  final String id, kind, provider, currency, status, reference, note, bank, accountLast4, checkoutRef;
+  final String id, kind, provider, currency, status, reference, note, bank, accountLast4, checkoutRef, masked;
   final double amount;
   final DateTime? createdAt;
 
@@ -72,6 +135,7 @@ class LivePayment extends Equatable {
       bank: parseString(dest['bankName']) ?? '',
       accountLast4: parseString(dest['accountLast4']) ?? '',
       checkoutRef: parseString(checkout['ref']) ?? '',
+      masked: parseString(dest['masked']) ?? '',
     );
   }
 
@@ -94,6 +158,8 @@ class LiveStatus extends Equatable {
     this.providers = const [],
     this.openPayouts = 0,
     this.pendingDeposits = const [],
+    this.agreementRequired = false,
+    this.agreementAccepted = true,
   });
 
   final bool enabled, mock;
@@ -102,6 +168,11 @@ class LiveStatus extends Equatable {
   final List<LiveProvider> providers;
   final int openPayouts;
   final List<LivePayment> pendingDeposits;
+
+  /// The player must accept the Live Money Agreement before live play.
+  final bool agreementRequired, agreementAccepted;
+
+  bool get needsAgreement => agreementRequired && !agreementAccepted;
 
   factory LiveStatus.fromJson(Json j) {
     final lim = parseMap(j['limits']);
@@ -118,9 +189,11 @@ class LiveStatus extends Equatable {
       providers: [for (final p in (j['providers'] as List? ?? const [])) LiveProvider.fromJson(parseMap(p))],
       openPayouts: parseInt(j['openPayouts']),
       pendingDeposits: [for (final p in (j['pendingDeposits'] as List? ?? const [])) LivePayment.fromJson(parseMap(p))],
+      agreementRequired: parseMap(j['agreement'])['required'] == true,
+      agreementAccepted: parseMap(j['agreement'])['accepted'] != false,
     );
   }
 
   @override
-  List<Object?> get props => [enabled, message, currency, mock, balance, providers, openPayouts, pendingDeposits];
+  List<Object?> get props => [enabled, message, currency, mock, balance, providers, openPayouts, pendingDeposits, agreementRequired, agreementAccepted];
 }

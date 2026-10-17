@@ -9,6 +9,7 @@ from __future__ import annotations
 import math
 import uuid
 
+from .allowance import spend, view as rounds_view
 from .config import Config
 from .errors import ApiError, bad_request
 from .fairness import FairnessService, lock_for
@@ -109,17 +110,19 @@ class BlackjackService:
                 "fair": fair,
                 "createdAt": now,
             }
+            wallet = spend(wallet, self.cfg, uid, now)
             wallet = {**wallet, "balance": money(wallet["balance"] - bet), "updatedAt": now}
+            rounds = rounds_view(wallet, self.cfg, uid, now)
 
             player_bj, dealer_bj = is_blackjack(rnd["player"]), is_blackjack(rnd["dealer"])
             if player_bj or dealer_bj:
                 outcome = "push" if (player_bj and dealer_bj) else ("blackjack" if player_bj else "lose")
-                return self._finish(txn, uid, round_id, rnd, wallet, now, outcome)
+                return {**self._finish(txn, uid, round_id, rnd, wallet, now, outcome), "rounds": rounds}
 
             txn.set_wallet(uid, wallet)
             txn.set(blackjack_path(round_id), rnd)
             txn.set(blackjack_active_path(uid), {"roundId": round_id})
-            return self._public(rnd, wallet["balance"])
+            return {**self._public(rnd, wallet["balance"]), "rounds": rounds}
 
         return self.store.run(fn)
 
@@ -192,8 +195,9 @@ class BlackjackService:
             "lose": 0.0,
             "bust": 0.0,
         }[outcome]
-        if payout > bet and not is_live(uid):  # demo: winnings (above the stake) pay extra
-            payout = money(bet + (payout - bet) * (1 + self.cfg.demo_win_boost))
+        boost = self.cfg.live_win_boost if is_live(uid) else self.cfg.demo_win_boost
+        if payout > bet and boost:  # demo pays winnings (above the stake) extra; live can pay less
+            payout = money(bet + (payout - bet) * (1 + boost))
         balance = money(wallet["balance"] + payout)
         rnd["status"] = "done"
         p, d = total(rnd["player"]), total(rnd["dealer"])

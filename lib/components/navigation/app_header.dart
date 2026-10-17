@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/app_text.dart';
+import '../../rounds/rounds_pill.dart';
 import '../feedback/balance_pill.dart';
 
 /// Lobby header: wordmark + balance pill.
@@ -50,6 +51,8 @@ class AppHeader extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           if (action != null) ...[action!, const SizedBox(width: 8)],
+          const RoundsPill(),
+          const SizedBox(width: 8),
           BalancePill(balance: balance, onTap: onBalanceTap, onAdd: onAdd, dropdown: dropdown),
         ],
       ),

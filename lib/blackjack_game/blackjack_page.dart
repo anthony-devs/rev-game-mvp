@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../components/components.dart';
 import '../core/api/api_client.dart';
 import '../games/game_support.dart';
+import '../rounds/rounds_sheet.dart';
 import '../model/model.dart';
 import '../user/bloc/profile_cubit.dart';
 import 'blackjack_api.dart';
@@ -96,7 +97,9 @@ class _BlackjackPageState extends State<BlackjackPage> with GameSessionMixin<Bla
       AppSound.play(Sfx.error);
       if (!mounted) return;
       setState(() => _busy = false);
-      if (failKind(e) == FailKind.noCredits) {
+      if (failKind(e) == FailKind.noRounds) {
+      showRoundsSheet(context);
+    } else if (failKind(e) == FailKind.noCredits) {
         showNoCredits(context, needed: _bet);
       } else {
         showToast(context, failText(e), error: true);
@@ -177,7 +180,7 @@ class _BlackjackPageState extends State<BlackjackPage> with GameSessionMixin<Bla
         child: Text('BLACKJACK PAYS 3 TO 2  ·  DEALER STANDS ON 17', style: AppText.label(color: AppColors.gold, size: 10)),
       ),
       stage: _loading
-          ? Center(child: CircularProgressIndicator(color: AppColors.green))
+          ? Center(child: AppLoader())
           : Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

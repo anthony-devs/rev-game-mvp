@@ -30,6 +30,7 @@ import secrets
 import uuid
 from datetime import datetime
 
+from . import agreement
 from .config import Config
 from .errors import ApiError, bad_request
 from .providers import Provider, ProviderError
@@ -61,6 +62,7 @@ class LiveService:
     def __init__(self, store: Store, cfg: Config, providers: dict[str, Provider], standing: StandingService, clock: Clock = utcnow):
         self.store, self.cfg, self.providers, self.standing, self.clock = store, cfg, providers, standing, clock
         self.on_money = None  # set by create_app: (kind, payment id, amount) for the profit tracker
+        self._agreed: set[tuple[str, str]] = set()  # (uid, version) already accepted: acceptance never goes away, so cache it
         self._payments_watch = store.watch_list("payments", 300, order_by="createdAt")
 
     # ------------------------------------------------------------------ gates
@@ -81,6 +83,39 @@ class LiveService:
     def require_live_play(self, uid: str) -> None:
         """Called before any game request in live mode."""
         self.require_live()
+        self.require_agreement(uid)
+
+    # ------------------------------------------------------------------ the agreement
+
+    def agreement_ok(self, uid: str) -> bool:
+        if not self.cfg.live_agreement_required:
+            return True
+        version = self.cfg.live_agreement_version
+        if (uid, version) in self._agreed:
+            return True
+        doc = self.store.read(f"users/{uid}/consents/live")
+        ok = bool(doc) and str(doc.get("version")) == version
+        if ok:
+            self._agreed.add((uid, version))
+        return ok
+
+    def require_agreement(self, uid: str) -> None:
+        if not self.agreement_ok(uid):
+            raise ApiError(403, "agreement_required", "Please read and accept the Live Money Agreement first.")
+
+    def agreement(self, uid: str) -> dict:
+        return {**agreement.document(self.cfg.live_agreement_version, self.cfg), "accepted": self.agreement_ok(uid)}
+
+    def accept_agreement(self, uid: str, version, confirmed) -> dict:
+        current = self.cfg.live_agreement_version
+        if str(version) != current:
+            raise ApiError(409, "agreement_changed", "The agreement was updated. Please read the new version.")
+        if not isinstance(confirmed, list) or not agreement.required_ids().issubset({str(x) for x in confirmed}):
+            raise bad_request("confirm_all", "Please tick every box to continue.")
+        now = self.clock()
+        self.store.run(lambda t: t.set(f"users/{uid}/consents/live", {"version": current, "acceptedAt": now, "confirmed": sorted(agreement.required_ids())}))
+        self._agreed.add((uid, current))
+        return {"accepted": True, "version": current}
 
     # ------------------------------------------------------------------ views
 
@@ -101,6 +136,7 @@ class LiveService:
                 "maxPayout": self.cfg.live_max_payout,
             },
             "providers": [p.public() for p in self.providers.values()],
+            "agreement": {"version": self.cfg.live_agreement_version, "required": self.cfg.live_agreement_required, "accepted": self.agreement_ok(uid)},
             "openPayouts": sum(1 for p in payments if p["kind"] == "payout" and p["status"] in ("pending_review", "processing")),
             "pendingDeposits": [self.public(p) for p in payments if p["kind"] == "deposit" and p["status"] in ("created", "pending")][:5],
         }
@@ -138,8 +174,16 @@ class LiveService:
             out["checkout"] = d.get("checkout")
         else:
             out["reference"] = d.get("code")
-            out["destination"] = {k: v for k, v in (d.get("destination") or {}).items() if k != "accountNumber"}
-            out["destination"]["accountLast4"] = str((d.get("destination") or {}).get("accountNumber", ""))[-4:]
+            dest = d.get("destination") or {}
+            out["destination"] = {k: v for k, v in dest.items() if k not in ("accountNumber", "address", "email")}
+            if "accountNumber" in dest:
+                out["destination"]["accountLast4"] = str(dest.get("accountNumber", ""))[-4:]
+            elif "address" in dest:
+                a = str(dest["address"])
+                out["destination"]["masked"] = f"{a[:5]}...{a[-4:]}"
+            elif "email" in dest:
+                name, _, host = str(dest["email"]).partition("@")
+                out["destination"]["masked"] = f"{name[:2]}***@{host}"
             out["note"] = d.get("reviewNote") or d.get("failReason") or ""
         return out
 
@@ -191,6 +235,7 @@ class LiveService:
 
     def create_deposit(self, uid: str, provider_id, amount, key) -> dict:
         self.require_live()
+        self.require_agreement(uid)
         self.standing.enforce(uid, "deposit")
         prov = self._provider(provider_id, "deposit")
         amt = self._amount(amount, self.cfg.live_min_deposit, self.cfg.live_max_deposit, "deposit")
@@ -333,9 +378,25 @@ class LiveService:
 
     # ------------------------------------------------------------------ payouts
 
-    def _destination(self, dest) -> dict:
+    _TRON = re.compile(r"^T[1-9A-HJ-NP-Za-km-z]{33}$")
+    _EVM = re.compile(r"^0x[0-9a-fA-F]{40}$")
+    _EMAIL = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,255}\.[A-Za-z]{2,}$")
+
+    def _destination(self, dest, prov: Provider) -> dict:
+        """Where the money goes. What counts as a valid place depends on the payment method."""
         if not isinstance(dest, dict):
             raise bad_request("invalid_destination", "Enter where to send the money.")
+        if prov.dest == "crypto":
+            addr = str(dest.get("address", "")).strip()
+            ok = self._TRON.match(addr) if prov.network == "TRC20" else self._EVM.match(addr)
+            if not ok:
+                raise bad_request("invalid_destination", f"That isn't a valid {prov.network} address. Copy it again from your wallet.")
+            return {"network": prov.network, "address": addr}
+        if prov.dest == "paypal":
+            email = str(dest.get("email", "")).strip().lower()
+            if not self._EMAIL.match(email):
+                raise bad_request("invalid_destination", "Enter the email address of your PayPal account.")
+            return {"email": email}
         bank = str(dest.get("bankName", "")).strip()
         name = str(dest.get("accountName", "")).strip()
         num = str(dest.get("accountNumber", "")).strip()
@@ -348,7 +409,7 @@ class LiveService:
         self.standing.enforce(uid, "payout")
         prov = self._provider(provider_id, "payout")
         amt = self._amount(amount, self.cfg.live_min_payout, self.cfg.live_max_payout, "payout")
-        dest = self._destination(destination)
+        dest = self._destination(destination, prov)
         key = self._key(key)
         open_now = sum(1 for p in self._mine(uid) if p["kind"] == "payout" and p["status"] in ("pending_review", "processing"))
 

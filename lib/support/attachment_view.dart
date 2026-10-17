@@ -64,7 +64,7 @@ class AttachmentView extends StatelessWidget {
                 if (snap.hasData) return Image.memory(snap.data!, fit: BoxFit.cover, gaplessPlayback: true);
                 return Container(
                   color: AppColors.surfaceAlt,
-                  child: Center(child: snap.hasError ? Icon(Icons.broken_image_outlined, color: AppColors.textDim) : const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+                  child: Center(child: snap.hasError ? Icon(Icons.broken_image_outlined, color: AppColors.textDim) : const AppLoader(size: 20)),
                 );
               },
             ),

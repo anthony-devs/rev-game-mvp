@@ -234,7 +234,7 @@ def test_games_list_defaults_and_overrides(make_client, store):
     assert r.status_code == 200
     games = {g["id"]: g for g in r.json["games"]}
     assert games["slots"]["name"] == "Golden Reels" and games["slots"]["enabled"] is True
-    assert games["soon-plinko"]["comingSoon"] is True
+    assert games["soon-mines"]["comingSoon"] is True
     store.docs["games/dice"] = {"enabled": False, "name": "Dice Deluxe", "bogus": 1}
     store.docs["games/new-one"] = {"name": "New One", "type": "crash", "sortOrder": 6}
     # The list is cached for a few seconds, so a console edit shows up on the next refresh.
@@ -261,3 +261,25 @@ def test_games_503_when_database_not_ready(make_client, store, monkeypatch):
     monkeypatch.setattr(store, "list", boom)
     r = c.get("/v1/games", headers=auth())
     assert r.status_code == 503 and r.json["error"] == "not_initialized"
+
+
+def test_games_503_unavailable_not_setup_for_temporary_failures(make_client, store, monkeypatch):
+    c = make_client()
+
+    def boom(*a, **k):
+        raise TimeoutError("deadline exceeded")
+
+    monkeypatch.setattr(store, "list", boom)
+    r = c.get("/v1/games", headers=auth())
+    assert r.status_code == 503 and r.json["error"] == "service_unavailable"
+
+
+def test_roulette_caps_what_one_spin_can_pay(make_client, cfg):
+    object.__setattr__(cfg, "roulette_max_payout", 10_000)
+    c = make_client()
+    ok = c.post("/v1/roulette/spin", json={"bets": [{"type": "straight", "value": 7, "amount": 200}]}, headers=auth())
+    assert ok.status_code == 200  # 200 x 36 = 7,200
+    too_much = c.post("/v1/roulette/spin", json={"bets": [{"type": "straight", "value": 7, "amount": 300}]}, headers=auth())  # 10,800
+    assert too_much.status_code == 400 and too_much.get_json()["error"] == "invalid_bet"
+    stacked = [{"type": "straight", "value": 7, "amount": 100}, {"type": "red", "value": None, "amount": 1000}, {"type": "dozen", "value": 1, "amount": 3000}]
+    assert c.post("/v1/roulette/spin", json={"bets": stacked}, headers=auth()).status_code == 400  # a 7 would pay 3,600 + 2,000 + 9,000

@@ -10,7 +10,7 @@ from .errors import ApiError
 from .store import live_uid
 
 # Game requests sent with "X-Play-Mode: live" play on the player's real-money record.
-LIVE_PLAY_PREFIXES = ("/v1/slots", "/v1/crash", "/v1/dice", "/v1/roulette", "/v1/blackjack", "/v1/fairness")
+LIVE_PLAY_PREFIXES = ("/v1/slots", "/v1/crash", "/v1/dice", "/v1/plinko", "/v1/roulette", "/v1/blackjack", "/v1/fairness", "/v1/rounds")
 
 # A verifier takes the raw token and returns the Firebase uid (or raises).
 Verifier = Callable[[str], str]

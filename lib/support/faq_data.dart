@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../model/model.dart';
 
 /// Sections of the Help Centre.
-enum FaqCategory { start, credits, fairness, slots, roulette, blackjack, dice, crash, account, support }
+enum FaqCategory { start, credits, fairness, slots, roulette, blackjack, dice, plinko, crash, account, support }
 
 extension FaqCategoryX on FaqCategory {
   String get label {
@@ -22,6 +22,8 @@ extension FaqCategoryX on FaqCategory {
         return 'Blackjack';
       case FaqCategory.dice:
         return 'Dice';
+      case FaqCategory.plinko:
+        return 'Plinko';
       case FaqCategory.crash:
         return 'Crash';
       case FaqCategory.account:
@@ -47,6 +49,8 @@ extension FaqCategoryX on FaqCategory {
         return Icons.style_outlined;
       case FaqCategory.dice:
         return Icons.casino_outlined;
+      case FaqCategory.plinko:
+        return Icons.scatter_plot_rounded;
       case FaqCategory.crash:
         return Icons.show_chart_rounded;
       case FaqCategory.account:
@@ -68,6 +72,8 @@ FaqCategory faqCategoryFor(GameType t) {
       return FaqCategory.blackjack;
     case GameType.dice:
       return FaqCategory.dice;
+    case GameType.plinko:
+      return FaqCategory.plinko;
     case GameType.crash:
       return FaqCategory.crash;
   }
@@ -95,6 +101,10 @@ const List<Faq> kFaqs = [
       'Check your connection and try again. Your credits are safe, because they live on our server and not on your phone. If it keeps happening, message support from Help.'),
 
   // ---- credits
+  Faq(FaqCategory.credits, 'How do rounds work?',
+      'Every round you play, in any game, uses one round. You get 14 free rounds, shared by all games, and they come back 6 hours after the first round of each period. Tap the lightning-bolt counter at the top of any screen to see how many you have left and when more free rounds arrive. Demo credits and real money each have their own rounds.'),
+  Faq(FaqCategory.credits, 'Can I buy more rounds?',
+      'Yes. When you run out, open the rounds counter and choose a pack. Each extra round costs 50 (credits in demo, naira in live), taken from your balance. Extra rounds never expire and are used after your free rounds. Every round uses our servers and storage, and the fee helps us keep the games running. Purchases cannot be refunded once made.'),
   Faq(FaqCategory.credits, 'How do I get more credits?',
       'Open the wallet and tap Get demo credits. You can claim a daily reward every 24 hours. Claim on consecutive days to build a streak: days 1 to 7 pay 1,000, 1,000, 1,500, 2,000, 2,500, 3,000 and 10,000. You can also reset your balance back to 10,000 at any time.'),
   Faq(FaqCategory.credits, 'How does the daily streak work?',
@@ -142,6 +152,14 @@ const List<Faq> kFaqs = [
   // ---- dice
   Faq(FaqCategory.dice, 'How does Dice work?',
       'Choose a target and Over or Under. A number from 0 to 100 is rolled. Your target can be anywhere from 2 to 98. If it lands on your side, you win. A smaller chance pays a bigger multiplier. The house edge is 3%.'),
+
+  // ---- plinko
+  Faq(FaqCategory.plinko, 'How does Plinko work?',
+      'Pick a risk level and the number of rows, then drop the ball. At every peg it goes left or right with equal chance and lands in a slot. Each slot pays a multiplier on your bet. The middle slots are the most likely and pay the least. The edges are rare and pay the most.'),
+  Faq(FaqCategory.plinko, 'What do the risk levels change?',
+      'Low risk has smaller, more even multipliers. High risk has very big edge multipliers but pays less than your bet in most of the middle slots. More rows give more slots and bigger edge multipliers. The return to player is shown on the screen and is the same for every setting.'),
+  Faq(FaqCategory.plinko, 'Why is my maximum bet lower on some settings?',
+      'A single drop can never pay more than a fixed limit, so settings with a very large top multiplier have a lower maximum bet. The maximum for the board on screen is shown under the bet.'),
 
   // ---- crash
   Faq(FaqCategory.crash, 'How does Crash work?',

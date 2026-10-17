@@ -23,7 +23,7 @@ from collections import OrderedDict, deque
 from datetime import datetime, timedelta
 
 from .store import Store, is_live
-from .util import Clock, utcnow
+from .util import Clock, is_quota, is_transient, utcnow
 
 log = logging.getLogger("metrics")
 
@@ -83,8 +83,14 @@ class Metrics:
         self.requests += 1
         self._lat.append((time.time(), ms, status))
 
+    def backend_trouble(self, window: float = 90.0) -> bool:
+        """The database failed recently (quota, timeouts): the app shows "downtime" instead of errors."""
+        return time.time() - getattr(self, "_trouble_at", 0.0) < window
+
     def record_error(self, exc: BaseException, path: str, trace: str) -> None:
-        quota = type(exc).__name__ in ("ResourceExhausted", "TooManyRequests")
+        quota = is_quota(exc)
+        if quota or is_transient(exc):
+            self._trouble_at = time.time()
         if quota:
             self.quota_errors += 1
         self.errors.append({"at": time.time(), "type": type(exc).__name__, "message": _clip(exc, 300), "path": path, "trace": _clip(trace, 3000), "quota": quota})

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -13,6 +14,10 @@ import 'phone_page.dart';
 import 'sign_up_page.dart';
 
 /// First screen for signed-out players. Email, Google, phone or guest.
+/// Google's sign-in button and Firebase phone codes only work on phones (and Google also on Mac).
+final bool _phoneOk = !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android);
+final bool _googleOk = !kIsWeb;
+
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
 
@@ -122,8 +127,10 @@ class _LoginViewState extends State<_LoginView> {
               onPressed: state.isBusy ? null : _submit,
             ),
             const AuthDivider(label: 'or continue with'),
+            if (_googleOk || _phoneOk)
             Row(
               children: [
+                if (_googleOk)
                 Expanded(
                   child: AppButton(
                     label: 'Google',
@@ -135,7 +142,8 @@ class _LoginViewState extends State<_LoginView> {
                     onPressed: state.isBusy ? null : cubit.google,
                   ),
                 ),
-                const SizedBox(width: 12),
+                if (_googleOk && _phoneOk) const SizedBox(width: 12),
+                if (_phoneOk)
                 Expanded(
                   child: AppButton(
                     label: 'Phone',

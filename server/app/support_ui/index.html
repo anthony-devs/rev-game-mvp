@@ -104,6 +104,47 @@
 <div class="toast" id="toast"></div>
 <input type="file" id="picker" multiple accept="image/*,video/mp4,video/quicktime,application/pdf" style="display:none">
 
+<!-- click-guard:start -->
+<script>
+/* Click guard: a button that starts a change is locked until the answer is back plus a short cool-off,
+   and an identical change sent twice while the first is still running is sent only once. */
+(function () {
+  if (window.__clickGuard) return;
+  window.__clickGuard = true;
+  var COOL = 1000, WINDOW = 4000, inflight = {}, lastBtn = null, lastClick = 0, realFetch = window.fetch.bind(window);
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('button, [role=button], input[type=submit]') : null;
+    if (!b) return;
+    if (b.getAttribute('data-guard') === '1') { e.preventDefault(); e.stopImmediatePropagation(); return; }
+    lastBtn = b; lastClick = Date.now();
+  }, true);
+  function lock(b) {
+    if (!b || !b.isConnected || b.getAttribute('data-guard') === '1') return;
+    b.setAttribute('data-guard', '1'); b._wasDisabled = b.disabled; b.disabled = true;
+    b.setAttribute('aria-busy', 'true'); b.style.opacity = '.6'; b.style.cursor = 'progress';
+  }
+  function unlock(b) {
+    if (!b || b.getAttribute('data-guard') !== '1') return;
+    b.removeAttribute('data-guard'); b.disabled = !!b._wasDisabled; b.removeAttribute('aria-busy'); b.style.opacity = ''; b.style.cursor = '';
+  }
+  window.fetch = function (input, init) {
+    init = init || {};
+    var method = String(init.method || (input && input.method) || 'GET').toUpperCase();
+    if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return realFetch(input, init);
+    var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+    var key = typeof init.body === 'string' || init.body == null ? method + ' ' + url + ' ' + (init.body || '') : null;
+    if (key && inflight[key]) return inflight[key].then(function (r) { return r.clone(); }); // same change already running: share its answer
+    var btn = Date.now() - lastClick < WINDOW ? lastBtn : null;
+    lock(btn);
+    var p = realFetch(input, init), master = null;
+    if (key) { master = p.then(function (r) { return r.clone(); }); master.catch(function () {}); inflight[key] = master; }
+    var done = function () { setTimeout(function () { if (key && inflight[key] === master) delete inflight[key]; unlock(btn); }, COOL); };
+    p.then(done, done);
+    return p;
+  };
+})();
+</script>
+<!-- click-guard:end -->
 <script>
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];

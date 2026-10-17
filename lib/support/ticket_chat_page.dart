@@ -126,7 +126,7 @@ class _TicketChatPageState extends State<TicketChatPage> {
               stream: _stream,
               builder: (context, snap) {
                 if (snap.hasError) return StatusView.offline(onRetry: () => setState(() {}));
-                if (!snap.hasData) return const Center(child: CircularProgressIndicator(strokeWidth: 2.4));
+                if (!snap.hasData) return const Center(child: AppLoader());
                 final msgs = snap.data!.reversed.toList();
                 if (msgs.isEmpty) return const StatusView(icon: Icons.forum_outlined, title: 'No messages yet');
                 return ListView.builder(

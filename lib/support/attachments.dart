@@ -129,6 +129,12 @@ class AttachmentsController extends ChangeNotifier {
 
 /// The "add a file" sheet. Each row opens the system picker.
 Future<void> showAttachSheet(BuildContext context, AttachmentsController c) {
+  if (kIsWeb) {
+    // Files are read from disk, which a browser doesn't allow. The mobile and desktop apps can.
+    c._say('Attaching files isn\'t available in the browser yet. Use the app, or describe the problem in a message.');
+    return Future<void>.value();
+  }
+  final hasCamera = defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android;
   Widget row(IconData icon, String title, String sub, Future<void> Function() run) {
     return ListRowTile(
       icon: icon,
@@ -153,9 +159,9 @@ Future<void> showAttachSheet(BuildContext context, AttachmentsController c) {
         ListGroup(
           children: [
             row(Icons.photo_library_outlined, 'Photos', 'Screenshots or pictures', c.pickPhotos),
-            row(Icons.photo_camera_outlined, 'Take a photo', 'Use the camera', c.takePhoto),
+            if (hasCamera) row(Icons.photo_camera_outlined, 'Take a photo', 'Use the camera', c.takePhoto),
             row(Icons.video_library_outlined, 'Video', 'From your library', c.pickVideo),
-            row(Icons.videocam_outlined, 'Record a video', 'Show us what happened', c.recordVideo),
+            if (hasCamera) row(Icons.videocam_outlined, 'Record a video', 'Show us what happened', c.recordVideo),
             row(Icons.picture_as_pdf_outlined, 'PDF document', 'Receipts, statements', c.pickPdf),
           ],
         ),
@@ -279,7 +285,7 @@ class _Thumb extends StatelessWidget {
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(color: Colors.black.withValues(alpha: .55), borderRadius: BorderRadius.circular(14)),
-                child: const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))),
+                child: const Center(child: AppLoader(size: 22)),
               ),
             ),
           if (failed)

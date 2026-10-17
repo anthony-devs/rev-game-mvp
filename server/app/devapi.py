@@ -21,6 +21,7 @@ from collections import OrderedDict, deque
 from flask import Blueprint, current_app, jsonify, request
 
 from .errors import ApiError, bad_request
+from .util import is_quota
 
 WINDOW_SECONDS = 60
 PREFIX = "/internal/dev"
@@ -129,7 +130,7 @@ def make_devapi(store, cfg, metrics, flags, migrator, insights, services: dict) 
             store.list("games", 1)
             return jsonify({"ok": True, "ms": round((time.perf_counter() - t0) * 1000, 1)})
         except Exception as e:
-            return jsonify({"ok": False, "error": type(e).__name__, "message": str(e)[:200], "quota": type(e).__name__ == "ResourceExhausted"})
+            return jsonify({"ok": False, "error": type(e).__name__, "message": str(e)[:200], "quota": is_quota(e)})
 
     @bp.post(PREFIX + "/selftest")
     def selftest():
@@ -148,7 +149,7 @@ def make_devapi(store, cfg, metrics, flags, migrator, insights, services: dict) 
     def maintenance():
         d = body()
         doc = flags.set_maintenance(bool(d.get("on")), str(d.get("scope") or "all"), str(d.get("message") or ""), str(d.get("by") or "developer")[:40])
-        return jsonify({"on": doc["on"], "scope": doc["scope"], "message": doc["message"]})
+        return jsonify({"on": doc["on"], "scope": doc["scope"], "message": doc["message"], "shared": doc.get("shared", True)})
 
     @bp.get(PREFIX + "/migrations")
     def migrations_status():

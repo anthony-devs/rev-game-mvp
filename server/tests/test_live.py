@@ -297,6 +297,17 @@ def test_live_play_uses_the_live_wallet_not_demo(c, store):
     assert any(k.startswith("users/L_alice/rounds/") for k in store.docs)
 
 
+def test_live_plinko_uses_the_live_wallet_and_live_odds(c, store):
+    demo_before = store.docs.get("users/alice/wallet/current")
+    fund(c, 5000)
+    r = c.post("/v1/plinko/drop", json={"bet": 100, "rows": 12, "risk": "low"}, headers={**auth(), "X-Play-Mode": "live"})
+    assert r.status_code == 200
+    j = r.get_json()
+    assert live_balance(store) == j["balance"] and j["balanceAfterBet"] == 4900 and j["rtp"] <= 0.96
+    assert store.docs.get("users/alice/wallet/current") == demo_before
+    assert any(k.startswith("users/L_alice/rounds/") for k in store.docs)
+
+
 def test_live_play_with_no_deposit_is_refused_not_given_free_credits(c, store):
     r = c.post("/v1/dice/roll", json={"bet": 100, "target": 50, "mode": "under"}, headers={**auth("bob"), "X-Play-Mode": "live"})
     assert r.status_code == 402

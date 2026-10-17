@@ -50,7 +50,7 @@ class TicketsPage extends StatelessWidget {
           Expanded(
             child: BlocBuilder<SupportCubit, SupportState>(
               builder: (context, s) {
-                if (!s.ready) return const Center(child: CircularProgressIndicator(strokeWidth: 2.4));
+                if (!s.ready) return const Center(child: AppLoader());
                 if (s.tickets.isEmpty) {
                   return StatusView(
                     icon: Icons.forum_outlined,

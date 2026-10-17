@@ -14,6 +14,7 @@ from app.account import AccountService  # noqa: E402
 from app.blackjack import BlackjackService  # noqa: E402
 from app.crash import CrashService  # noqa: E402
 from app.dice import DiceService  # noqa: E402
+from app.plinko import PlinkoService  # noqa: E402
 from app.fairness import FairnessService  # noqa: E402
 from app.roulette import RouletteService  # noqa: E402
 from app.slots import SlotsService  # noqa: E402
@@ -68,13 +69,13 @@ def store():
 ADMIN_USER = "boss-owner"
 ADMIN_PASS = "Str0ng!Passphrase#1"
 ADMIN_KEY = "secret-key"
-ADMIN = dict(admin_key=ADMIN_KEY, admin_username=ADMIN_USER, admin_password=ADMIN_PASS, session_secret="s" * 32)
+ADMIN = dict(dup_cooloff_seconds=0, admin_key=ADMIN_KEY, admin_username=ADMIN_USER, admin_password=ADMIN_PASS, session_secret="s" * 32)
 
 
 @pytest.fixture
 def cfg():
     # Demo odds neutral here: the older tests check the printed tables. Mode odds have their own tests.
-    return Config(**ADMIN, demo_dice_edge=0.05, demo_crash_edge=0.03, demo_slots_factor=1.0, live_slots_factor=1.0, demo_win_boost=0.0)
+    return Config(**ADMIN, demo_dice_edge=0.05, demo_plinko_edge=0.04, demo_crash_edge=0.03, demo_slots_factor=1.0, demo_slots_generous=False, live_slots_factor=1.0, demo_win_boost=0.0, live_agreement_required=False, rounds_enabled=False, live_agreement_version="1")
 
 
 @pytest.fixture
@@ -109,7 +110,7 @@ def support(store, cfg, uploads, clock):
 
 @pytest.fixture
 def make_client(store, clock, cfg, deleted_auth, standing, staff, uploads, support):
-    def make(slots_rng=None, crash_rng=None, dice_rng=None, roulette_rng=None, bj_rng=None):
+    def make(slots_rng=None, crash_rng=None, dice_rng=None, roulette_rng=None, bj_rng=None, plinko_rng=None):
         # One shared fairness service; a game given a scripted rng gets its own
         # override service so the other games keep real HMAC randomness.
         fair = FairnessService(store, clock)
@@ -120,6 +121,7 @@ def make_client(store, clock, cfg, deleted_auth, standing, staff, uploads, suppo
         slots = SlotsService(store, cfg, clock, fair=own(slots_rng))
         crash = CrashService(store, cfg, clock, rng=crash_rng, sleep=lambda s: clock.advance(s), fair=own(crash_rng))
         dice = DiceService(store, cfg, clock, fair=own(dice_rng))
+        plinko = PlinkoService(store, cfg, clock, fair=own(plinko_rng))
         roulette = RouletteService(store, cfg, clock, fair=own(roulette_rng))
         blackjack = BlackjackService(store, cfg, clock, fair=own(bj_rng))
         app = create_app(
@@ -131,6 +133,7 @@ def make_client(store, clock, cfg, deleted_auth, standing, staff, uploads, suppo
             slots=slots,
             crash=crash,
             dice=dice,
+            plinko=plinko,
             roulette=roulette,
             blackjack=blackjack,
             account=AccountService(store, deleted_auth.append),

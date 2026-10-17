@@ -60,7 +60,7 @@ class PaytablePage extends StatelessWidget {
                 const SizedBox(height: 8),
                 Row(children: [stat('Max win', fmt(cfg.maxWin)), const SizedBox(width: 8), stat('Return to player', '${(cfg.rtp * 100).round()}%')]),
                 const SizedBox(height: 14),
-                Text('Demo credits only. Values load from the game server.', style: AppText.body(11, weight: FontWeight.w400, color: AppColors.textDim)),
+                Text('Payouts shown are the current values for this game.', style: AppText.body(11, weight: FontWeight.w400, color: AppColors.textDim)),
               ],
             ),
           ),

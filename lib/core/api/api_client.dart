@@ -8,6 +8,8 @@ import 'package:http/http.dart' as http;
 import '../../components/core/play_mode.dart';
 import '../../model/model_json.dart';
 import 'api_config.dart';
+import 'rounds_hub.dart';
+import 'reachability.dart';
 
 /// An error from the game server (or from reaching it).
 class ApiException implements Exception {
@@ -19,7 +21,14 @@ class ApiException implements Exception {
   final String message;
   final Json data;
 
+  /// The request never got an answer (either [isOffline] or [isServerDown]).
   bool get isNetwork => status == 0;
+
+  /// The phone has no internet connection.
+  bool get isOffline => code == 'network';
+
+  /// The phone is online but our service did not answer, or answered that it is down.
+  bool get isServerDown => code == 'unreachable' || code == 'service_unavailable' || code == 'database_busy' || status == 502 || status == 503 || status == 504;
 
   @override
   String toString() => 'ApiException($status, $code, $message)';
@@ -74,11 +83,11 @@ class ApiClient {
       if (res.statusCode >= 200 && res.statusCode < 300) return _decode(res.body);
       throw _fromResponse(res.statusCode, res.body);
     } on SocketException {
-      throw _offline();
+      throw await _unreachable();
     } on TimeoutException {
-      throw _offline();
+      throw await _unreachable();
     } on http.ClientException {
-      throw _offline();
+      throw await _unreachable();
     }
   }
 
@@ -89,11 +98,11 @@ class ApiClient {
       if (res.statusCode >= 200 && res.statusCode < 300) return res.bodyBytes;
       throw _fromResponse(res.statusCode, res.body);
     } on SocketException {
-      throw _offline();
+      throw await _unreachable();
     } on TimeoutException {
-      throw _offline();
+      throw await _unreachable();
     } on http.ClientException {
-      throw _offline();
+      throw await _unreachable();
     }
   }
 
@@ -104,11 +113,11 @@ class ApiClient {
     try {
       response = await _http.send(request).timeout(_timeout);
     } on SocketException {
-      throw _offline();
+      throw await _unreachable();
     } on TimeoutException {
-      throw _offline();
+      throw await _unreachable();
     } on http.ClientException {
-      throw _offline();
+      throw await _unreachable();
     }
     if (response.statusCode != 200) {
       throw _fromResponse(response.statusCode, await response.stream.bytesToString());
@@ -129,9 +138,9 @@ class ApiClient {
         } // lines starting with ":" are keep-alive pings
       }
     } on SocketException {
-      throw _offline();
+      throw await _unreachable();
     } on http.ClientException {
-      throw _offline();
+      throw await _unreachable();
     }
   }
 
@@ -158,28 +167,56 @@ class ApiClient {
       if (res.statusCode == 401 && _refresh != null) {
         res = await send(true).timeout(timeout ?? _timeout);
       }
-      if (res.statusCode >= 200 && res.statusCode < 300) return _decode(res.body);
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final json = _decode(res.body);
+        RoundsHub.apply(json); // every round answer says how many rounds are left
+        return json;
+      }
       throw _fromResponse(res.statusCode, res.body);
     } on SocketException {
-      throw _offline();
+      throw await _unreachable();
     } on TimeoutException {
-      throw _offline();
+      throw await _unreachable();
     } on http.ClientException {
-      throw _offline();
+      throw await _unreachable();
     }
   }
 
-  ApiException _offline() =>
-      const ApiException(0, 'network', 'Cannot reach the game server. Check your connection and try again.');
+  /// Nothing came back. Works out why: no internet on the phone, or our service is down.
+  Future<ApiException> _unreachable() async {
+    if (!await deviceHasInternet()) {
+      return const ApiException(0, 'network', "You're offline. Check your internet connection and try again.");
+    }
+    return const ApiException(0, 'unreachable', "We're experiencing downtime. Please try again in a few minutes. Your balance is safe.");
+  }
 
   ApiException _fromResponse(int status, String body) {
     final json = _decode(body);
-    return ApiException(
-      status,
-      parseString(json['error']) ?? 'server_error',
-      parseString(json['message']) ?? 'Something went wrong. Please try again.',
-      json,
-    );
+    final code = parseString(json['error']) ?? 'server_error';
+    if (code == 'no_rounds') RoundsHub.applyRefusal(json);
+    return ApiException(status, code, _friendly(status, code, parseString(json['message'])), json);
+  }
+
+  /// Players never see technical words (database, quota, server error). Rule messages from the
+  /// server ("Bet is too low", "Insufficient balance") pass through; anything that is our problem
+  /// becomes a calm sentence.
+  static String _friendly(int status, String code, String? message) {
+    switch (code) {
+      case 'maintenance':
+        return message ?? "We're making things better. Back shortly.";
+      case 'service_unavailable':
+        return "We're experiencing downtime. Please try again in a few minutes. Your balance is safe.";
+      case 'database_busy':
+        return "We're very busy right now. Please try again in a few minutes.";
+      case 'not_initialized':
+        return "We're getting things ready. Please try again in a few minutes.";
+      case 'unauthenticated':
+        return 'Please sign in again to continue.';
+    }
+    if (status == 429) return 'Too many tries. Please wait a moment and try again.';
+    if (status == 502 || status == 503 || status == 504) return "We're experiencing downtime. Please try again in a few minutes. Your balance is safe.";
+    if (status >= 500) return 'Something went wrong on our side. Please try again in a moment.';
+    return message ?? 'Something went wrong. Please try again.';
   }
 
   Json _decode(String body) {

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -22,6 +24,7 @@ class AppScaffold extends StatelessWidget {
     this.glowColor,
     this.safeTop = true,
     this.padding = EdgeInsets.zero,
+    this.maxWidth = 720,
   });
 
   final Widget body;
@@ -31,6 +34,9 @@ class AppScaffold extends StatelessWidget {
   final Color? glowColor;
   final bool safeTop;
   final EdgeInsets padding;
+
+  /// Content never grows wider than this (iPad, Mac, browser). Phones are narrower, so nothing changes.
+  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -43,17 +49,23 @@ class AppScaffold extends StatelessWidget {
           child: SafeArea(
             top: safeTop,
             bottom: false,
-            child: Stack(
-              children: [
-                Positioned.fill(child: Padding(padding: padding, child: body)),
-                if (bottomBar != null)
-                  Positioned(
-                    left: 24,
-                    right: 24,
-                    bottom: MediaQuery.of(context).padding.bottom + 8,
-                    child: bottomBar!,
-                  ),
-              ],
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxWidth),
+                child: Stack(
+                  children: [
+                    Positioned.fill(child: Padding(padding: padding, child: body)),
+                    if (bottomBar != null)
+                      Positioned(
+                        left: math.max(24, (MediaQuery.sizeOf(context).width - 560) / 2),
+                        right: math.max(24, (MediaQuery.sizeOf(context).width - 560) / 2),
+                        bottom: MediaQuery.of(context).padding.bottom + 8,
+                        child: bottomBar!,
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),

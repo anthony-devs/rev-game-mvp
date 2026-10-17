@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/foundation.dart';
 
 import '../api/api_client.dart';
@@ -50,7 +48,7 @@ class CrashReporter {
             'kind': kind,
             'message': _cut(error.toString(), 300),
             'stack': _cut(stackText, 2500),
-            'platform': Platform.operatingSystem,
+            'platform': kIsWeb ? 'web' : defaultTargetPlatform.name,
             'appVersion': appVersion,
             if (library != null) 'library': library,
           })

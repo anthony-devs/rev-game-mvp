@@ -8,6 +8,7 @@ import secrets
 import uuid
 from dataclasses import dataclass
 
+from .allowance import spend, view as rounds_view
 from .config import Config
 from .errors import ApiError, bad_request
 from .fairness import FairnessService
@@ -36,6 +37,10 @@ PAY_ROWS = (
 )
 
 RTP = round(sum(r.probability * r.multiplier for r in PAY_ROWS), 6)
+
+# Practice (demo) credits: wins are frequent and even 777 comes up now and then (about 1 spin in 50).
+# The same order as PAY_ROWS. Real-money play always uses the printed table above.
+DEMO_PAY_ODDS = (0.02, 0.03, 0.05, 0.06, 0.07, 0.30)
 BIG_WIN_MULTIPLIER = 50
 
 
@@ -50,6 +55,9 @@ class SlotsService:
         """How often wins come, relative to the pay table. 1.0 = the table as printed."""
         return self.cfg.live_slots_factor if is_live(uid) else self.cfg.demo_slots_factor
 
+    def demo_for(self, uid: str) -> bool:
+        return (not is_live(uid)) and self.cfg.demo_slots_generous
+
     def config(self, uid: str, balance: float) -> dict:
         steps = list(self.cfg.slots_bet_steps)
         return {
@@ -59,7 +67,7 @@ class SlotsService:
             "defaultBet": self.cfg.slots_default_bet,
             "startBalance": balance,  # the player's real balance
             "bigWinMultiplier": BIG_WIN_MULTIPLIER,
-            "rtp": RTP,
+            "rtp": round(RTP * self.cfg.live_slots_factor, 4) if is_live(uid) else RTP,  # live shows what it really returns
             "payRows": [
                 {"symbols": list(r.symbols), "label": r.label, "multiplier": r.multiplier, "probability": 0}
                 for r in PAY_ROWS
@@ -77,10 +85,12 @@ class SlotsService:
             wallet = load_wallet(txn, uid, self.cfg, now)
             if wallet["balance"] < bet:
                 raise ApiError(402, "insufficient_credits", "Not enough credits for this bet.")
+            wallet = spend(wallet, self.cfg, uid, now)
 
             rng, fair = self.fair.begin(txn, uid, now)
             factor = self.factor_for(uid)
-            multiplier, line, label = self._draw(rng, factor)
+            demo = self.demo_for(uid)
+            multiplier, line, label = self._draw(rng, factor, demo)
             payout = money(bet * multiplier)
             after_bet = money(wallet["balance"] - bet)
             balance = money(after_bet + payout)
@@ -99,7 +109,7 @@ class SlotsService:
                 multiplier=multiplier,
                 status="won" if multiplier > 0 else "lost",
                 label=label,
-                details={"line": line, "multiplier": multiplier, "factor": factor},
+                details={"line": line, "multiplier": multiplier, "factor": factor, "demo": demo},
                 fair=fair,
                 now=now,
             )
@@ -112,13 +122,14 @@ class SlotsService:
                 "balance": balance,
                 "label": label,
                 "fairness": fair,
+                "rounds": rounds_view(wallet, self.cfg, uid, now),
             }
 
         return self.store.run(fn)
 
     def replay(self, rng, rnd: Doc) -> bool:
         """Fairness check: the same seeds must give the stored line."""
-        multiplier, line, _ = self._draw(rng, rnd["details"].get("factor", 1.0))
+        multiplier, line, _ = self._draw(rng, rnd["details"].get("factor", 1.0), bool(rnd["details"].get("demo")))
         return multiplier == rnd["details"]["multiplier"] and list(line) == list(rnd["details"]["line"])
 
     # ---- helpers -------------------------------------------------------------
@@ -133,13 +144,13 @@ class SlotsService:
     def _any(self, rng) -> str:
         return rng.choice(SYMBOLS)
 
-    def _draw(self, rng=None, factor: float = 1.0) -> tuple[int, list[str], str]:
+    def _draw(self, rng=None, factor: float = 1.0, demo: bool = False) -> tuple[int, list[str], str]:
         rng = rng or self.fair.override or secrets.SystemRandom()
         r = rng.random()
         acc = 0.0
         hit = None
-        for row in PAY_ROWS:
-            acc += row.probability * factor
+        for i, row in enumerate(PAY_ROWS):
+            acc += DEMO_PAY_ODDS[i] if demo else row.probability * factor
             if r < acc:
                 hit = row
                 break

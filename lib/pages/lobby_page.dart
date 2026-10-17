@@ -9,6 +9,8 @@ import '../model/model.dart';
 import '../shell/shell_cubit.dart';
 import '../user/bloc/profile_cubit.dart';
 import 'widgets/level_streak_card.dart';
+import 'widgets/next_up_banner.dart';
+import '../catalog/upcoming.dart';
 import 'widgets/lobby_tile.dart';
 
 /// L1. The Casino tab: search, chips, level and streak, popular and new games.
@@ -77,7 +79,10 @@ class _LobbyPageState extends State<LobbyPage> {
       final isFav = favs.contains(g.id);
       return LobbyTile(
         game: g,
-        offline: catalog.offline,
+        offline: catalog.locked,
+        maintenance: catalog.paused,
+        isNew: !g.comingSoon && settings.waitlist.contains(slugOf(g.id)),
+        joined: g.comingSoon && settings.waitlist.contains(slugOf(g.id)),
         favourite: isFav,
         onFavourite: () {
           AppHaptics.selection();
@@ -118,6 +123,12 @@ class _LobbyPageState extends State<LobbyPage> {
         ],
         if (upcoming.isNotEmpty) ...[
           SectionHeader(title: 'Coming soon', icon: Icons.diamond_outlined, iconColor: AppColors.text, padding: EdgeInsets.zero),
+          const SizedBox(height: 12),
+          NextUpBanner(
+            game: upcoming.first,
+            joined: settings.waitlist.contains(slugOf(upcoming.first.id)),
+            onTap: () => openGame(context, upcoming.first),
+          ),
           const SizedBox(height: 12),
           TileGrid(children: [for (final g in upcoming) tile(g)]),
         ],

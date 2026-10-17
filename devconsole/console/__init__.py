@@ -20,6 +20,7 @@ from . import serverapi
 from .actions import ActionError, Runner, load_actions
 from .config import Config, Target
 from .db import DB
+from .guard import RequestGuard, request_key
 from .monitor import Monitor
 from .security import Guard, check_totp, verify_password
 from .smoke import run_smoke
@@ -52,6 +53,26 @@ def create_app(cfg: Config | None = None, db: DB | None = None, runner: Runner |
 
     # ---------------------------------------------------------------- hardening
 
+    dup_guard = RequestGuard()
+
+    @app.before_request
+    def _no_duplicates():
+        # The same action sent twice (a slow answer, a double click) runs once.
+        if request.method != "POST" or not request.path.startswith("/api/"):
+            return None
+        who = request.cookies.get(COOKIE, "") or request.remote_addr or ""
+        key = request_key(who, request.method, request.path, request.content_type or "", request.content_length, request.get_data(cache=True))
+        if not dup_guard.enter(key, 1.5):
+            return jsonify({"error": "That is already being processed. Please wait a moment."}), 409
+        g._dup_key = key
+        return None
+
+    @app.teardown_request
+    def _release_duplicate(exc):
+        key = g.pop("_dup_key", None)
+        if key is not None:
+            dup_guard.leave(key, exc is None and getattr(g, "_dup_status", 500) < 400)
+
     @app.before_request
     def _gate():
         if cfg.allowed_ips and ip() not in cfg.allowed_ips:
@@ -63,6 +84,7 @@ def create_app(cfg: Config | None = None, db: DB | None = None, runner: Runner |
 
     @app.after_request
     def _headers(resp):
+        g._dup_status = resp.status_code
         resp.headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
         resp.headers["X-Content-Type-Options"] = "nosniff"
         resp.headers["X-Frame-Options"] = "DENY"

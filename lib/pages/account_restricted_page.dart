@@ -185,7 +185,7 @@ class _AccountRestrictedPageState extends State<AccountRestrictedPage> {
         accent: AppColors.gold,
         child: Row(
           children: [
-            SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.gold)),
+            AppLoader(size: 18),
             const SizedBox(width: 12),
             Expanded(child: Text('Your appeal is being reviewed. This screen updates by itself when we decide.', style: AppText.body(13.5, height: 1.5))),
           ],

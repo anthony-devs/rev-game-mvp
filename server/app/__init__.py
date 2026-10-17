@@ -21,7 +21,9 @@ from .live import LiveService
 from .messaging import MessagingService, build_mailer
 from .metrics import Metrics
 from .migrations import Migrator
+from .guard import RequestGuard, request_key
 from .system import SystemFlags
+from .util import is_quota, is_transient
 from .devapi import make_devapi
 from . import rounds as rounds_module
 from .live_routes import make_live
@@ -31,6 +33,7 @@ from .blackjack import BlackjackService
 from .config import Config
 from .crash import CrashService
 from .dice import MAX_TARGET, MIN_TARGET, DiceService
+from .plinko import ROWS as PLINKO_ROWS, RISKS as PLINKO_RISKS, PlinkoService
 from .errors import ApiError, bad_request
 from .fairness import FairnessService
 from .roulette import RouletteService
@@ -93,6 +96,7 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
     slots = services.get("slots") or SlotsService(store, cfg, fair=fair)
     crash = services.get("crash") or CrashService(store, cfg, fair=fair)
     dice = services.get("dice") or DiceService(store, cfg, fair=fair)
+    plinko = services.get("plinko") or PlinkoService(store, cfg, fair=fair)
     roulette = services.get("roulette") or RouletteService(store, cfg, fair=fair)
     blackjack = services.get("blackjack") or BlackjackService(store, cfg, fair=fair)
     account = services.get("account") or AccountService(store, firebase_account_deleter())
@@ -108,7 +112,10 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
     app.extensions["metrics"] = metrics
     rounds_module.ROUND_HOOK = metrics.record_round
     live.on_money = metrics.record_money
-    flags = services.get("flags") or SystemFlags(store)
+    wallet.on_money = metrics.record_money
+    flags = services.get("flags") or SystemFlags(
+        store, path=(os.path.join(os.environ.get("STATE_DIR") or os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"), "maintenance.json") if isinstance(store, FirestoreStore) else None)
+    )
     app.extensions["flags"] = flags
     messaging = services.get("messaging") or MessagingService(store, cfg, build_mailer(cfg))
     insights = Insights(store, cfg, metrics, live, standing)
@@ -124,6 +131,7 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
         "slots": slots.replay,
         "crash": crash.replay,
         "dice": dice.replay,
+        "plinko": plinko.replay,
         "roulette": roulette.replay,
         "blackjack": blackjack.replay,
     }
@@ -135,6 +143,34 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
     def _start_timer():
         g._t0 = time.perf_counter()
 
+    # ---- duplicate requests --------------------------------------------------
+    # A slow answer makes people click twice. An identical change that is already running (or that
+    # just succeeded, in the back-office) is refused instead of being applied again.
+    dup_guard = RequestGuard()
+    _BACKOFFICE = ("/staff/api/", "/admin/api/", "/support/api/")
+    _DUP_EXEMPT = ("/v1/telemetry/",)
+
+    @app.before_request
+    def _no_duplicates():
+        if request.method != "POST" or request.path.startswith(_DUP_EXEMPT):
+            return None
+        back = request.path.startswith(_BACKOFFICE)
+        if not (back or request.path.startswith("/v1/")):
+            return None
+        who = request.headers.get("Authorization", "") or (request.remote_addr or "")
+        key = request_key(who, request.method, request.path, request.content_type or "", request.content_length, None if (request.content_type or "").startswith("multipart/") else request.get_data(cache=True))
+        if not dup_guard.enter(key, cfg.dup_cooloff_seconds if back else 0.0):
+            return jsonify({"error": "duplicate_request", "message": "That is already being processed. Please wait a moment."}), 409
+        g._dup_key = key
+        return None
+
+    @app.teardown_request
+    def _release_duplicate_key(exc):
+        key = g.pop("_dup_key", None)
+        if key is not None:
+            ok = exc is None and getattr(g, "_dup_status", 500) < 400
+            dup_guard.leave(key, ok)
+
     @app.before_request
     def _maintenance():
         # The developer can pause new bets and deposits (all play, or only live money).
@@ -145,6 +181,7 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
 
     @app.after_request
     def _log_timing(resp):
+        g._dup_status = resp.status_code
         t0 = g.get("_t0")
         if t0 is not None and not request.path.startswith("/internal/"):
             metrics.observe(request.method, request.path, resp.status_code, (time.perf_counter() - t0) * 1000)
@@ -174,15 +211,19 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
 
     @app.errorhandler(Exception)
     def crash_guard(e: Exception):
-        if type(e).__name__ in ("ResourceExhausted", "TooManyRequests"):  # Firestore quota / rate limit
+        if is_quota(e):  # Firestore quota / rate limit
             metrics.record_error(e, request.path, "")
             app.logger.warning("database quota exceeded (resets daily on the free plan)")
-            return jsonify({"error": "database_busy", "message": "The database quota is used up for now. Try again later."}), 503
+            return jsonify({"error": "database_busy", "message": "We're very busy right now. Please try again in a few minutes."}), 503
+        if is_transient(e):  # timeout / Firestore briefly unavailable: tell the app it is downtime, not a bug
+            metrics.record_error(e, request.path, "")
+            app.logger.warning("temporary backend failure: %s", type(e).__name__)
+            return jsonify({"error": "service_unavailable", "message": "We're experiencing downtime. Please try again shortly."}), 503
         app.logger.exception("unhandled error")
         import traceback
 
         metrics.record_error(e, request.path, traceback.format_exc())
-        return jsonify({"error": "server_error", "message": "Something went wrong."}), 500
+        return jsonify({"error": "server_error", "message": "Something went wrong on our side. Please try again."}), 500
 
     def body() -> dict:
         data = request.get_json(silent=True)
@@ -229,12 +270,33 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
     @app.get("/v1/games")
     @require_auth
     def list_games():
-        return {"games": catalog.games()}
+        games = catalog.games()  # first: a database that isn't ready must fail here, as before
+        return {"games": games, "maintenance": flags.public()}
+
+    @app.get("/v1/status")
+    def public_status():
+        """Open to everyone and never touches the database, so the app can still tell players
+        what is going on when the database is down or out of quota."""
+        return jsonify({"maintenance": flags.public(), "degraded": metrics.backend_trouble()})
 
     @app.get("/v1/wallet")
     @require_auth
     def get_wallet():
         return jsonify(wallet.get(g.uid))
+
+    @app.get("/v1/rounds")
+    @require_auth
+    def get_rounds():
+        """Rounds left for the wallet being played (demo or live, by the X-Play-Mode header)."""
+        w = wallet.get(g.uid)
+        return jsonify({"balance": w["balance"], "rounds": w["rounds"]})
+
+    @app.post("/v1/rounds/buy")
+    @require_auth
+    @gate('play')
+    def buy_rounds():
+        data = body()
+        return jsonify(wallet.buy_rounds(g.uid, data.get("size"), data.get("key")))
 
     @app.post("/v1/wallet/claim-daily")
     @require_auth
@@ -268,6 +330,7 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
                     "minTarget": MIN_TARGET,
                     "maxTarget": MAX_TARGET,
                 },
+                "plinko": {"minBet": cfg.plinko_min_bet, "maxBet": cfg.plinko_max_bet, "rows": list(PLINKO_ROWS), "risks": list(PLINKO_RISKS)},
                 "roulette": {"minBet": cfg.roulette_min_bet, "maxTotal": cfg.roulette_max_total},
                 "blackjack": {"minBet": cfg.blackjack_min_bet, "maxBet": cfg.blackjack_max_bet},
                 "crash": {"minBet": cfg.crash_min_bet, "maxBet": cfg.crash_max_bet},
@@ -375,6 +438,20 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
     def dice_roll():
         data = body()
         return jsonify(dice.roll(g.uid, data.get("bet"), data.get("target"), data.get("mode")))
+
+    @app.get("/v1/plinko/quote")
+    @require_auth
+    def plinko_quote():
+        """The slot multipliers for a board, for the wallet being played (demo and live differ)."""
+        rows = request.args.get("rows", type=int)
+        return jsonify(plinko.quote(g.uid, rows if rows is not None else 12, request.args.get("risk", "medium")))
+
+    @app.post("/v1/plinko/drop")
+    @require_auth
+    @gate('play')
+    def plinko_drop():
+        data = body()
+        return jsonify(plinko.drop(g.uid, data.get("bet"), data.get("rows"), data.get("risk")))
 
     @app.post("/v1/roulette/spin")
     @require_auth

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../buttons/icon_square_button.dart';
 import '../core/app_colors.dart';
 import '../core/app_text.dart';
+import '../../rounds/rounds_pill.dart';
 import '../feedback/balance_pill.dart';
 
 /// Top bar inside every game: back, title, balance, fairness shield.
@@ -50,6 +51,8 @@ class GameTopBar extends StatelessWidget {
               style: AppText.body(18, weight: FontWeight.w700),
             ),
           ),
+          const RoundsPill(),
+          const SizedBox(width: 8),
           BalancePill(balance: balance, low: low, compact: true),
           if (onVerify != null) ...[
             const SizedBox(width: 8),

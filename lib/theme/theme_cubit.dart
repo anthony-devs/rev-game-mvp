@@ -120,5 +120,6 @@ ThemeData buildAppTheme() {
     textTheme: base.textTheme.apply(fontFamily: AppText.family, bodyColor: AppColors.text, displayColor: AppColors.text),
     primaryTextTheme: base.primaryTextTheme.apply(fontFamily: AppText.family),
     splashFactory: NoSplash.splashFactory,
+    bottomSheetTheme: const BottomSheetThemeData(constraints: BoxConstraints(maxWidth: 600)),
   );
 }

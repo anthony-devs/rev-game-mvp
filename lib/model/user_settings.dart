@@ -13,6 +13,7 @@ class UserSettings extends Equatable {
     this.reduceMotion = false,
     this.favourites = const [],
     this.seenGuides = const [],
+    this.waitlist = const [],
   });
 
   static const UserSettings defaults = UserSettings();
@@ -29,6 +30,10 @@ class UserSettings extends Equatable {
   /// Game types whose how-to-play guide the player has already been shown.
   final List<String> seenGuides;
 
+  /// Slugs of coming-soon games the player joined the waitlist for. When one launches the lobby
+  /// marks it NEW until the player opens it.
+  final List<String> waitlist;
+
   UserSettings copyWith({
     bool? soundEnabled,
     bool? musicEnabled,
@@ -37,6 +42,7 @@ class UserSettings extends Equatable {
     bool? reduceMotion,
     List<String>? favourites,
     List<String>? seenGuides,
+    List<String>? waitlist,
   }) {
     return UserSettings(
       soundEnabled: soundEnabled ?? this.soundEnabled,
@@ -46,6 +52,7 @@ class UserSettings extends Equatable {
       reduceMotion: reduceMotion ?? this.reduceMotion,
       favourites: favourites ?? this.favourites,
       seenGuides: seenGuides ?? this.seenGuides,
+      waitlist: waitlist ?? this.waitlist,
     );
   }
 
@@ -57,6 +64,7 @@ class UserSettings extends Equatable {
         reduceMotion: parseBool(json['reduceMotion']),
         favourites: json['favourites'] is List ? [for (final f in json['favourites'] as List) f.toString()] : const [],
         seenGuides: json['seenGuides'] is List ? [for (final f in json['seenGuides'] as List) f.toString()] : const [],
+        waitlist: json['waitlist'] is List ? [for (final f in json['waitlist'] as List) f.toString()] : const [],
       );
 
   Json toJson() => {
@@ -67,11 +75,12 @@ class UserSettings extends Equatable {
         'reduceMotion': reduceMotion,
         'favourites': favourites,
         'seenGuides': seenGuides,
+        'waitlist': waitlist,
       };
 
   factory UserSettings.fromFirestore(Json data) => UserSettings.fromJson(data);
   Json toFirestore() => toJson();
 
   @override
-  List<Object?> get props => [soundEnabled, musicEnabled, hapticsEnabled, turboByDefault, reduceMotion, favourites, seenGuides];
+  List<Object?> get props => [soundEnabled, musicEnabled, hapticsEnabled, turboByDefault, reduceMotion, favourites, seenGuides, waitlist];
 }

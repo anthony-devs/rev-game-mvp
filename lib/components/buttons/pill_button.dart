@@ -35,6 +35,7 @@ class PillButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = onPressed == null ? AppColors.textFaint : (color ?? AppColors.text);
     return PressScale(
+      cooldown: const Duration(milliseconds: 700),
       onTap: onPressed,
       child: Container(
         height: height,

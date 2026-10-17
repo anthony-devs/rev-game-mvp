@@ -25,6 +25,17 @@ def make_live(live: LiveService) -> Blueprint:
     def status():
         return jsonify(live.status(uid()))
 
+    @bp.get("/v1/live/agreement")
+    @require_auth
+    def agreement():
+        return jsonify(live.agreement(uid()))
+
+    @bp.post("/v1/live/agreement")
+    @require_auth
+    def accept_agreement():
+        d = body()
+        return jsonify(live.accept_agreement(uid(), d.get("version"), d.get("confirmed")))
+
     @bp.get("/v1/live/payments")
     @require_auth
     def payments():

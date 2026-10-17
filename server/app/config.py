@@ -3,8 +3,12 @@ import os
 from dataclasses import dataclass
 
 
-def _f(name: str, default: float) -> float:
-    return float(os.environ.get(name, default))
+def _f(name: str, default: float, *old_names: str) -> float:
+    """A number from the environment. ``old_names`` are the previous spellings, still honoured."""
+    for n in (name, *old_names):
+        if n in os.environ and os.environ[n].strip() != "":
+            return float(os.environ[n])
+    return float(default)
 
 
 @dataclass(frozen=True)
@@ -24,19 +28,26 @@ class Config:
     # Crash
     crash_min_bet: float = _f("CRASH_MIN_BET", 10)
     crash_max_bet: float = _f("CRASH_MAX_BET", 500000)
-    crash_house_edge: float = _f("CRASH_HOUSE_EDGE", 0.05)  # live; demo uses demo_crash_edge
+    crash_house_edge: float = _f("CRASH_EDGE_LIVE", 0.05, "CRASH_HOUSE_EDGE")  # live; demo uses demo_crash_edge
     crash_growth_rate: float = _f("CRASH_GROWTH_RATE", 0.12)
     crash_max_multiplier: float = _f("CRASH_MAX_MULTIPLIER", 5000)
 
     # Dice
     dice_min_bet: float = _f("DICE_MIN_BET", 10)
     dice_max_bet: float = _f("DICE_MAX_BET", 100000)
-    dice_house_edge: float = _f("DICE_HOUSE_EDGE", 0.05)
+    dice_house_edge: float = _f("DICE_EDGE_LIVE", 0.05, "DICE_HOUSE_EDGE")
+    # Back-office changes: an identical request right after a successful one is refused for this long.
+    dup_cooloff_seconds: float = _f("DUP_COOLOFF_SECONDS", 1.5)
+    plinko_min_bet: float = _f("PLINKO_MIN_BET", 10)
+    plinko_max_bet: float = _f("PLINKO_MAX_BET", 100000)
+    plinko_house_edge: float = _f("PLINKO_EDGE_LIVE", 0.04, "PLINKO_HOUSE_EDGE")  # live return to player = 96%
+    plinko_max_payout: float = _f("PLINKO_MAX_PAYOUT", 5_000_000)  # one drop can never pay more than this
 
     # Roulette (European, single zero: RTP 97.30%)
     roulette_min_bet: float = _f("ROULETTE_MIN_BET", 10)
     roulette_max_total: float = _f("ROULETTE_MAX_TOTAL", 100000)
     roulette_max_bets: int = 60
+    roulette_max_payout: float = _f("ROULETTE_MAX_PAYOUT", 1_000_000)  # the most one spin can pay, however the chips are spread
 
     # Blackjack (3:2, dealer stands on all 17s, double on two cards)
     blackjack_min_bet: float = _f("BLACKJACK_MIN_BET", 10)
@@ -80,15 +91,39 @@ class Config:
     # random outcome is the same, only what a win pays (or how often the slot hits) differs.
     # Many regulators require free-play to mirror live odds. Set these to the live values
     # (dice 0.05, crash 0.05, slots 0.96, boost 0) before launching in such a market.
-    demo_dice_edge: float = _f("DEMO_DICE_EDGE", -0.15)  # negative = the player has the edge (115% back)
-    demo_crash_edge: float = _f("DEMO_CRASH_EDGE", -0.15)  # a round never busts below 1.15x
-    demo_slots_factor: float = _f("DEMO_SLOTS_FACTOR", 1.5)  # slot wins come 1.5x as often
-    live_slots_factor: float = _f("LIVE_SLOTS_FACTOR", 0.96)  # live slot wins come a little less often
-    demo_win_boost: float = _f("DEMO_WIN_BOOST", 0.4)  # roulette / blackjack winnings pay 40% extra
+    demo_dice_edge: float = _f("DICE_EDGE_DEMO", -0.15, "DEMO_DICE_EDGE")  # negative = the player has the edge (115% back)
+    demo_plinko_edge: float = _f("PLINKO_EDGE_DEMO", -0.60, "DEMO_PLINKO_EDGE")  # demo table returns 160% and no slot pays less than the bet
+    demo_crash_edge: float = _f("CRASH_EDGE_DEMO", -0.15, "DEMO_CRASH_EDGE")  # a round never busts below 1.15x
+    demo_slots_factor: float = _f("SLOTS_LUCK_DEMO", 1.5, "DEMO_SLOTS_FACTOR")  # slot wins come 1.5x as often
+    demo_slots_generous: bool = _f("SLOTS_DEMO_GENEROUS", 1, "DEMO_SLOTS_GENEROUS") == 1  # demo slots use DEMO_PAY_ODDS: even 777 lands now and then
+    live_slots_factor: float = _f("SLOTS_LUCK_LIVE", 0.85, "LIVE_SLOTS_FACTOR")  # live slot wins come a little less often
+    demo_win_boost: float = _f("WIN_BOOST_DEMO", 0.4, "DEMO_WIN_BOOST")  # roulette / blackjack winnings pay 40% extra
+    # Live roulette / blackjack. 0 = the standard casino payouts. Negative pays winnings less (-0.1 = 10% less),
+    # which makes the game harder; the paytable shown to players would then no longer be the standard one.
+    live_win_boost: float = max(-0.9, min(0.0, _f("WIN_BOOST_LIVE", 0.0)))
+
+    # Rounds. Every player gets ROUNDS_FREE rounds per window (all games share them). When they are used up
+    # the player can buy more at ROUND_PRICE each, in packs. Bought rounds never expire. This pays for the
+    # database reads and writes every round costs. Demo and live have separate counters and settings.
+    rounds_enabled: bool = os.environ.get("ROUNDS_LIMIT", "1").lower() in ("1", "true", "yes")
+    rounds_free_live: int = int(_f("ROUNDS_FREE_LIVE", 14))
+    rounds_free_demo: int = int(_f("ROUNDS_FREE_DEMO", 14))
+    rounds_window_hours: float = _f("ROUNDS_WINDOW_HOURS", 6)  # free rounds come back this long after the first one of a window is played
+    round_price_live: float = _f("ROUND_PRICE_LIVE", 50)  # in LIVE_CURRENCY, paid from the live balance
+    round_price_demo: float = _f("ROUND_PRICE_DEMO", 50)  # in demo credits
+    round_packs: tuple = tuple(int(x) for x in os.environ.get("ROUND_PACKS", "5,10,25,50").split(",") if x.strip())
 
     # Live (real money) play. Amounts are in LIVE_CURRENCY; 1 credit in live mode = 1 unit of it.
     live_enabled: bool = os.environ.get("LIVE_ENABLED", "1").lower() in ("1", "true", "yes")
     live_currency: str = os.environ.get("LIVE_CURRENCY", "NGN").upper()
+    # The Live Money Agreement every player accepts before real-money play. Bump the version when the
+    # text changes in a way that needs fresh consent: everyone is asked again on their next live session.
+    live_agreement_required: bool = os.environ.get("LIVE_AGREEMENT_REQUIRED", "1").lower() in ("1", "true", "yes")
+    live_agreement_version: str = os.environ.get("LIVE_AGREEMENT_VERSION", "2")
+    # How many wallet units one USD / one USDT is worth. Used for PayPal and USDT amounts shown to players.
+    # Mock mode uses these as typed; a real gateway quotes its own rate and these become the fallback.
+    fx_usd: float = _f("FX_USD", 1550)
+    fx_usdt: float = _f("FX_USDT", 1550)
     live_min_deposit: float = _f("LIVE_MIN_DEPOSIT", 500)
     live_max_deposit: float = _f("LIVE_MAX_DEPOSIT", 500000)
     live_min_payout: float = _f("LIVE_MIN_PAYOUT", 1000)

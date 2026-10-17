@@ -9,6 +9,7 @@ import math
 import secrets
 import uuid
 
+from .allowance import spend, view as rounds_view
 from .config import Config
 from .errors import ApiError, bad_request
 from .fairness import FairnessService
@@ -65,6 +66,7 @@ class DiceService:
             wallet = load_wallet(txn, uid, self.cfg, now)
             if wallet["balance"] < bet:
                 raise ApiError(402, "insufficient_credits", "Not enough credits for this bet.")
+            wallet = spend(wallet, self.cfg, uid, now)
             rng, fair = self.fair.begin(txn, uid, now)
             roll = roll_from(rng)
             win = is_win(roll, q["target"], q["mode"])
@@ -100,6 +102,7 @@ class DiceService:
                 "balanceAfterBet": after_bet,
                 "balance": balance,
                 "fairness": fair,
+                "rounds": rounds_view(wallet, self.cfg, uid, now),
                 **q,
             }
 
