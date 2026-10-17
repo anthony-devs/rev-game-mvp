@@ -50,11 +50,12 @@ class GameTile extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               if (image != null) Image(image: image!, fit: BoxFit.cover) else GameArt(kind: kind, borderRadius: 0),
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(begin: Alignment.center, end: Alignment.bottomCenter, colors: [Colors.transparent, Color(0xCC000000)]),
+              if (image != null)
+                const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(begin: Alignment.center, end: Alignment.bottomCenter, colors: [Colors.transparent, Color(0xCC000000)]),
+                  ),
                 ),
-              ),
               Positioned(
                 left: 14,
                 right: 14,

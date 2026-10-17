@@ -11,10 +11,10 @@ import '../core/formatters.dart';
 /// MultiplierDisplay(value: 1.00, color: AppColors.loss, caption: 'BUSTED')
 /// ```
 class MultiplierDisplay extends StatelessWidget {
-  const MultiplierDisplay({super.key, required this.value, this.color = AppColors.green, this.caption, this.size = 56});
+  const MultiplierDisplay({super.key, required this.value, this.color, this.caption, this.size = 56});
 
   final double value;
-  final Color color;
+  final Color? color;
   final String? caption;
   final double size;
 
@@ -23,8 +23,8 @@ class MultiplierDisplay extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(formatMultiplier(value), style: AppText.number(size, color: color, shadows: AppText.glow(color))),
-        if (caption != null) ...[const SizedBox(height: 4), Text(caption!, style: AppText.label(color: color))],
+        Text(formatMultiplier(value), style: AppText.number(size, color: (color ?? AppColors.green), shadows: AppText.glow((color ?? AppColors.green)))),
+        if (caption != null) ...[const SizedBox(height: 4), Text(caption!, style: AppText.label(color: (color ?? AppColors.green)))],
       ],
     );
   }

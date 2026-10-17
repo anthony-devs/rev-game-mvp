@@ -32,7 +32,7 @@ class AppDialogCard extends StatelessWidget {
     required this.onPrimary,
     this.message,
     this.icon,
-    this.iconColor = AppColors.gold,
+    this.iconColor,
     this.secondaryLabel,
     this.onSecondary,
     this.body,
@@ -41,7 +41,7 @@ class AppDialogCard extends StatelessWidget {
   final String title;
   final String? message;
   final IconData? icon;
-  final Color iconColor;
+  final Color? iconColor;
   final String primaryLabel;
   final VoidCallback onPrimary;
   final String? secondaryLabel;
@@ -68,8 +68,8 @@ class AppDialogCard extends StatelessWidget {
             Container(
               width: 64,
               height: 64,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: iconColor.withValues(alpha: .12), border: Border.all(color: iconColor.withValues(alpha: .5))),
-              child: Icon(icon, size: 30, color: iconColor),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: (iconColor ?? AppColors.gold).withValues(alpha: .12), border: Border.all(color: (iconColor ?? AppColors.gold).withValues(alpha: .5))),
+              child: Icon(icon, size: 30, color: (iconColor ?? AppColors.gold)),
             ),
             const SizedBox(height: 18),
           ],

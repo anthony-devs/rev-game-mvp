@@ -17,8 +17,8 @@ class PillButton extends StatelessWidget {
     this.icon,
     this.height = 40,
     this.fontSize = 13,
-    this.color = AppColors.text,
-    this.borderColor = AppColors.lineStrong,
+    this.color,
+    this.borderColor,
     this.horizontalPadding = 16,
   });
 
@@ -27,13 +27,13 @@ class PillButton extends StatelessWidget {
   final IconData? icon;
   final double height;
   final double fontSize;
-  final Color color;
-  final Color borderColor;
+  final Color? color;
+  final Color? borderColor;
   final double horizontalPadding;
 
   @override
   Widget build(BuildContext context) {
-    final c = onPressed == null ? AppColors.textFaint : color;
+    final c = onPressed == null ? AppColors.textFaint : (color ?? AppColors.text);
     return PressScale(
       onTap: onPressed,
       child: Container(
@@ -41,7 +41,7 @@ class PillButton extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(height),
-          border: Border.all(color: borderColor),
+          border: Border.all(color: (borderColor ?? AppColors.lineStrong)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

@@ -157,3 +157,36 @@ Production: `gunicorn -b 0.0.0.0:$PORT -w 1 --threads 8 wsgi:app` (see the Docke
 * Reasons for bans, suspensions, lifts and appeal decisions come from fixed lists. Free text is accepted only when "Other" is picked.
 * Appeals and tickets accept photos, videos and PDFs (checked by content, 25 MB each, 5 per message). Set `FIREBASE_STORAGE_BUCKET` in production.
 * `python manage.py hash-password | gen-secret | gen-password` help with the secrets above.
+
+
+## Live play (real money)
+
+The app has a Demo / Live switch. Live uses a separate wallet (`users/L_<uid>`), so demo
+credits and real money never mix. Right now all gateways are **mocks** (`PAYMENTS_MODE=mock`).
+
+**Money rules (all in `app/live.py`, tested in `tests/test_live.py`)**
+
+- A deposit credits the wallet only after the provider confirms it server to server (or a
+  signed webhook triggers that check). The app's word is never trusted.
+- Every deposit/payout request carries an idempotency key. The same key returns the same
+  payment, so a double tap or retry can't charge or pay twice. A reopened sheet with the
+  same amount and provider within 2 minutes reuses the open payment too.
+- A payment is one document that only moves forward. Each move happens in a transaction that
+  first checks the current state, so two webhooks, two admin clicks or an app retry can't
+  credit or pay twice.
+- A payout takes the money out of the wallet immediately (so it can't be played or requested
+  twice) and waits for an admin. The admin opens **/admin/payments**, checks the player, and
+  must type that payout's own reference to approve it. Rejecting returns the money, once.
+  The provider call is idempotent by payment id.
+- Accounts with an active ban, suspension, payout restriction or investigation can't deposit
+  or withdraw. An account with live money or an open payout can't be deleted.
+
+**Going real**: write one class per gateway in `app/providers.py` with the five methods
+(`create_charge`, `fetch_charge`, `verify_webhook`, `send_payout`, `fetch_payout`), register
+it in `build_providers`, set the keys, and point each gateway's webhook at
+`/v1/live/webhooks/<provider>`. Apple/Google *in-app purchase* may not be used for real-money
+gambling stakes, so Apple Pay / Google Pay are card-wallet payments settled through Stripe.
+
+**Before launch** you still need: a gambling licence for your market, KYC/age checks before
+the first payout, wagering requirements (to stop deposit-and-withdraw laundering), and daily
+payout limits. None of that is built yet.

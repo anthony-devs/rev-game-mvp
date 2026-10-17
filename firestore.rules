@@ -7,6 +7,12 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    // Live (real money) play keeps a second record under users/L_<uid>. Only the server
+    // writes it; the player may read their own, so the app can show it live.
+    function canRead(uid) {
+      return request.auth != null && (request.auth.uid == uid || uid == 'L_' + request.auth.uid);
+    }
+
     // users/{uid}: the player's profile, settings and limits.
     match /users/{uid} {
       allow read: if isOwner(uid);
@@ -26,25 +32,25 @@ service cloud.firestore {
       // Wallet: the app may create it once with the starting credits.
       // After that only the game server (Admin SDK) can change it.
       match /wallet/{doc} {
-        allow read: if isOwner(uid);
+        allow read: if canRead(uid);
         allow create: if isOwner(uid) && doc == 'current' && request.resource.data.balance == 10000;
         allow update, delete: if false;
       }
 
       // Round history written by the game server. The player can read it.
       match /rounds/{roundId} {
-        allow read: if isOwner(uid);
+        allow read: if canRead(uid);
         allow write: if false;
       }
 
       // Public fairness commitment (seed hash, client seed, nonce) and revealed seeds.
       // The live server seed itself lives in fair_secrets/{uid}, which no client can read.
       match /fairness/{doc} {
-        allow read: if isOwner(uid);
+        allow read: if canRead(uid);
         allow write: if false;
       }
       match /seed_history/{hash} {
-        allow read: if isOwner(uid);
+        allow read: if canRead(uid);
         allow write: if false;
       }
 
@@ -78,7 +84,7 @@ service cloud.firestore {
 
       // Progress: same idea, starts at level 1.
       match /progress/{doc} {
-        allow read: if isOwner(uid);
+        allow read: if canRead(uid);
         allow create: if isOwner(uid) && doc == 'current'
           && request.resource.data.level == 1 && request.resource.data.xp == 0;
         allow update, delete: if false;

@@ -87,7 +87,8 @@
   <h1>REV <b>Games</b> · Admin</h1>
   <span id="status">Signed in</span>
   <span class="spacer"></span>
-  <label style="margin:0;display:none;gap:6px;align-items:center" id="liveBox">Live <input id="live" type="checkbox" checked></label>
+  <a href="/admin/payments" style="color:var(--gold);font-size:13px;text-decoration:none">Payments &amp; payouts →</a>
+  <label style="margin:0;display:none;gap:6px;align-items:center" id="liveBox">Auto-refresh <input id="live" type="checkbox"></label>
   <span id="who" style="color:var(--dim);font-size:12px"></span>
   <button class="ghost small" id="lock" style="display:none">Lock</button>
   <button class="ghost small" id="signout">Sign out</button>
@@ -156,7 +157,8 @@ function toast(msg, err) {
   const t = $('#toast'); t.textContent = msg; t.className = 'toast' + (err ? ' err' : ''); t.style.display = 'block';
   clearTimeout(toast.h); toast.h = setTimeout(() => t.style.display = 'none', 3600);
 }
-function signOut() { store.del('staffToken'); store.del('adminKey'); location.replace('/staff'); }
+let DEAD = false;
+function signOut() { DEAD = true; store.del('staffToken'); store.del('adminKey'); location.replace('/staff'); }
 function showGate(msg) { $('#gate').style.display = 'flex'; $('#app').style.display = 'none'; $('#lock').style.display = 'none'; $('#liveBox').style.display = 'none'; $('#gateErr').textContent = msg || ''; $('#key').focus(); }
 
 async function request(path, opts = {}) {
@@ -556,11 +558,11 @@ $('#lock').onclick = () => { KEY = ''; store.del('adminKey'); showGate(''); };
 $('#q').oninput = () => { clearTimeout($('#q').h); $('#q').h = setTimeout(loadList, 250); };
 $('#recentDays').onchange = loadList;
 setInterval(() => {
-  if (!KEY || !$('#live').checked || document.hidden || $('#scrim').style.display === 'flex') return;
+  if (DEAD || !KEY || !$('#live').checked || document.hidden || $('#scrim').style.display === 'flex') return;
   const ae = document.activeElement, typing = ae && ['TEXTAREA', 'INPUT', 'SELECT'].includes(ae.tagName) && ae.id !== 'live';
   if (mode === 'player' && selected && !typing) loadDetail();
   if (!typing && mode !== 'bulk') loadList();
-}, 5000);
+}, 30000);
 
 (async () => {
   if (!TOKEN) return;

@@ -19,7 +19,10 @@ class FaqTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-      child: ExpansionTile(
+      // ExpansionTile draws ink; give it its own transparent Material so a coloured parent doesn't hide it.
+      child: Material(
+        type: MaterialType.transparency,
+        child: ExpansionTile(
         initiallyExpanded: initiallyExpanded,
         tilePadding: const EdgeInsets.symmetric(horizontal: 16),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -29,6 +32,7 @@ class FaqTile extends StatelessWidget {
         trailing: const Icon(Icons.expand_more_rounded, size: 18),
         title: Text(question, style: AppText.body(15, weight: FontWeight.w600)),
         children: [Text(answer, style: AppText.body(13, color: AppColors.textMuted, height: 1.55))],
+        ),
       ),
     );
   }

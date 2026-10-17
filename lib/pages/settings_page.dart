@@ -11,6 +11,7 @@ import 'limits_page.dart';
 import 'round_format.dart';
 import 'wallet_page.dart';
 import '../support/support_button.dart';
+import '../theme/theme_cubit.dart';
 
 /// U1. Settings tab. Sign out lives in the profile, not here.
 class SettingsPage extends StatelessWidget {
@@ -53,10 +54,31 @@ class SettingsPage extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded, color: AppColors.textDim),
+                Icon(Icons.chevron_right_rounded, color: AppColors.textDim),
               ],
             ),
           ),
+        ),
+        const SizedBox(height: 22),
+        ListGroup(
+          title: 'Appearance',
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: BlocBuilder<ThemeCubit, ThemeState>(
+                builder: (context, theme) => SegmentedToggle<ThemeMode>(
+                  height: 44,
+                  options: const [
+                    SegmentOption(value: ThemeMode.system, label: 'System'),
+                    SegmentOption(value: ThemeMode.light, label: 'Light'),
+                    SegmentOption(value: ThemeMode.dark, label: 'Dark'),
+                  ],
+                  selected: theme.mode,
+                  onChanged: (m) => context.read<ThemeCubit>().setMode(m),
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 22),
         ListGroup(
@@ -71,16 +93,10 @@ class SettingsPage extends StatelessWidget {
               },
             ),
             SwitchRow(
-              title: 'Music',
+              title: 'Game music',
+              subtitle: 'Each game has its own background track',
               value: settings.musicEnabled,
-              onChanged: (v) {
-                cubit.updateSettings(settings.copyWith(musicEnabled: v));
-                if (v) {
-                  AppSound.startMusic();
-                } else {
-                  AppSound.stopMusic();
-                }
-              },
+              onChanged: (v) => cubit.updateSettings(settings.copyWith(musicEnabled: v)),
             ),
             SwitchRow(title: 'Haptics', value: settings.hapticsEnabled, onChanged: (v) => cubit.updateSettings(settings.copyWith(hapticsEnabled: v))),
             SwitchRow(title: 'Turbo spin', subtitle: 'Faster spins in Slots', value: settings.turboByDefault, onChanged: (v) => cubit.updateSettings(settings.copyWith(turboByDefault: v))),

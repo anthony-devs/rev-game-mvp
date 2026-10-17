@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../components/core/app_haptics.dart';
 import '../../components/core/app_sound.dart';
+import '../../components/core/play_mode.dart';
 import '../../core/api/api_client.dart';
 import '../../model/model.dart';
 import '../data/user_repository.dart';
@@ -22,6 +23,9 @@ class ProfileState extends Equatable {
     this.heldBalance,
     this.standing = AccountStanding.good,
     this.standingAt,
+    this.live = false,
+    this.demoWallet = Wallet.empty,
+    this.liveWallet = Wallet.empty,
   });
 
   final AppUser user;
@@ -51,6 +55,15 @@ class ProfileState extends Equatable {
   /// Clock for [standing]; moves forward when a suspension or probation ends.
   final DateTime? standingAt;
 
+  /// Playing with real money. Wallet, progress and history then come from the live record.
+  final bool live;
+
+  /// Both wallets are always kept up to date, so the wallet picker can show both balances.
+  final Wallet demoWallet, liveWallet;
+
+  /// Which player record the app reads (wallet, rounds, level, fairness seeds).
+  String get dataId => live && !user.isEmpty ? 'L_${user.id}' : user.id;
+
   DateTime get _now => standingAt ?? DateTime.now();
 
   /// The action that currently stops this player from playing, or `null`.
@@ -78,6 +91,9 @@ class ProfileState extends Equatable {
     Object? heldBalance = _keep,
     AccountStanding? standing,
     DateTime? standingAt,
+    bool? live,
+    Wallet? demoWallet,
+    Wallet? liveWallet,
   }) {
     return ProfileState(
       user: user ?? this.user,
@@ -90,11 +106,14 @@ class ProfileState extends Equatable {
       heldBalance: identical(heldBalance, _keep) ? this.heldBalance : heldBalance as double?,
       standing: standing ?? this.standing,
       standingAt: standingAt ?? this.standingAt,
+      live: live ?? this.live,
+      demoWallet: demoWallet ?? this.demoWallet,
+      liveWallet: liveWallet ?? this.liveWallet,
     );
   }
 
   @override
-  List<Object?> get props => [user, wallet, settings, limits, progress, walletReady, profileReady, heldBalance, standing, standingAt];
+  List<Object?> get props => [user, wallet, settings, limits, progress, walletReady, profileReady, heldBalance, standing, standingAt, live, demoWallet, liveWallet];
 }
 
 const Object _keep = Object();
@@ -112,6 +131,7 @@ class ProfileCubit extends Cubit<ProfileState> {
   final UserRepository _repo;
   final WalletApi _walletApi;
   final List<StreamSubscription<Object?>> _subs = [];
+  final List<StreamSubscription<Object?>> _dataSubs = []; // wallet + progress: demo or live record
   Timer? _holdGuard;
   Timer? _standingTimer;
 
@@ -119,13 +139,18 @@ class ProfileCubit extends Cubit<ProfileState> {
   /// when signed out.
   void bind(AppUser auth) {
     _cancel();
+    PlayMode.live.value = false; // always start a session on demo credits
     if (auth.isEmpty) {
       AppHaptics.enabled = true;
-      AppSound.stopMusic();
+      AppSound.reset();
       unfreeze();
       emit(const ProfileState());
       return;
     }
+
+    // A new player starts from the defaults, never the last player's switches.
+    AppHaptics.enabled = true;
+    AppSound.apply(sound: true, music: true);
 
     // Show something instantly (name from sign in); Firestore fills in after.
     emit(ProfileState(user: auth, wallet: Wallet(userId: auth.id)));
@@ -137,20 +162,55 @@ class ProfileCubit extends Cubit<ProfileState> {
         AppSound.apply(sound: p.settings.soundEnabled, music: p.settings.musicEnabled);
         emit(state.copyWith(user: p.user, settings: p.settings, limits: p.limits, profileReady: true));
       }, onError: (_) {}))
-      ..add(_repo.watchWallet(auth.id).listen((w) {
-        if (w == null) return;
-        emit(state.copyWith(wallet: w, walletReady: true));
-      }, onError: (_) {}))
-      ..add(_repo.watchProgress(auth.id).listen((p) {
-        if (p == null) return;
-        emit(state.copyWith(progress: p));
-      }, onError: (_) {}))
       ..add(_repo.watchStanding(auth.id).listen((st) {
         emit(state.copyWith(standing: st, standingAt: DateTime.now()));
         _scheduleStandingTick();
       }, onError: (_) {}));
 
+    _bindData();
     unawaited(_repo.ensureDocs(auth));
+  }
+
+  /// Wallet and progress for the current mode. Demo reads `users/<uid>`, live reads `users/L_<uid>`
+  /// (the server owns it; the rules let only that player read it).
+  void _bindData() {
+    for (final s in _dataSubs) {
+      s.cancel();
+    }
+    _dataSubs.clear();
+    final uid = state.user.id;
+    if (uid.isEmpty) return;
+    // Both wallets are watched all the time (cheap, one document each): the active one
+    // drives every screen, the other one only feeds the wallet picker.
+    _dataSubs
+      ..add(_repo.watchWallet(uid).listen((w) {
+        if (w == null) return;
+        emit(state.copyWith(demoWallet: w, wallet: state.live ? null : w, walletReady: state.live ? null : true));
+      }, onError: (_) {}))
+      // No live document yet just means R0 (nothing deposited): not "still loading".
+      ..add(_repo.watchWallet('L_$uid').listen((w) {
+        final lw = w ?? Wallet(userId: uid);
+        emit(state.copyWith(liveWallet: lw, wallet: state.live ? lw : null, walletReady: state.live ? true : null));
+      }, onError: (_) {}))
+      ..add(_repo.watchProgress(state.dataId).listen((p) {
+        if (p == null) return;
+        emit(state.copyWith(progress: p));
+      }, onError: (_) {}));
+  }
+
+  /// Switch between demo credits and live money. Call it only from the lobby / wallet,
+  /// never in the middle of a round.
+  void setLive(bool live) {
+    if (state.live == live || state.user.isEmpty) return;
+    PlayMode.live.value = live;
+    unfreeze();
+    emit(state.copyWith(
+      live: live,
+      wallet: live ? state.liveWallet : state.demoWallet,
+      walletReady: true,
+      progress: PlayerProgress.initial,
+    ));
+    _bindData();
   }
 
   // ---- Account standing ---------------------------------------------------
@@ -252,6 +312,10 @@ class ProfileCubit extends Cubit<ProfileState> {
       s.cancel();
     }
     _subs.clear();
+    for (final s in _dataSubs) {
+      s.cancel();
+    }
+    _dataSubs.clear();
   }
 
   @override

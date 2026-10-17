@@ -41,7 +41,7 @@ class SupportBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final unread = context.select((SupportCubit c) => c.state.unread);
-    const chevron = Icon(Icons.chevron_right_rounded, size: 22, color: AppColors.textFaint);
+    final chevron = Icon(Icons.chevron_right_rounded, size: 22, color: AppColors.textFaint);
     if (unread == 0) return chevron;
     return Row(
       mainAxisSize: MainAxisSize.min,

@@ -226,3 +226,38 @@ def test_crash_house_edge_long_run(cfg):
     # Always cash out at 2.0: should win ~ (1-edge)/2 of the time, so RTP ~ 0.97.
     wins = sum(1 for _ in range(n) if svc.draw_crash_point() >= 2.0)
     assert 0.94 < 2 * wins / n < 1.0
+
+
+def test_games_list_defaults_and_overrides(make_client, store):
+    c = make_client()
+    r = c.get("/v1/games", headers=auth())
+    assert r.status_code == 200
+    games = {g["id"]: g for g in r.json["games"]}
+    assert games["slots"]["name"] == "Golden Reels" and games["slots"]["enabled"] is True
+    assert games["soon-plinko"]["comingSoon"] is True
+    store.docs["games/dice"] = {"enabled": False, "name": "Dice Deluxe", "bogus": 1}
+    store.docs["games/new-one"] = {"name": "New One", "type": "crash", "sortOrder": 6}
+    # The list is cached for a few seconds, so a console edit shows up on the next refresh.
+    assert {g["id"]: g for g in c.get("/v1/games", headers=auth()).json["games"]}["dice"]["enabled"] is True
+    c.application.extensions["catalog"].invalidate()
+    out = c.get("/v1/games", headers=auth()).json["games"]
+    games = {g["id"]: g for g in out}
+    assert games["dice"]["enabled"] is False and games["dice"]["name"] == "Dice Deluxe" and "bogus" not in games["dice"]
+    assert games["new-one"]["type"] == "crash"
+    ids = [g["id"] for g in out]
+    assert ids.index("slots") < ids.index("crash") < ids.index("new-one")
+
+
+def test_games_requires_sign_in(make_client):
+    assert make_client().get("/v1/games").status_code == 401
+
+
+def test_games_503_when_database_not_ready(make_client, store, monkeypatch):
+    c = make_client()
+
+    def boom(*a, **k):
+        raise RuntimeError("no credentials")
+
+    monkeypatch.setattr(store, "list", boom)
+    r = c.get("/v1/games", headers=auth())
+    assert r.status_code == 503 and r.json["error"] == "not_initialized"

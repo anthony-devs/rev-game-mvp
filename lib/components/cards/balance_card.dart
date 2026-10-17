@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
 import '../core/app_text.dart';
-import '../core/formatters.dart';
+import '../core/play_mode.dart';
 import '../feedback/demo_badge.dart';
 
 /// Big balance card for the Wallet screen. Put action buttons in [actions].
@@ -11,30 +11,36 @@ import '../feedback/demo_badge.dart';
 /// BalanceCard(balance: 94250, actions: [AppButton(label: 'Get credits', onPressed: open)])
 /// ```
 class BalanceCard extends StatelessWidget {
-  const BalanceCard({super.key, required this.balance, this.label = 'Available credits', this.actions = const []});
+  const BalanceCard({super.key, required this.balance, this.label = 'Available credits', this.actions = const [], this.header});
 
   final double balance;
   final String label;
   final List<Widget> actions;
 
+  /// Shown above the balance (the Demo / Live switch).
+  final Widget? header;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ValueListenableBuilder<bool>(valueListenable: PlayMode.live, builder: (context, live, _) => _card(live));
+
+  Widget _card(bool live) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.lineStrong),
-        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF1F2A25), Color(0xFF121214)]),
+        color: AppColors.surface,
+        border: Border.all(color: live ? AppColors.loss.withValues(alpha: .6) : AppColors.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [Text(label.toUpperCase(), style: AppText.label()), const SizedBox(width: 10), const DemoBadge()]),
+          if (header != null) ...[header!, const SizedBox(height: 16)],
+          Row(children: [Text(label.toUpperCase(), style: AppText.label()), const SizedBox(width: 10), live ? DemoBadge(label: 'LIVE', color: AppColors.loss) : DemoBadge()]),
           const SizedBox(height: 10),
           FittedBox(
             fit: BoxFit.scaleDown,
-            child: Text(formatCredits(balance), style: AppText.number(34, color: AppColors.mint, shadows: AppText.glow(AppColors.mint, opacity: .35))),
+            child: Text(PlayMode.amount(balance), style: AppText.number(34, color: live ? AppColors.text : AppColors.green)),
           ),
           if (actions.isNotEmpty) ...[
             const SizedBox(height: 20),

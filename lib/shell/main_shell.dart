@@ -11,7 +11,8 @@ import '../pages/settings_page.dart';
 import '../pages/slots_lobby_page.dart';
 import '../pages/account_restricted_page.dart';
 import '../pages/system_pages.dart';
-import '../pages/wallet_page.dart';
+import '../live/add_funds.dart';
+import '../live/wallet_switcher.dart';
 import '../session/session_guard.dart';
 import '../support/support_button.dart';
 import '../user/bloc/profile_cubit.dart';
@@ -48,13 +49,11 @@ class _ShellViewState extends State<_ShellView> {
   void initState() {
     super.initState();
     _catalog.start();
-    AppSound.startMusic();
   }
 
   @override
   void dispose() {
     _catalog.stop();
-    AppSound.stopMusic();
     super.dispose();
   }
 
@@ -112,8 +111,9 @@ class _Header extends StatelessWidget {
     }
     return AppHeader(
       balance: balance,
-      onBalanceTap: () => pushPage<void>(context, const WalletPage()),
-      onAdd: () => showGetCredits(context),
+      onBalanceTap: () => showWalletSwitcher(context),
+      dropdown: true,
+      onAdd: () => openAddFunds(context),
       action: const SupportButton(size: 42),
     );
   }

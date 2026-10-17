@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -22,6 +24,20 @@ void openGame(BuildContext context, GameInfo game, {bool viaDetails = false}) {
   }
   if (!game.enabled) {
     pushPage<void>(context, GameUnavailablePage(name: game.name));
+    return;
+  }
+  final catalog = context.read<CatalogCubit>();
+  if (catalog.state.offline) {
+    unawaited(catalog.refresh());
+    pushPage<void>(
+      context,
+      GameUnavailablePage(
+        name: game.name,
+        title: 'Server unavailable',
+        icon: Icons.cloud_off_rounded,
+        message: '${catalog.state.message ?? "Can't reach the game server."} Your credits are safe. Try again in a moment.',
+      ),
+    );
     return;
   }
   final reason = context.read<SessionGuard>().blockReason();

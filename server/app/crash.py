@@ -21,7 +21,7 @@ from .config import Config
 from .errors import ApiError, bad_request
 from .fairness import FairnessService, lock_for
 from .rounds import record_round
-from .store import Doc, Store, Txn
+from .store import Doc, Store, Txn, is_live
 from .wallet import Clock, _as_utc, load_wallet, money, utcnow
 
 
@@ -47,10 +47,14 @@ class CrashService:
     def seconds_to(self, multiplier: float) -> float:
         return math.log(multiplier) / self.cfg.crash_growth_rate
 
-    def draw_crash_point(self, rng=None) -> float:
+    def edge_for(self, uid: str) -> float:
+        return self.cfg.crash_house_edge if is_live(uid) else self.cfg.demo_crash_edge
+
+    def draw_crash_point(self, rng=None, edge: float | None = None) -> float:
         rng = rng or self.fair.override or secrets.SystemRandom()
         r = rng.random()
-        raw = math.floor(100 * (1 - self.cfg.crash_house_edge) / (1 - r)) / 100
+        edge = self.cfg.crash_house_edge if edge is None else edge
+        raw = math.floor(100 * (1 - edge) / (1 - r)) / 100
         return min(max(raw, 1.0), self.cfg.crash_max_multiplier)
 
     @staticmethod
@@ -66,6 +70,7 @@ class CrashService:
 
         def fn(txn: Txn):
             now = self.clock()
+            txn.preload_player(uid)
             wallet = load_wallet(txn, uid, self.cfg, now)
             if wallet["balance"] < bet:
                 raise ApiError(402, "insufficient_credits", "Not enough credits for this bet.")
@@ -73,7 +78,8 @@ class CrashService:
             txn.set_wallet(uid, {**wallet, "balance": balance, "updatedAt": now})
             # Peek at the nonce first so the seed stays locked until this round is over.
             rng, fair = self.fair.begin(txn, uid, now, lock_until=lock_for(now, 120))
-            crash_point = self.draw_crash_point(rng)
+            edge = self.edge_for(uid)
+            crash_point = self.draw_crash_point(rng, edge)
             txn.set_crash(
                 round_id,
                 {
@@ -81,6 +87,7 @@ class CrashService:
                     "bet": bet,
                     "auto": auto,
                     "crashPoint": crash_point,
+                    "edge": edge,
                     "startedAt": now,
                     "status": "running",
                     "fair": fair,
@@ -162,14 +169,14 @@ class CrashService:
             multiplier=multiplier,
             status="cashedOut" if cashed else "lost",
             label=f"Cashed out at {multiplier:.2f}x" if cashed else f"Busted at {multiplier:.2f}x",
-            details={"crashPoint": rnd["crashPoint"], "auto": rnd.get("auto"), "cashedAt": multiplier if cashed else None},
+            details={"crashPoint": rnd["crashPoint"], "edge": rnd.get("edge"), "auto": rnd.get("auto"), "cashedAt": multiplier if cashed else None},
             fair=rnd.get("fair") or {},
             now=now,
         )
 
     def replay(self, rng, rnd: Doc) -> bool:
         """Fairness check: the same seeds must give the stored crash point."""
-        return self.draw_crash_point(rng) == rnd["details"]["crashPoint"]
+        return self.draw_crash_point(rng, rnd["details"].get("edge")) == rnd["details"]["crashPoint"]
 
     # ---- event stream --------------------------------------------------------
 

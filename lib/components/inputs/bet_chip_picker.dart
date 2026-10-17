@@ -17,14 +17,14 @@ class BetChipPicker extends StatelessWidget {
     required this.selected,
     required this.onSelected,
     this.size = 54,
-    this.color = AppColors.gold,
+    this.color,
   });
 
   final List<double> values;
   final double selected;
   final ValueChanged<double> onSelected;
   final double size;
-  final Color color;
+  final Color? color;
 
   static String _short(double v) {
     if (v >= 1000 && v % 1000 == 0) return '${(v / 1000).toStringAsFixed(0)}K';
@@ -43,11 +43,11 @@ class BetChipPicker extends StatelessWidget {
               width: size,
               height: size,
               child: CustomPaint(
-                painter: _ChipPainter(color: v == selected ? color : AppColors.textFaint, active: v == selected),
+                painter: _ChipPainter(color: v == selected ? (color ?? AppColors.gold) : AppColors.textFaint, active: v == selected),
                 child: Center(
                   child: Text(
                     _short(v),
-                    style: AppText.number(size * .26, color: v == selected ? color : AppColors.textSoft),
+                    style: AppText.number(size * .26, color: v == selected ? (color ?? AppColors.gold) : AppColors.textSoft),
                   ),
                 ),
               ),

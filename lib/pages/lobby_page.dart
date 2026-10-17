@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../catalog/catalog_cubit.dart';
+import '../catalog/server_banner.dart';
 import '../components/components.dart';
 import '../games/game_launcher.dart';
 import '../model/model.dart';
@@ -59,6 +60,7 @@ class _LobbyPageState extends State<LobbyPage> {
     final shell = context.watch<ShellCubit>().state;
     final favs = context.select((ProfileCubit c) => c.state.settings.favourites);
     final settings = context.select((ProfileCubit c) => c.state.settings);
+    final live = context.select((ProfileCubit c) => c.state.live);
     final q = _query.trim().toLowerCase();
 
     bool keep(GameInfo g) {
@@ -75,6 +77,7 @@ class _LobbyPageState extends State<LobbyPage> {
       final isFav = favs.contains(g.id);
       return LobbyTile(
         game: g,
+        offline: catalog.offline,
         favourite: isFav,
         onFavourite: () {
           AppHaptics.selection();
@@ -96,8 +99,8 @@ class _LobbyPageState extends State<LobbyPage> {
           child: FilterChipRow(labels: _chipLabels, selectedIndex: _chipIndex(shell), onSelected: (i) => _chip(context, i), padding: EdgeInsets.zero),
         ),
         const SizedBox(height: 16),
-        const LevelStreakCard(),
-        const SizedBox(height: 20),
+        const ServerBanner(padding: EdgeInsets.only(bottom: 14)),
+        if (!live) ...[const LevelStreakCard(), const SizedBox(height: 20)],
         if (popular.isEmpty && upcoming.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 40),
@@ -108,13 +111,13 @@ class _LobbyPageState extends State<LobbyPage> {
             ),
           ),
         if (popular.isNotEmpty) ...[
-          const SectionHeader(title: 'Popular Games', icon: Icons.local_fire_department_outlined, iconColor: Colors.white, padding: EdgeInsets.zero),
+          SectionHeader(title: 'Popular Games', icon: Icons.local_fire_department_outlined, iconColor: AppColors.text, padding: EdgeInsets.zero),
           const SizedBox(height: 12),
           TileGrid(children: [for (final g in popular) tile(g)]),
           const SizedBox(height: 22),
         ],
         if (upcoming.isNotEmpty) ...[
-          const SectionHeader(title: 'Coming soon', icon: Icons.diamond_outlined, iconColor: Colors.white, padding: EdgeInsets.zero),
+          SectionHeader(title: 'Coming soon', icon: Icons.diamond_outlined, iconColor: AppColors.text, padding: EdgeInsets.zero),
           const SizedBox(height: 12),
           TileGrid(children: [for (final g in upcoming) tile(g)]),
         ],

@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import '../../components/core/play_mode.dart';
 import '../../model/model_json.dart';
 import 'api_config.dart';
 
@@ -33,25 +34,34 @@ class SseEvent {
 /// Small JSON client for the game server. Adds the Firebase ID token to every
 /// request and turns failures into [ApiException].
 class ApiClient {
-  ApiClient({required Future<String?> Function() tokenProvider, http.Client? client, String? baseUrl})
-      : _token = tokenProvider,
+  ApiClient({
+    required Future<String?> Function() tokenProvider,
+    Future<String?> Function()? tokenRefresher,
+    http.Client? client,
+    String? baseUrl,
+  })  : _token = tokenProvider,
+        _refresh = tokenRefresher,
         _http = client ?? http.Client(),
         _base = baseUrl ?? ApiConfig.baseUrl;
 
   final Future<String?> Function() _token;
+
+  /// Gets a brand new ID token. Used once when the server says the token was refused.
+  final Future<String?> Function()? _refresh;
   final http.Client _http;
   final String _base;
 
   static const Duration _timeout = Duration(seconds: 15);
 
-  Future<Json> get(String path) => _call(() async => _http.get(await _uri(path), headers: await _headers()));
+  Future<Json> get(String path, {Duration? timeout}) =>
+      _call((fresh) async => _http.get(await _uri(path), headers: await _headers(fresh: fresh)), timeout: timeout);
 
   Future<Json> post(String path, [Json? body]) {
-    return _call(() async => _http.post(await _uri(path), headers: await _headers(json: true), body: jsonEncode(body ?? {})));
+    return _call((fresh) async => _http.post(await _uri(path), headers: await _headers(json: true, fresh: fresh), body: jsonEncode(body ?? {})));
   }
 
   Future<Json> delete(String path) =>
-      _call(() async => _http.delete(await _uri(path), headers: await _headers()));
+      _call((fresh) async => _http.delete(await _uri(path), headers: await _headers(fresh: fresh)));
 
   /// Sends one file as multipart form data (field name `file`).
   Future<Json> upload(String path, String filePath, {required String filename}) async {
@@ -129,19 +139,25 @@ class ApiClient {
 
   Future<Uri> _uri(String path) async => Uri.parse('$_base$path');
 
-  Future<Map<String, String>> _headers({bool json = false, bool sse = false}) async {
-    final token = await _token();
+  Future<Map<String, String>> _headers({bool json = false, bool sse = false, bool fresh = false}) async {
+    final token = await ((fresh ? _refresh : null) ?? _token)();
     if (token == null) throw const ApiException(401, 'unauthenticated', 'Sign in to continue.');
     return {
       'Authorization': 'Bearer $token',
       if (json) 'Content-Type': 'application/json',
       if (sse) 'Accept': 'text/event-stream',
+      // Live mode plays on the real-money wallet. The server only looks at this on game requests.
+      if (PlayMode.isLive) 'X-Play-Mode': 'live',
     };
   }
 
-  Future<Json> _call(Future<http.Response> Function() send) async {
+  Future<Json> _call(Future<http.Response> Function(bool fresh) send, {Duration? timeout}) async {
     try {
-      final res = await send().timeout(_timeout);
+      var res = await send(false).timeout(timeout ?? _timeout);
+      // The server refused the token (expired, or the phone clock is off): get a new one and try once more.
+      if (res.statusCode == 401 && _refresh != null) {
+        res = await send(true).timeout(timeout ?? _timeout);
+      }
       if (res.statusCode >= 200 && res.statusCode < 300) return _decode(res.body);
       throw _fromResponse(res.statusCode, res.body);
     } on SocketException {

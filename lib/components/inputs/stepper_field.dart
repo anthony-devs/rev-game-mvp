@@ -56,7 +56,7 @@ class StepperField extends StatelessWidget {
                   child: Switch(
                     value: active,
                     onChanged: onToggle,
-                    activeColor: Colors.black,
+                    activeColor: AppColors.onAccent,
                     activeTrackColor: AppColors.green,
                     inactiveThumbColor: AppColors.textDim,
                     inactiveTrackColor: AppColors.track,

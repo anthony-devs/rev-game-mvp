@@ -37,10 +37,10 @@ class _HistoryPageState extends State<HistoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final uid = context.select((ProfileCubit c) => c.state.user.id);
+    final uid = context.select((ProfileCubit c) => c.state.dataId);
     if (uid != _uid) {
       _uid = uid;
-      _stream = uid.isEmpty ? null : context.read<UserRepository>().watchRounds(uid, limit: 200);
+      _stream = uid.isEmpty ? null : context.read<UserRepository>().watchRounds(uid, limit: 50);
     }
     final labels = _filters.keys.toList();
     final game = _filters[labels[_filter]];
@@ -303,7 +303,7 @@ class _StackCard extends StatelessWidget {
             AnimatedRotation(
               turns: open ? .5 : 0,
               duration: const Duration(milliseconds: 200),
-              child: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textDim),
+              child: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textDim),
             ),
           ],
         ),
@@ -322,7 +322,7 @@ class _StackCard extends StatelessWidget {
                   padding: const EdgeInsets.only(left: 14, top: 8),
                   child: Container(
                     padding: const EdgeInsets.only(left: 10),
-                    decoration: const BoxDecoration(border: Border(left: BorderSide(color: AppColors.lineStrong, width: 2))),
+                    decoration: BoxDecoration(border: Border(left: BorderSide(color: AppColors.lineStrong, width: 2))),
                     child: Column(
                       children: [
                         for (var i = 0; i < n; i++) ...[

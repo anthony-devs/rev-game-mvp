@@ -37,7 +37,7 @@ class ListGroup extends StatelessWidget {
           child: Column(
             children: [
               for (var i = 0; i < children.length; i++) ...[
-                if (i > 0) const Divider(height: 1, thickness: 1, color: AppColors.line, indent: 16),
+                if (i > 0) Divider(height: 1, thickness: 1, color: AppColors.line, indent: 16),
                 children[i],
               ],
             ],

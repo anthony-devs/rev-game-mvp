@@ -6,7 +6,7 @@ from datetime import timedelta
 from .config import Config
 from .errors import ApiError
 from .rounds import load_progress
-from .store import Doc, Store, Txn
+from .store import Doc, Store, Txn, is_live, wallet_path
 from .util import Clock, as_utc as _as_utc, money, utcnow
 
 __all__ = ["WalletService", "load_wallet", "money", "utcnow", "Clock", "_as_utc"]
@@ -15,6 +15,8 @@ __all__ = ["WalletService", "load_wallet", "money", "utcnow", "Clock", "_as_utc"
 def load_wallet(txn: Txn, uid: str, cfg: Config, now) -> Doc:
     """The player's wallet, created with the starting credits if missing."""
     w = txn.get_wallet(uid)
+    if w is None and is_live(uid):
+        w = {"balance": 0.0, "lastDailyClaimAt": None, "updatedAt": now}  # real money starts at zero
     if w is None:
         w = {"balance": cfg.starting_balance, "lastDailyClaimAt": None, "updatedAt": now}
     return w
@@ -25,6 +27,11 @@ class WalletService:
         self.store, self.cfg, self.clock = store, cfg, clock
 
     def get(self, uid: str) -> dict:
+        # Fast path: one plain read. Only a brand-new player needs the transaction that creates the wallet.
+        doc = self.store.read(wallet_path(uid))
+        if doc is not None:
+            return self._public(doc)
+
         def fn(txn: Txn):
             now = self.clock()
             existing = txn.get_wallet(uid)

@@ -30,7 +30,7 @@ enum Sfx {
   final String file;
 }
 
-/// Game sounds and the lobby music. Same idea as [AppHaptics]: a static switch
+/// Game sounds and the per-game music loops. Same idea as [AppHaptics]: a static switch
 /// that the profile settings turn on and off, so a game just calls
 /// `AppSound.play(Sfx.win)` and never checks a setting.
 ///
@@ -46,7 +46,6 @@ class AppSound {
   static final List<AudioPlayer> _pool = [];
   static int _next = 0;
   static AudioPlayer? _music;
-  static bool _musicWanted = false;
   static bool _ready = false;
 
   /// Sounds mixed in the game, quieter than a full-volume effect.
@@ -88,41 +87,58 @@ class AppSound {
     }
   }
 
-  /// Soft background loop. Safe to call again; it only starts once.
-  static void startMusic() {
-    _musicWanted = true;
-    if (!musicEnabled) return;
-    unawaited(_startMusic());
-  }
-
-  static Future<void> _startMusic() async {
-    try {
-      var m = _music;
-      if (m == null) {
-        m = AudioPlayer();
-        await m.setReleaseMode(ReleaseMode.loop);
-        _music = m;
-      }
-      if (m.state == PlayerState.playing) return;
-      await m.play(AssetSource('sounds/music.wav'), volume: _musicVolume);
-    } catch (e) {
-      debugPrint('AppSound.music: $e');
-    }
+  /// Plays the loop for one game (`slots`, `roulette`, `blackjack`, `dice`, `crash`).
+  /// There is no lobby or app-wide music, so call [stopMusic] when the game closes.
+  /// Safe to call again for the same game.
+  static void playMusic(String game) {
+    _track = game.isEmpty ? null : game;
+    _queue(_sync);
   }
 
   static void stopMusic() {
-    _musicWanted = false;
-    unawaited(_music?.pause().catchError((_) {}));
+    _track = null;
+    _queue(_sync);
   }
 
-  /// Apply the player's two switches. Starts or stops music to match.
+  /// Apply the player's two switches. Starts or stops the current game's loop to match.
   static void apply({required bool sound, required bool music}) {
     enabled = sound;
     musicEnabled = music;
-    if (music && _musicWanted) {
-      unawaited(_startMusic());
-    } else if (!music) {
-      unawaited(_music?.pause().catchError((_) {}));
+    _queue(_sync);
+  }
+
+  /// Back to the defaults (sound on). Called when someone signs out, so the next
+  /// player never inherits the previous player's switches.
+  static void reset() {
+    enabled = true;
+    musicEnabled = true;
+    stopMusic();
+  }
+
+  static String? _track;
+  static String? _playing;
+  static Future<void> _chain = Future.value();
+
+  // Every start/stop runs one after the other. Without this, "stop" could arrive
+  // while the player was still being created and the music started anyway.
+  static void _queue(Future<void> Function() job) {
+    _chain = _chain.then((_) => job()).catchError((Object e) {
+      debugPrint('AppSound.music: $e');
+    });
+  }
+
+  static Future<void> _sync() async {
+    final want = musicEnabled ? _track : null;
+    if (want == _playing) return;
+    if (want == null) {
+      _playing = null;
+      await _music?.stop();
+      return;
     }
+    final m = _music ??= AudioPlayer();
+    await m.setReleaseMode(ReleaseMode.loop);
+    await m.setVolume(_musicVolume);
+    await m.play(AssetSource('sounds/music_$want.wav'), volume: _musicVolume);
+    _playing = want;
   }
 }

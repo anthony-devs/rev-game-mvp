@@ -12,7 +12,7 @@ from .config import Config
 from .errors import ApiError, bad_request
 from .fairness import FairnessService
 from .rounds import record_round
-from .store import Doc, Store, Txn
+from .store import Doc, Store, Txn, is_live
 from .wallet import Clock, load_wallet, money, utcnow
 
 SYMBOLS = ["seven", "bar", "bell", "cherry", "diamond"]  # same names as the Dart enum
@@ -46,6 +46,10 @@ class SlotsService:
 
     # ---- config the app shows ------------------------------------------------
 
+    def factor_for(self, uid: str) -> float:
+        """How often wins come, relative to the pay table. 1.0 = the table as printed."""
+        return self.cfg.live_slots_factor if is_live(uid) else self.cfg.demo_slots_factor
+
     def config(self, uid: str, balance: float) -> dict:
         steps = list(self.cfg.slots_bet_steps)
         return {
@@ -69,12 +73,14 @@ class SlotsService:
 
         def fn(txn: Txn):
             now = self.clock()
+            txn.preload_player(uid)
             wallet = load_wallet(txn, uid, self.cfg, now)
             if wallet["balance"] < bet:
                 raise ApiError(402, "insufficient_credits", "Not enough credits for this bet.")
 
             rng, fair = self.fair.begin(txn, uid, now)
-            multiplier, line, label = self._draw(rng)
+            factor = self.factor_for(uid)
+            multiplier, line, label = self._draw(rng, factor)
             payout = money(bet * multiplier)
             after_bet = money(wallet["balance"] - bet)
             balance = money(after_bet + payout)
@@ -93,7 +99,7 @@ class SlotsService:
                 multiplier=multiplier,
                 status="won" if multiplier > 0 else "lost",
                 label=label,
-                details={"line": line, "multiplier": multiplier},
+                details={"line": line, "multiplier": multiplier, "factor": factor},
                 fair=fair,
                 now=now,
             )
@@ -112,7 +118,7 @@ class SlotsService:
 
     def replay(self, rng, rnd: Doc) -> bool:
         """Fairness check: the same seeds must give the stored line."""
-        multiplier, line, _ = self._draw(rng)
+        multiplier, line, _ = self._draw(rng, rnd["details"].get("factor", 1.0))
         return multiplier == rnd["details"]["multiplier"] and list(line) == list(rnd["details"]["line"])
 
     # ---- helpers -------------------------------------------------------------
@@ -127,13 +133,13 @@ class SlotsService:
     def _any(self, rng) -> str:
         return rng.choice(SYMBOLS)
 
-    def _draw(self, rng=None) -> tuple[int, list[str], str]:
+    def _draw(self, rng=None, factor: float = 1.0) -> tuple[int, list[str], str]:
         rng = rng or self.fair.override or secrets.SystemRandom()
         r = rng.random()
         acc = 0.0
         hit = None
         for row in PAY_ROWS:
-            acc += row.probability
+            acc += row.probability * factor
             if r < acc:
                 hit = row
                 break

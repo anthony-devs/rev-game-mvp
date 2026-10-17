@@ -14,7 +14,7 @@ class SectionHeader extends StatelessWidget {
     super.key,
     required this.title,
     this.icon,
-    this.iconColor = AppColors.gold,
+    this.iconColor,
     this.actionLabel,
     this.onAction,
     this.padding = const EdgeInsets.symmetric(horizontal: 16),
@@ -22,7 +22,7 @@ class SectionHeader extends StatelessWidget {
 
   final String title;
   final IconData? icon;
-  final Color iconColor;
+  final Color? iconColor;
   final String? actionLabel;
   final VoidCallback? onAction;
   final EdgeInsets padding;
@@ -33,7 +33,7 @@ class SectionHeader extends StatelessWidget {
       padding: padding,
       child: Row(
         children: [
-          if (icon != null) ...[Icon(icon, size: 20, color: iconColor), const SizedBox(width: 8)],
+          if (icon != null) ...[Icon(icon, size: 20, color: (iconColor ?? AppColors.gold)), const SizedBox(width: 8)],
           Expanded(child: Text(title, style: AppText.body(18, weight: FontWeight.w700, letterSpacing: -.2))),
           if (actionLabel != null)
             PressScale(

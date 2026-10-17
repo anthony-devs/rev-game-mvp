@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:rev_game_mvp/components/components.dart';
 
 import 'slots_models.dart';
 import 'slots_theme.dart';
@@ -39,7 +39,7 @@ class SymbolView extends StatelessWidget {
         SvgPicture.string(_svgFor[symbol]!, width: size, height: size),
         if (symbol == SlotSymbol.bar)
           Text('BAR',
-              style: GoogleFonts.inter(
+              style: TextStyle(fontFamily: AppText.family,
                   fontSize: 16 * k, fontWeight: FontWeight.w900, letterSpacing: 2 * k, color: kGold, height: 1)),
       ]),
     );

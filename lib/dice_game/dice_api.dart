@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import '../components/core/play_mode.dart';
 import '../core/api/api_client.dart';
 import '../model/model_json.dart';
 
@@ -8,9 +9,10 @@ import '../model/model_json.dart';
 class DiceMath {
   DiceMath._();
 
-  static const double houseEdge = 0.03;
-  static const double minTarget = 2;
-  static const double maxTarget = 98;
+  /// Matches the server: demo credits pay more than fair, live money keeps a 5% house edge.
+  static double get houseEdge => PlayMode.isLive ? 0.05 : -0.15;
+  static const double minTarget = 10;
+  static const double maxTarget = 90;
 
   /// Win chance in percent. Rolls are 0.00 to 99.99, so "over" has 99.99 - target.
   static double chance(double target, bool over) => over ? _r2(99.99 - target) : _r2(target);

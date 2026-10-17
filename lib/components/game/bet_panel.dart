@@ -52,7 +52,7 @@ class BetPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.sheet,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         border: Border(top: BorderSide(color: AppColors.line)),

@@ -69,6 +69,13 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
   void initState() {
     super.initState(); // GameSessionMixin: joins the session, starts music
     _turbo = context.read<ProfileCubit>().state.settings.turboByDefault;
+    final warm = ApiSlotsServer.cached;
+    if (warm != null) {
+      // Already fetched while the lobby was showing: open straight away, refresh quietly.
+      _cfg = warm;
+      _bet = warm.defaultBet.clamp(warm.minBet, maxBetFor(warm.maxBet)).toDouble();
+      _loadHistory();
+    }
     _load();
   }
 
@@ -76,22 +83,25 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
 
   void _load() {
     if (_loadFailed) setState(() => _loadFailed = false);
+    final hadConfig = _cfg != null;
     _server.fetchConfig().then((c) {
       if (!mounted) return;
       setState(() {
         _cfg = c;
-        _bet = c.defaultBet.clamp(c.minBet, maxBetFor(c.maxBet)).toDouble();
+        // A refresh must not move the player's bet; only snap it if the allowed steps changed.
+        final ok = hadConfig && c.betSteps.contains(_bet);
+        if (!ok) _bet = c.defaultBet.clamp(c.minBet, maxBetFor(c.maxBet)).toDouble();
       });
-      _loadHistory();
+      if (!hadConfig) _loadHistory();
     }).catchError((Object _) {
-      if (mounted) setState(() => _loadFailed = true);
+      if (mounted && !hadConfig) setState(() => _loadFailed = true);
     });
   }
 
   /// Last results from the player's own history, so the strip is real.
   Future<void> _loadHistory() async {
     try {
-      final uid = profile.state.user.id;
+      final uid = profile.state.dataId;
       final rounds = await context.read<UserRepository>().watchRounds(uid, game: GameType.slots, limit: 12).first.timeout(const Duration(seconds: 4));
       if (!mounted || _history.isNotEmpty) return;
       setState(() => _history.addAll([for (final r in rounds.take(12)) r.returned.round()]));
@@ -115,7 +125,14 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
   // ------ Bet controls ------
   void _setBet(double v) {
     if (_spinning || _cfg == null) return;
-    setState(() => _bet = v.clamp(_cfg!.minBet, maxBetFor(_cfg!.maxBet)).roundToDouble());
+    // The server only accepts its own bet steps (MIN, 1/2, 2x and MAX can land between them),
+    // so snap to the nearest step at or below the requested amount.
+    final allowed = [for (final b in _cfg!.betSteps) if (b <= maxBetFor(_cfg!.maxBet)) b]..sort();
+    var snapped = v.clamp(_cfg!.minBet, maxBetFor(_cfg!.maxBet)).toDouble();
+    if (allowed.isNotEmpty) {
+      snapped = allowed.lastWhere((b) => b <= snapped, orElse: () => allowed.first).toDouble();
+    }
+    setState(() => _bet = snapped);
   }
 
   void _step(int dir) {
@@ -289,7 +306,7 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
       body: cfg == null
           ? (_loadFailed
               ? SafeArea(child: Column(children: [SubPageBar(title: 'Slots', onBack: () => Navigator.maybePop(context)), Expanded(child: StatusView.offline(onRetry: _load))]))
-              : const Center(child: CircularProgressIndicator(color: AppColors.gold)))
+              : Center(child: CircularProgressIndicator(color: AppColors.gold)))
           : Stack(
               children: [
                 Positioned.fill(
@@ -537,7 +554,7 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.sheet,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         border: Border(top: BorderSide(color: AppColors.line)),
@@ -631,7 +648,7 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
                 decoration: BoxDecoration(
                   color: const Color(0xFFF4F3EE),
                   borderRadius: BorderRadius.circular(18),
-                  boxShadow: const [
+                  boxShadow: [
                     BoxShadow(color: kGold, spreadRadius: 3),
                     BoxShadow(color: Color(0xB3FFC83D), blurRadius: 26),
                   ],

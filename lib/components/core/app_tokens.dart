@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'app_colors.dart';
+
 /// Spacing, radii and shared shadows.
 class AppSpacing {
   AppSpacing._();
@@ -25,14 +27,14 @@ class AppRadius {
 class AppShadows {
   AppShadows._();
 
-  /// Bottom-lip "3D" shadow under chunky buttons.
-  static List<BoxShadow> lip(Color color) => [BoxShadow(color: color, offset: const Offset(0, 4))];
+  /// Flat buttons: the old bottom lip is gone. Kept so call sites still compile.
+  static List<BoxShadow> lip(Color color) => const [];
 
-  /// Coloured glow.
-  static List<BoxShadow> glow(Color color, {double blur = 24, double opacity = .3}) =>
-      [BoxShadow(color: color.withValues(alpha: opacity), blurRadius: blur)];
+  /// Flat design: no coloured glow. Kept so call sites still compile.
+  static List<BoxShadow> glow(Color color, {double blur = 24, double opacity = .3}) => const [];
 
-  static const List<BoxShadow> card = [
-    BoxShadow(color: Color(0x80000000), blurRadius: 20, offset: Offset(0, 8)),
-  ];
+  /// Soft lift for floating bars.
+  static List<BoxShadow> get card => [
+        BoxShadow(color: Color(AppColors.light ? 0x1A000000 : 0x80000000), blurRadius: 20, offset: const Offset(0, 8)),
+      ];
 }

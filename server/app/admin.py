@@ -10,6 +10,7 @@ With no ``ADMIN_KEY`` set the dashboard is switched off.
 from __future__ import annotations
 
 import hmac
+import time
 from functools import wraps
 from pathlib import Path
 
@@ -28,7 +29,7 @@ UI_DIR = Path(__file__).parent / "admin_ui"
 MAX_BULK = 200
 
 
-def make_admin(store: Store, standing: StandingService, cfg: Config, staff: StaffService, uploads: UploadService) -> Blueprint:
+def make_admin(store: Store, standing: StandingService, cfg: Config, staff: StaffService, uploads: UploadService, live=None) -> Blueprint:
     bp = Blueprint("admin", __name__)
     session = staff.require("admin")
 
@@ -47,6 +48,29 @@ def make_admin(store: Store, standing: StandingService, cfg: Config, staff: Staf
             return view(*args, **kwargs)
 
         return wrapper
+
+    # Every dashboard read is billed per document. Answers are kept for a short while and
+    # dropped the moment staff change anything, so the page is never stale after an action.
+    CACHE_SECONDS = 90  # 1.5 min; any staff action clears it sooner
+    _cache: dict = {}
+    users_watch = store.watch_list("users", 150, order_by="lastLoginAt")
+
+    def cached(key, ttl: float, build):
+        now = time.monotonic()
+        hit = _cache.get(key)
+        if hit is not None and now - hit[0] < ttl and request.args.get("fresh") != "1":
+            return hit[1]
+        value = build()
+        _cache[key] = (now, value)
+        if len(_cache) > 200:
+            _cache.clear()
+        return value
+
+    @bp.after_request
+    def _drop_cache_on_change(resp):
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            _cache.clear()
+        return resp
 
     def body() -> dict:
         data = request.get_json(silent=True)
@@ -70,6 +94,53 @@ def make_admin(store: Store, standing: StandingService, cfg: Config, staff: Staf
     @bp.get("/admin")
     def page():
         return html_page(UI_DIR / "index.html")
+
+    @bp.get("/admin/payments")
+    def payments_page():
+        return html_page(Path(__file__).parent / "payments_ui" / "index.html")
+
+    if live is not None:
+        # ---- money: every payout is approved on its own, by name, with its reference typed in
+        @bp.get("/admin/api/payments")
+        @guarded
+        def pay_list():
+            kind, status = request.args.get("kind", ""), request.args.get("status", "")
+            return jsonify(cached(("pay", kind, status), CACHE_SECONDS, lambda: {
+                "payments": live.staff_list(kind, status),
+                "currency": cfg.live_currency,
+                "mock": cfg.payments_mode == "mock",
+            }))
+
+        @bp.get("/admin/api/payments/<pid>")
+        @guarded
+        def pay_one(pid: str):
+            return jsonify(live.staff_detail(pid))
+
+        @bp.post("/admin/api/payments/<pid>/approve")
+        @guarded
+        def pay_approve(pid: str):
+            d = body()
+            return jsonify(live.approve_payout(pid, g.actor, d.get("confirm"), str(d.get("note") or "")))
+
+        @bp.post("/admin/api/payments/<pid>/reject")
+        @guarded
+        def pay_reject(pid: str):
+            return jsonify(live.reject_payout(pid, g.actor, str(body().get("reason") or "")))
+
+        @bp.post("/admin/api/payments/<pid>/retry")
+        @guarded
+        def pay_retry(pid: str):
+            return jsonify(live.retry_payout(pid, g.actor))
+
+        @bp.post("/admin/api/payments/<pid>/sync")
+        @guarded
+        def pay_sync(pid: str):
+            return jsonify(live.sync_payout(pid, g.actor))
+
+        @bp.post("/admin/api/payments/<pid>/verify")
+        @guarded
+        def pay_verify(pid: str):
+            return jsonify(live.staff_verify_deposit(pid, g.actor))
 
     @bp.get("/admin/api/session")
     @session
@@ -95,29 +166,34 @@ def make_admin(store: Store, standing: StandingService, cfg: Config, staff: Staf
     @guarded
     def users():
         q = (request.args.get("q") or "").strip().lower()
+
+        # Kept current by a listener: no reads until a player document actually changes.
+        everyone = [(as_utc(doc.get("lastLoginAt")), uid, doc) for uid, doc in users_watch.rows()]
         rows = []
-        for uid, doc in store.list("users", 300):
+        for t, uid, doc in everyone:
             hay = " ".join(str(x or "") for x in (uid, doc.get("email"), doc.get("displayName"))).lower()
-            if q and q not in hay:
-                continue
-            rows.append((as_utc(doc.get("lastLoginAt")), uid, doc))
+            if not q or q in hay:
+                rows.append((t, uid, doc))
         rows.sort(key=lambda r: r[0].timestamp() if r[0] else 0, reverse=True)
-        return jsonify({"users": [user_row(uid, doc) for _t, uid, doc in rows[:100]]})
+        return jsonify(cached(("users", q), CACHE_SECONDS, lambda: {"users": [user_row(uid, doc) for _t, uid, doc in rows[:50]]}))
 
     @bp.get("/admin/api/users/<uid>")
     @guarded
     def user(uid: str):
+        days = request.args.get("days", type=int) or cfg.risk_window_days
+        return jsonify(cached(("user", uid, days), CACHE_SECONDS, lambda: _user_detail(uid, days)))
+
+    def _user_detail(uid: str, days: int):
         doc = store.read(f"users/{uid}")
         if doc is None:
             raise ApiError(404, "user_not_found", "No user with that id.")
-        days = request.args.get("days", type=int) or cfg.risk_window_days
         wallet = store.read_wallet(uid) or {}
         rounds = sorted(
-            (d for _i, d in store.list(f"users/{uid}/rounds", 100)),
+            (d for _i, d in store.list(f"users/{uid}/rounds", 5, order_by="createdAt")),
             key=lambda d: as_utc(d["createdAt"]),
             reverse=True,
         )
-        return jsonify(
+        return (
             {
                 "user": user_row(uid, doc),
                 "balance": wallet.get("balance"),
@@ -275,13 +351,16 @@ def make_admin(store: Store, standing: StandingService, cfg: Config, staff: Staf
     @guarded
     def feed():
         days = request.args.get("days", type=int) or 30
-        return jsonify({"events": [standing.log_json(e) for e in standing.recent_events(days)[:100]]})
+        return jsonify(cached(("feed", days), CACHE_SECONDS, lambda: {"events": [standing.log_json(e) for e in standing.recent_events(days)[:100]]}))
 
     @bp.get("/admin/api/recent")
     @guarded
     def recent():
         """Players with a moderation event in the last N days (default 3)."""
         days = request.args.get("days", type=int) or cfg.risk_window_days
+        return jsonify(cached(("recent", days), CACHE_SECONDS, lambda: _recent(days)))
+
+    def _recent(days: int):
         by_user: dict[str, dict] = {}
         for e in standing.recent_events(days):
             if e["event"] not in ("created", "lifted", "expired", "appeal_approved"):
@@ -293,6 +372,6 @@ def make_admin(store: Store, standing: StandingService, cfg: Config, staff: Staf
         for uid, row in by_user.items():
             doc = store.read(f"users/{uid}") or {}
             out.append({**user_row(uid, doc), "events": row["events"], "types": sorted(row["types"])})
-        return jsonify({"days": days, "users": out})
+        return {"days": days, "users": out}
 
     return bp

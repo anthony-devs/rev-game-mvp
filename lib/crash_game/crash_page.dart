@@ -71,7 +71,7 @@ class _CrashPageState extends State<CrashPage> with SingleTickerProviderStateMix
     try {
       final rounds = await context
           .read<UserRepository>()
-          .watchRounds(profile.state.user.id, game: GameType.crash, limit: 20)
+          .watchRounds(profile.state.dataId, game: GameType.crash, limit: 20)
           .first
           .timeout(const Duration(seconds: 4));
       if (!mounted || _history.isNotEmpty) return;
@@ -328,7 +328,7 @@ class _CrashPageState extends State<CrashPage> with SingleTickerProviderStateMix
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.sheet,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         border: Border(top: BorderSide(color: AppColors.line)),

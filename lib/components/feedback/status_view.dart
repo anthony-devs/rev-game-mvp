@@ -19,7 +19,7 @@ class StatusView extends StatelessWidget {
     this.message,
     this.actionLabel,
     this.onAction,
-    this.color = AppColors.textMuted,
+    this.color,
   });
 
   factory StatusView.offline({Key? key, VoidCallback? onRetry}) => StatusView(
@@ -39,7 +39,7 @@ class StatusView extends StatelessWidget {
   final String? message;
   final String? actionLabel;
   final VoidCallback? onAction;
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -54,10 +54,10 @@ class StatusView extends StatelessWidget {
               height: 96,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: color.withValues(alpha: .1),
-                border: Border.all(color: color.withValues(alpha: .4)),
+                color: (color ?? AppColors.textMuted).withValues(alpha: .1),
+                border: Border.all(color: (color ?? AppColors.textMuted).withValues(alpha: .4)),
               ),
-              child: Icon(icon, size: 44, color: color),
+              child: Icon(icon, size: 44, color: (color ?? AppColors.textMuted)),
             ),
             const SizedBox(height: 24),
             Text(title, textAlign: TextAlign.center, style: AppText.body(22, weight: FontWeight.w700)),

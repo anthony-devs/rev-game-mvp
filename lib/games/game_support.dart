@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../components/components.dart';
 import '../core/api/api_client.dart';
+import '../live/deposit_sheet.dart';
 import '../model/model.dart';
 import '../pages/fairness_page.dart';
 import '../pages/get_credits_sheet.dart';
@@ -23,6 +24,32 @@ void openFairness(BuildContext context, {String? roundId}) => pushPage<void>(con
 
 /// Sheet shown when the player cannot afford a bet.
 Future<void> showNoCredits(BuildContext context, {double? needed}) {
+  if (PlayMode.isLive) {
+    return showAppBottomSheet<void>(
+      context,
+      title: 'Not enough balance',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            needed == null ? 'Your live balance is too low for this bet.' : 'You need ${PlayMode.money(needed, decimals: 0)} for this bet. Lower it or add money.',
+            style: AppText.body(14, color: AppColors.textMuted, height: 1.5),
+          ),
+          const SizedBox(height: 20),
+          AppButton(
+            label: 'Add money',
+            variant: AppButtonVariant.gold,
+            onPressed: () {
+              Navigator.of(context).pop();
+              showDepositSheet(context);
+            },
+          ),
+          const SizedBox(height: 10),
+          AppButton(label: 'Lower my bet', variant: AppButtonVariant.outline, height: 52, onPressed: () => Navigator.of(context).pop()),
+        ],
+      ),
+    );
+  }
   return showAppBottomSheet<void>(
     context,
     title: 'Not enough credits',
@@ -100,7 +127,7 @@ mixin GameSessionMixin<T extends StatefulWidget> on State<T> {
   void initState() {
     super.initState();
     _guard.enter();
-    AppSound.startMusic();
+    AppSound.playMusic(guideType?.name ?? '');
     final g = guideType;
     if (g != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -111,6 +138,7 @@ mixin GameSessionMixin<T extends StatefulWidget> on State<T> {
 
   @override
   void dispose() {
+    AppSound.stopMusic();
     _guard.leave();
     _profile.unfreeze();
     super.dispose();

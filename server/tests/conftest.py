@@ -73,7 +73,8 @@ ADMIN = dict(admin_key=ADMIN_KEY, admin_username=ADMIN_USER, admin_password=ADMI
 
 @pytest.fixture
 def cfg():
-    return Config(**ADMIN)
+    # Demo odds neutral here: the older tests check the printed tables. Mode odds have their own tests.
+    return Config(**ADMIN, demo_dice_edge=0.05, demo_crash_edge=0.03, demo_slots_factor=1.0, live_slots_factor=1.0, demo_win_boost=0.0)
 
 
 @pytest.fixture

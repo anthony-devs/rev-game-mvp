@@ -44,7 +44,7 @@ class CrashStage extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF101013),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: AppColors.line),
       ),
@@ -74,7 +74,7 @@ class CrashStage extends StatelessWidget {
                     : MultiplierDisplay(
                         value: multiplier,
                         size: 60,
-                        color: crashed ? AppColors.loss : (cashed ? AppColors.gold : Colors.white),
+                        color: crashed ? AppColors.loss : (cashed ? AppColors.gold : AppColors.text),
                         caption: crashed ? 'CRASHED AT' : (cashed ? 'CASHED OUT AT ${cashedAt!.toStringAsFixed(2)}x' : null),
                       ),
               ),

@@ -34,7 +34,7 @@ class AppBottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.fromLTRB(20, 10, 20, 20 + MediaQuery.of(context).padding.bottom),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.sheet,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         border: Border(top: BorderSide(color: AppColors.line)),

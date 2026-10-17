@@ -10,10 +10,10 @@ import '../core/app_text.dart';
 /// DemoBadge(label: 'NEW', color: AppColors.green)
 /// ```
 class DemoBadge extends StatelessWidget {
-  const DemoBadge({super.key, this.label = 'DEMO', this.color = AppColors.gold, this.fontSize = 10});
+  const DemoBadge({super.key, this.label = 'DEMO', this.color, this.fontSize = 10});
 
   final String label;
-  final Color color;
+  final Color? color;
   final double fontSize;
 
   @override
@@ -21,11 +21,11 @@ class DemoBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: .12),
+        color: (color ?? AppColors.gold).withValues(alpha: .12),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: .6)),
+        border: Border.all(color: (color ?? AppColors.gold).withValues(alpha: .6)),
       ),
-      child: Text(label, style: AppText.body(fontSize, weight: FontWeight.w800, color: color, letterSpacing: 1, height: 1)),
+      child: Text(label, style: AppText.body(fontSize, weight: FontWeight.w800, color: (color ?? AppColors.gold), letterSpacing: 1, height: 1)),
     );
   }
 }

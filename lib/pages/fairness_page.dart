@@ -46,7 +46,7 @@ class _FairnessPageState extends State<FairnessPage> {
     final id = widget.roundId;
     if (id != null) {
       _verify = _api.verify(id);
-      final uid = context.read<ProfileCubit>().state.user.id;
+      final uid = context.read<ProfileCubit>().state.dataId;
       _round = context.read<UserRepository>().round(uid, id);
     }
     _seeds = _api.fairness();
@@ -92,7 +92,7 @@ class _FairnessPageState extends State<FairnessPage> {
 
   @override
   Widget build(BuildContext context) {
-    final uid = context.select((ProfileCubit c) => c.state.user.id);
+    final uid = context.select((ProfileCubit c) => c.state.dataId);
     return AppScaffold(
       glowColor: AppColors.green,
       body: ListView(
@@ -353,7 +353,7 @@ class _Revealed extends StatelessWidget {
       builder: (context, snap) {
         final list = snap.data ?? const <RevealedSeedDoc>[];
         if (list.isEmpty) {
-          return const InfoCard(message: 'Seeds you rotate away show up here, so you can check old rounds any time.', icon: Icons.key_outlined, color: AppColors.textDim);
+          return InfoCard(message: 'Seeds you rotate away show up here, so you can check old rounds any time.', icon: Icons.key_outlined, color: AppColors.textDim);
         }
         return Column(
           children: [

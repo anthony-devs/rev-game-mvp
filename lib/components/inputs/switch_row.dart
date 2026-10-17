@@ -16,7 +16,7 @@ class SwitchRow extends StatelessWidget {
     required this.onChanged,
     this.subtitle,
     this.icon,
-    this.activeColor = AppColors.green,
+    this.activeColor,
   });
 
   final String title;
@@ -24,7 +24,7 @@ class SwitchRow extends StatelessWidget {
   final IconData? icon;
   final bool value;
   final ValueChanged<bool> onChanged;
-  final Color activeColor;
+  final Color? activeColor;
 
   @override
   Widget build(BuildContext context) {
@@ -48,8 +48,8 @@ class SwitchRow extends StatelessWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: Colors.black,
-            activeTrackColor: activeColor,
+            activeColor: AppColors.onAccent,
+            activeTrackColor: (activeColor ?? AppColors.green),
             inactiveThumbColor: AppColors.textDim,
             inactiveTrackColor: AppColors.track,
             trackOutlineColor: WidgetStateProperty.all(Colors.transparent),

@@ -47,10 +47,10 @@ def test_dice_rejects_bad_input_and_overspend(make_client):
     assert r.status_code == 402 and bal(c) == 10000
 
 
-def test_dice_edge_is_three_percent(make_client):
+def test_dice_edge_is_five_percent(make_client):
     c = make_client()
     r = c.post("/v1/dice/roll", json={"bet": 100, "target": 50, "mode": "under"}, headers=auth()).get_json()
-    assert abs(r["multiplier"] * r["chance"] / 100 - 0.97) < 0.002
+    assert abs(r["multiplier"] * r["chance"] / 100 - 0.95) < 0.002
 
 
 # ---- roulette -----------------------------------------------------------------

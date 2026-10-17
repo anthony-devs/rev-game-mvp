@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
 import '../core/app_text.dart';
+import '../core/play_mode.dart';
 import '../core/formatters.dart';
 import '../core/press_scale.dart';
 
@@ -21,6 +22,7 @@ class BalancePill extends StatelessWidget {
     this.low = false,
     this.tag = 'DEMO',
     this.decimals = 2,
+    this.dropdown = false,
   });
 
   final double balance;
@@ -37,9 +39,14 @@ class BalancePill extends StatelessWidget {
   final String? tag;
   final int decimals;
 
+  /// Shows a small chevron: tapping opens the wallet picker.
+  final bool dropdown;
+
   @override
-  Widget build(BuildContext context) {
-    final color = low ? AppColors.loss : AppColors.mint;
+  Widget build(BuildContext context) => ValueListenableBuilder<bool>(valueListenable: PlayMode.live, builder: (context, live, _) => _pill(live));
+
+  Widget _pill(bool live) {
+    final color = low ? AppColors.loss : (live ? AppColors.text : AppColors.mint);
     return PressScale(
       onTap: onTap,
       child: Container(
@@ -47,25 +54,29 @@ class BalancePill extends StatelessWidget {
         padding: EdgeInsets.only(left: compact ? 12 : 14, right: onAdd != null ? 5 : (compact ? 12 : 14)),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(46),
-          border: Border.all(color: AppColors.lineStrong, width: 1.2),
+          border: Border.all(color: live ? AppColors.loss : AppColors.lineStrong, width: 1.2),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (!compact && tag != null) ...[
-              Text(tag!, style: AppText.body(10, weight: FontWeight.w800, color: AppColors.gold, letterSpacing: 1)),
+              Text(live ? 'LIVE' : tag!, style: AppText.body(10, weight: FontWeight.w800, color: live ? AppColors.loss : AppColors.gold, letterSpacing: 1)),
               const SizedBox(width: 8),
             ],
-            Text(formatCredits(balance, decimals: decimals), style: AppText.number(compact ? 13 : 15, color: color)),
+            Text(PlayMode.amount(balance, decimals: decimals), style: AppText.number(compact ? 13 : 15, color: color)),
+            if (dropdown) ...[
+              const SizedBox(width: 2),
+              Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: AppColors.textMuted),
+            ],
             if (onAdd != null) ...[
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               PressScale(
                 onTap: onAdd,
                 child: Container(
                   width: 34,
                   height: 34,
-                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                  child: const Icon(Icons.add_rounded, size: 22, color: AppColors.bg),
+                  decoration: BoxDecoration(color: AppColors.inverse, shape: BoxShape.circle),
+                  child: Icon(Icons.add_rounded, size: 22, color: AppColors.onInverse),
                 ),
               ),
             ],

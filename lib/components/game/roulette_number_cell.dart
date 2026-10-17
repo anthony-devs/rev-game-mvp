@@ -54,7 +54,7 @@ class RouletteNumberCell extends StatelessWidget {
               borderRadius: BorderRadius.circular(size * .24),
               border: Border.all(color: selected ? AppColors.gold : AppColors.line, width: selected ? 2 : 1),
             ),
-            child: Text('$number', style: AppText.number(size * .36, weight: FontWeight.w700)),
+            child: Text('$number', style: AppText.number(size * .36, weight: FontWeight.w700, color: Colors.white)),
           ),
           if (chipAmount != null)
             Positioned(
@@ -63,7 +63,7 @@ class RouletteNumberCell extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                 decoration: BoxDecoration(color: AppColors.gold, borderRadius: BorderRadius.circular(10)),
-                child: Text(chipAmount!.toStringAsFixed(0), style: AppText.body(9, weight: FontWeight.w800, color: AppColors.bg, height: 1)),
+                child: Text(chipAmount!.toStringAsFixed(0), style: AppText.body(9, weight: FontWeight.w800, color: AppColors.onAccent, height: 1)),
               ),
             ),
         ],

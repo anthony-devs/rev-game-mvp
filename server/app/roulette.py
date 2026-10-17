@@ -12,7 +12,7 @@ from .config import Config
 from .errors import ApiError, bad_request
 from .fairness import FairnessService
 from .rounds import record_round
-from .store import Doc, Store, Txn
+from .store import Doc, Store, Txn, is_live
 from .wallet import Clock, load_wallet, money, utcnow
 
 REDS = frozenset({1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36})
@@ -63,6 +63,7 @@ class RouletteService:
 
         def fn(txn: Txn):
             now = self.clock()
+            txn.preload_player(uid)
             wallet = load_wallet(txn, uid, self.cfg, now)
             if wallet["balance"] < total:
                 raise ApiError(402, "insufficient_credits", "Not enough credits for these bets.")
@@ -73,6 +74,8 @@ class RouletteService:
             for b in bets:
                 won = wins(b, number)
                 pay = money(b["amount"] * RETURNS[b["type"]]) if won else 0.0
+                if won and not is_live(uid):  # demo: winnings (above the stake) pay extra
+                    pay = money(pay + (pay - b["amount"]) * self.cfg.demo_win_boost)
                 payout += pay
                 results.append({**b, "won": won, "payout": pay})
             payout = money(payout)

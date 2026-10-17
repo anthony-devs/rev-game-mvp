@@ -29,7 +29,7 @@ class DailyRewardCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: AppColors.gold.withValues(alpha: .4)),
-        gradient: LinearGradient(colors: [AppColors.gold.withValues(alpha: .16), AppColors.gold.withValues(alpha: .04)]),
+        color: AppColors.gold.withValues(alpha: .1),
       ),
       child: Row(
         children: [

@@ -65,7 +65,7 @@ class _DicePageState extends State<DicePage> with GameSessionMixin<DicePage> {
     try {
       final rounds = await context
           .read<UserRepository>()
-          .watchRounds(profile.state.user.id, game: GameType.dice, limit: 12)
+          .watchRounds(profile.state.dataId, game: GameType.dice, limit: 12)
           .first
           .timeout(const Duration(seconds: 4));
       if (!mounted || _history.isNotEmpty) return;

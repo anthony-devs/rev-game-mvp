@@ -7,6 +7,10 @@ from typing import Callable
 from flask import current_app, g, request
 
 from .errors import ApiError
+from .store import live_uid
+
+# Game requests sent with "X-Play-Mode: live" play on the player's real-money record.
+LIVE_PLAY_PREFIXES = ("/v1/slots", "/v1/crash", "/v1/dice", "/v1/roulette", "/v1/blackjack", "/v1/fairness")
 
 # A verifier takes the raw token and returns the Firebase uid (or raises).
 Verifier = Callable[[str], str]
@@ -16,7 +20,8 @@ def firebase_verifier() -> Verifier:
     from firebase_admin import auth
 
     def verify(token: str) -> str:
-        decoded = auth.verify_id_token(token)
+        # A phone clock a few seconds ahead makes Firebase say "token used too early".
+        decoded = auth.verify_id_token(token, clock_skew_seconds=30)
         return decoded["uid"]
 
     return verify
@@ -30,8 +35,16 @@ def require_auth(view):
             raise ApiError(401, "unauthenticated", "Sign in to continue.")
         try:
             g.uid = current_app.config["VERIFIER"](header[7:].strip())
-        except Exception:
+        except Exception as e:
+            current_app.logger.warning("token rejected on %s %s: %s", request.method, request.path, e)
             raise ApiError(401, "unauthenticated", "Your session expired. Sign in again.")
+        g.real_uid = g.uid  # who signed in; g.uid becomes the live record below in live mode
+        if request.headers.get("X-Play-Mode", "").lower() == "live" and request.path.startswith(LIVE_PLAY_PREFIXES):
+            live = current_app.extensions.get("live")
+            if live is None:
+                raise ApiError(403, "live_unavailable", "Live play isn't available.")
+            live.require_live_play(g.real_uid)
+            g.uid = live_uid(g.real_uid)
         return view(*args, **kwargs)
 
     return wrapper

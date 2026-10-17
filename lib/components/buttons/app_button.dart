@@ -136,23 +136,23 @@ class AppButton extends StatelessWidget {
   _Style _style() {
     switch (variant) {
       case AppButtonVariant.primary:
-        return const _Style(bg: Colors.white, fg: AppColors.bg);
+        return _Style(bg: AppColors.inverse, fg: AppColors.onInverse);
       case AppButtonVariant.success:
         return _Style(
           bg: AppColors.green,
-          fg: Colors.black,
+          fg: AppColors.onAccent,
           shadows: [...AppShadows.glow(AppColors.green), ...AppShadows.lip(AppColors.greenDark)],
         );
       case AppButtonVariant.gold:
         return _Style(
           bg: AppColors.gold,
-          fg: AppColors.bg,
+          fg: AppColors.onAccent,
           shadows: [...AppShadows.glow(AppColors.gold), ...AppShadows.lip(AppColors.goldDark)],
         );
       case AppButtonVariant.outline:
-        return const _Style(bg: Colors.transparent, fg: Colors.white, border: AppColors.lineStrong);
+        return _Style(bg: Colors.transparent, fg: AppColors.text, border: AppColors.lineStrong);
       case AppButtonVariant.ghost:
-        return const _Style(bg: AppColors.surfaceAlt, fg: Colors.white, border: AppColors.line);
+        return _Style(bg: AppColors.surfaceAlt, fg: AppColors.text, border: AppColors.line);
       case AppButtonVariant.danger:
         return _Style(
           bg: AppColors.lossStrong.withValues(alpha: .14),

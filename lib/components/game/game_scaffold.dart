@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../buttons/icon_square_button.dart';
 
@@ -25,7 +26,7 @@ class GameScaffold extends StatelessWidget {
     this.onVerify,
     this.onHelp,
     this.lowBalance = false,
-    this.glowColor = AppColors.green,
+    this.glowColor,
     this.banner,
   });
 
@@ -44,16 +45,16 @@ class GameScaffold extends StatelessWidget {
 
   /// Shows a ? button that opens the how-to-play guide.
   final VoidCallback? onHelp;
-  final Color glowColor;
+  
+  /// Kept for compatibility; game screens are flat now.
+  final Color? glowColor;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(center: const Alignment(0, -.3), radius: 1.1, colors: [glowColor.withValues(alpha: .14), AppColors.bg]),
-        ),
+      body: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: AppColors.light ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light,
         child: SafeArea(
           child: Column(
             children: [

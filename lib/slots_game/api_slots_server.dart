@@ -9,10 +9,20 @@ class ApiSlotsServer implements SlotsServer {
 
   final ApiClient _api;
 
+  /// The last config the server sent. Slots opens with this at once and refreshes it quietly.
+  static SlotsConfig? cached;
+
+  /// Fetch the config ahead of time (after sign in), so the game doesn't open on a spinner.
+  static Future<void> prefetch(ApiClient api) async {
+    try {
+      await ApiSlotsServer(api).fetchConfig();
+    } catch (_) {}
+  }
+
   @override
   Future<SlotsConfig> fetchConfig() async {
     final j = await _api.get('/v1/slots/config');
-    return SlotsConfig(
+    return cached = SlotsConfig(
       minBet: parseDouble(j['minBet']),
       maxBet: parseDouble(j['maxBet']),
       betSteps: [for (final s in (j['betSteps'] as List? ?? const [])) parseDouble(s)],

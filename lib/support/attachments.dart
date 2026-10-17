@@ -260,7 +260,7 @@ class _Thumb extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(color: AppColors.surfaceAlt, border: Border.all(color: failed ? AppColors.loss : AppColors.line), borderRadius: BorderRadius.circular(14)),
                 child: file.kind == AttachmentKind.image
-                    ? Image.file(File(file.path), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image_outlined, color: AppColors.textDim))
+                    ? Image.file(File(file.path), fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.image_outlined, color: AppColors.textDim))
                     : Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -291,7 +291,7 @@ class _Thumb extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.refresh_rounded, color: AppColors.loss),
+                      Icon(Icons.refresh_rounded, color: AppColors.loss),
                       Text('Retry', style: AppText.body(11, color: AppColors.loss, weight: FontWeight.w700)),
                     ],
                   ),
@@ -307,7 +307,7 @@ class _Thumb extends StatelessWidget {
                 width: 22,
                 height: 22,
                 decoration: BoxDecoration(color: AppColors.surfaceRaised, shape: BoxShape.circle, border: Border.all(color: AppColors.lineStrong)),
-                child: const Icon(Icons.close_rounded, size: 14, color: AppColors.text),
+                child: Icon(Icons.close_rounded, size: 14, color: AppColors.text),
               ),
             ),
           ),

@@ -15,16 +15,16 @@ class PillChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = selected ? AppColors.bg : AppColors.textSoft;
+    final fg = selected ? AppColors.onInverse : AppColors.textSoft;
     return PressScale(
       onTap: onTap,
       child: Container(
         height: 38,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: selected ? Colors.white : AppColors.surfaceAlt,
+          color: selected ? AppColors.inverse : AppColors.surfaceAlt,
           borderRadius: BorderRadius.circular(38),
-          border: Border.all(color: selected ? Colors.white : AppColors.line),
+          border: Border.all(color: selected ? AppColors.inverse : AppColors.line),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

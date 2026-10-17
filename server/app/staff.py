@@ -18,6 +18,7 @@ import base64
 import hashlib
 import hmac
 import logging
+import os
 import re
 import secrets
 from datetime import timedelta
@@ -106,6 +107,32 @@ def username_problem(username: str) -> str | None:
     return None
 
 
+def _dev_secret() -> str:
+    """No SESSION_SECRET set. Locally, keep a generated one in data/.session_secret so a
+    restart (or the Flask reloader) doesn't sign everyone out. On Cloud Run there is no
+    writable home for it, so use a throwaway one and warn."""
+    path = Path(__file__).resolve().parents[1] / "data" / ".session_secret"
+    try:
+        if path.exists():
+            saved = path.read_text().strip()
+            if len(saved) >= 32:
+                return saved
+        if not os.environ.get("K_SERVICE"):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            fresh = secrets.token_urlsafe(32)
+            path.write_text(fresh)
+            try:
+                path.chmod(0o600)
+            except OSError:
+                pass
+            log.info("SESSION_SECRET is not set: saved a local one to %s", path)
+            return fresh
+    except OSError:
+        pass
+    log.warning("SESSION_SECRET is not set: staff sessions will end whenever the server restarts.")
+    return secrets.token_urlsafe(32)
+
+
 # --------------------------------------------------------------------- service
 
 class StaffService:
@@ -113,8 +140,7 @@ class StaffService:
         self.store, self.cfg, self.clock = store, cfg, clock
         secret = cfg.session_secret
         if not secret:
-            secret = secrets.token_urlsafe(32)
-            log.warning("SESSION_SECRET is not set: staff sessions will end whenever the server restarts.")
+            secret = _dev_secret()
         self._signer = URLSafeSerializer(secret, salt="rev-staff-session")
         self.admin_username = ""
         self._admin_hash = ""

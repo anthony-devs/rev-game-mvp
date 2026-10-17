@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../components/components.dart';
 import '../games/game_support.dart';
+import '../live/live_payments_section.dart';
+import '../live/wallet_switcher.dart';
 import '../model/model.dart';
 import '../user/bloc/profile_cubit.dart';
 import '../user/data/user_repository.dart';
@@ -20,7 +22,8 @@ class WalletPage extends StatelessWidget {
     final balance = watchBalance(context);
     final ready = context.select((ProfileCubit c) => c.state.walletReady);
     final progress = context.select((ProfileCubit c) => c.state.progress);
-    final uid = context.select((ProfileCubit c) => c.state.user.id);
+    final uid = context.select((ProfileCubit c) => c.state.dataId);
+    final live = context.select((ProfileCubit c) => c.state.live);
 
     return AppScaffold(
       glowColor: AppColors.green,
@@ -31,16 +34,18 @@ class WalletPage extends StatelessWidget {
           const SizedBox(height: 8),
           if (ready)
             BalanceCard(
+              header: const SwitchWalletLink(),
               balance: balance,
-              label: 'Credits',
-              actions: [
-                AppButton(label: 'Get demo credits', variant: AppButtonVariant.gold, height: 50, fontSize: 15, onPressed: () => showGetCredits(context)),
-              ],
+              label: live ? 'Live balance' : 'Credits',
+              actions: live
+                  ? liveWalletActions(context)
+                  : [AppButton(label: 'Get demo credits', variant: AppButtonVariant.gold, height: 50, fontSize: 15, onPressed: () => showGetCredits(context))],
             )
           else
             const SkeletonBox(height: 172, radius: 24),
           const SizedBox(height: 6),
-          Center(child: Text('Virtual credits. No cash value.', style: AppText.body(12, color: AppColors.textDim))),
+          Center(child: Text(live ? 'Real money. Every payout is checked by our team.' : 'Virtual credits. No cash value.', style: AppText.body(12, color: AppColors.textDim))),
+          if (live) ...[const SizedBox(height: 18), const LivePaymentsSection()],
           const SizedBox(height: 16),
           LevelProgressCard(
             level: progress.level,
@@ -90,7 +95,7 @@ class _Recent extends StatelessWidget {
       stream: context.read<UserRepository>().watchRounds(uid, limit: 4),
       builder: (context, snap) {
         if (snap.hasError) {
-          return const InfoCard(message: 'Could not load your activity. It will appear when you are back online.', icon: Icons.wifi_off_rounded, color: AppColors.textDim);
+          return InfoCard(message: 'Could not load your activity. It will appear when you are back online.', icon: Icons.wifi_off_rounded, color: AppColors.textDim);
         }
         if (!snap.hasData) {
           return const Column(children: [SkeletonBox(height: 62, radius: 16), SizedBox(height: 8), SkeletonBox(height: 62, radius: 16)]);

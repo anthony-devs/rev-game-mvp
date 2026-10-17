@@ -105,7 +105,7 @@ class _LimitsPageState extends State<LimitsPage> {
                 Text('Stay in control. These tools work even though this is a demo.', style: AppText.body(14, color: AppColors.textMuted, height: 1.5)),
                 const SizedBox(height: 16),
                 if (cooling)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(bottom: 16),
                     child: InfoCard(title: 'Break active', message: 'You are taking a break. Games open again when it ends.', icon: Icons.self_improvement_rounded, color: AppColors.blue),
                   ),

@@ -15,6 +15,7 @@ class AppHeader extends StatelessWidget {
     this.title = 'REV GAMES',
     this.onBalanceTap,
     this.onAdd,
+    this.dropdown = false,
     this.action,
     this.padding = const EdgeInsets.fromLTRB(16, 12, 16, 12),
   });
@@ -25,6 +26,9 @@ class AppHeader extends StatelessWidget {
 
   /// Shows the white plus badge when set.
   final VoidCallback? onAdd;
+
+  /// Balance pill shows a chevron (opens the wallet picker).
+  final bool dropdown;
 
   /// Optional widget between the title and the balance (e.g. the support button).
   final Widget? action;
@@ -46,7 +50,7 @@ class AppHeader extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           if (action != null) ...[action!, const SizedBox(width: 8)],
-          BalancePill(balance: balance, onTap: onBalanceTap, onAdd: onAdd),
+          BalancePill(balance: balance, onTap: onBalanceTap, onAdd: onAdd, dropdown: dropdown),
         ],
       ),
     );

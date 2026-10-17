@@ -116,7 +116,8 @@ let META = null, current = null, detail = null, mode = 'reply', pendingFiles = [
 const STATUS_LABEL = {open: 'Open', pending: 'Waiting on player', solved: 'Solved', closed: 'Closed'};
 
 function toast(m, err) { const t = $('#toast'); t.textContent = m; t.className = 'toast' + (err ? ' err' : ''); t.style.display = 'block'; clearTimeout(toast.h); toast.h = setTimeout(() => t.style.display = 'none', 3200); }
-function signOut() { st.del('staffToken'); location.replace('/staff'); }
+let DEAD = false;
+function signOut() { DEAD = true; st.del('staffToken'); location.replace('/staff'); }
 function modal(html, wide) { $('#modal').className = 'modal' + (wide ? ' wide' : ''); $('#modal').innerHTML = html; $('#scrim').style.display = 'flex'; return $('#modal'); }
 function closeModal() { $('#scrim').style.display = 'none'; $('#modal').innerHTML = ''; }
 $('#scrim').onclick = e => { if (e.target === $('#scrim')) closeModal(); };
@@ -309,7 +310,7 @@ $('#out').onclick = signOut;
 ['fStatus', 'fAssignee', 'fCat'].forEach(i => $('#' + i).onchange = loadQueue);
 $('#q').oninput = () => { clearTimeout($('#q').h); $('#q').h = setTimeout(loadQueue, 250); };
 setInterval(() => {
-  if (document.hidden || !META || $('#scrim').style.display === 'flex') return;
+  if (DEAD || document.hidden || !META || $('#scrim').style.display === 'flex') return;
   const ae = document.activeElement;
   if (ae && (ae.id === 'text' || ae.id === 'q')) { loadQueue(); return; }
   loadQueue(); if (current) openTicket(current, false);

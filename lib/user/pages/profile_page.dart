@@ -84,7 +84,7 @@ class ProfilePage extends StatelessWidget {
           ),
           if (user.isAnonymous) ...[
             const SizedBox(height: 16),
-            const InfoCard(
+            InfoCard(
               title: 'You are playing as a guest',
               message: 'Your credits and history are tied to this device. If you sign out as a guest you cannot get this account back.',
               icon: Icons.person_outline_rounded,
@@ -151,7 +151,7 @@ class ProfilePage extends StatelessWidget {
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.black.withValues(alpha: .8),
-      builder: (_) => const PopScope(canPop: false, child: Center(child: CircularProgressIndicator(color: AppColors.gold))),
+      builder: (_) => PopScope(canPop: false, child: Center(child: CircularProgressIndicator(color: AppColors.gold))),
     );
     try {
       await cubit.deleteAccount();
@@ -206,7 +206,7 @@ class _DeleteDialogState extends State<_DeleteDialog> {
             width: 64,
             height: 64,
             decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.loss.withValues(alpha: .12), border: Border.all(color: AppColors.loss.withValues(alpha: .5))),
-            child: const Icon(Icons.delete_forever_rounded, size: 30, color: AppColors.loss),
+            child: Icon(Icons.delete_forever_rounded, size: 30, color: AppColors.loss),
           ),
           const SizedBox(height: 18),
           Text('Delete your account?', textAlign: TextAlign.center, style: AppText.body(22, weight: FontWeight.w700)),

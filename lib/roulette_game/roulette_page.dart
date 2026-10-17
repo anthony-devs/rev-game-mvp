@@ -78,7 +78,7 @@ class _RoulettePageState extends State<RoulettePage> with TickerProviderStateMix
     try {
       final rounds = await context
           .read<UserRepository>()
-          .watchRounds(profile.state.user.id, game: GameType.roulette, limit: 12)
+          .watchRounds(profile.state.dataId, game: GameType.roulette, limit: 12)
           .first
           .timeout(const Duration(seconds: 4));
       if (!mounted || _history.isNotEmpty) return;
@@ -331,7 +331,7 @@ class _RoulettePageState extends State<RoulettePage> with TickerProviderStateMix
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text('0', style: AppText.number(14, weight: FontWeight.w700)),
+                          Text('0', style: AppText.number(14, weight: FontWeight.w700, color: Colors.white)),
                           if (zeroStake > 0) Text(zeroStake.toStringAsFixed(0), style: AppText.body(9, weight: FontWeight.w800, color: AppColors.gold)),
                         ],
                       ),
@@ -442,7 +442,7 @@ class _RoulettePageState extends State<RoulettePage> with TickerProviderStateMix
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(16, 16, 16, 12 + MediaQuery.of(context).padding.bottom),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.sheet,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         border: Border(top: BorderSide(color: AppColors.line)),
@@ -476,7 +476,7 @@ class _HistoryDot extends StatelessWidget {
       height: 32,
       alignment: Alignment.center,
       decoration: BoxDecoration(shape: BoxShape.circle, color: c, border: Border.all(color: AppColors.lineStrong)),
-      child: Text('$number', style: AppText.number(11, weight: FontWeight.w700)),
+      child: Text('$number', style: AppText.number(11, weight: FontWeight.w700, color: Colors.white)),
     );
   }
 }
@@ -505,7 +505,7 @@ class _OutsideCell extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: won ? AppColors.gold : AppColors.line, width: won ? 2 : 1),
             ),
-            child: FittedBox(fit: BoxFit.scaleDown, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text(label, style: AppText.body(11, weight: FontWeight.w700, color: AppColors.textSoft)))),
+            child: FittedBox(fit: BoxFit.scaleDown, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text(label, style: AppText.body(11, weight: FontWeight.w700, color: color != null ? Colors.white : AppColors.textSoft)))),
           ),
           if (stake > 0)
             Positioned(
@@ -514,7 +514,7 @@ class _OutsideCell extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                 decoration: BoxDecoration(color: AppColors.gold, borderRadius: BorderRadius.circular(10)),
-                child: Text(stake.toStringAsFixed(0), style: AppText.body(9, weight: FontWeight.w800, color: AppColors.bg, height: 1)),
+                child: Text(stake.toStringAsFixed(0), style: AppText.body(9, weight: FontWeight.w800, color: AppColors.onAccent, height: 1)),
               ),
             ),
         ],

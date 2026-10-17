@@ -13,7 +13,7 @@ from .config import Config
 from .errors import ApiError, bad_request
 from .fairness import FairnessService, lock_for
 from .rounds import record_round
-from .store import Doc, Store, Txn, blackjack_active_path, blackjack_path
+from .store import Doc, Store, Txn, blackjack_active_path, blackjack_path, is_live
 from .wallet import Clock, load_wallet, money, utcnow
 
 RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
@@ -76,6 +76,7 @@ class BlackjackService:
 
         def fn(txn: Txn):
             now = self.clock()
+            txn.preload_player(uid)
             wallet = load_wallet(txn, uid, self.cfg, now)
 
             ptr = txn.get(blackjack_active_path(uid))
@@ -135,6 +136,7 @@ class BlackjackService:
                 raise ApiError(404, "round_not_found", "Round not found.")
             if rnd["status"] != "player":
                 raise ApiError(409, "round_not_active", "This hand is already over.")
+            txn.preload_player(uid)
             wallet = load_wallet(txn, uid, self.cfg, now)
 
             if action == "hit":
@@ -190,6 +192,8 @@ class BlackjackService:
             "lose": 0.0,
             "bust": 0.0,
         }[outcome]
+        if payout > bet and not is_live(uid):  # demo: winnings (above the stake) pay extra
+            payout = money(bet + (payout - bet) * (1 + self.cfg.demo_win_boost))
         balance = money(wallet["balance"] + payout)
         rnd["status"] = "done"
         p, d = total(rnd["player"]), total(rnd["dealer"])

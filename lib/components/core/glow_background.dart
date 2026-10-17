@@ -2,44 +2,26 @@ import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
 
-/// Dark screen background with a soft coloured glow behind the content.
-///
-/// ```dart
-/// GlowBackground(glowColor: AppColors.purple, child: ...)
-/// ```
+/// Screen background. Flat on purpose: the app is calm and uncluttered, so the
+/// old coloured glow is gone. [glowColor], [glowOpacity], [center] and [radius]
+/// are still accepted so existing call sites keep compiling, but they do nothing.
 class GlowBackground extends StatelessWidget {
   const GlowBackground({
     super.key,
     required this.child,
     this.glowColor,
-    this.glowOpacity = .3,
-    this.center = const Alignment(0, -0.35),
-    this.radius = .9,
+    this.glowOpacity = 0,
+    this.center = Alignment.center,
+    this.radius = 1,
   });
 
   final Widget child;
 
-  /// `null` for a plain dark background.
   final Color? glowColor;
   final double glowOpacity;
   final Alignment center;
   final double radius;
 
   @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.bg,
-        gradient: glowColor == null
-            ? null
-            : RadialGradient(
-                center: center,
-                radius: radius,
-                colors: [glowColor!.withValues(alpha: glowOpacity), glowColor!.withValues(alpha: 0)],
-                stops: const [0, .7],
-              ),
-      ),
-      child: child,
-    );
-  }
+  Widget build(BuildContext context) => ColoredBox(color: AppColors.bg, child: child);
 }

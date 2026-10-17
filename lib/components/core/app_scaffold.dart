@@ -4,8 +4,8 @@ import 'package:flutter/services.dart';
 import 'app_colors.dart';
 import 'glow_background.dart';
 
-/// Standard screen shell: dark background, status bar icons set to light,
-/// optional glow, optional floating bottom bar.
+/// Standard screen shell: flat themed background, status bar icons that match
+/// the theme, optional floating bottom bar.
 ///
 /// ```dart
 /// AppScaffold(
@@ -35,7 +35,7 @@ class AppScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      value: AppColors.light ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: AppColors.bg,
         body: GlowBackground(

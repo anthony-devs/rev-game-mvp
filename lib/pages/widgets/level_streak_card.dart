@@ -28,8 +28,8 @@ class LevelStreakCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.purple.withValues(alpha: .28)),
-          gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF1D1630), AppColors.surface], stops: [0, .7]),
+          color: AppColors.surface,
+          border: Border.all(color: AppColors.line),
         ),
         child: Row(
           children: [
@@ -38,14 +38,13 @@ class LevelStreakCard extends StatelessWidget {
               height: 48,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
-                gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFFC79BFF), AppColors.purpleDeep]),
-                boxShadow: [BoxShadow(color: AppColors.purple.withValues(alpha: .45), blurRadius: 18)],
+                color: AppColors.purple,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text('LEVEL', style: AppText.body(9, weight: FontWeight.w700, letterSpacing: 1, height: 1, color: Colors.white.withValues(alpha: .85))),
-                  Text('${progress.level}', style: AppText.body(20, weight: FontWeight.w800, height: 1.1)),
+                  Text('${progress.level}', style: AppText.body(20, weight: FontWeight.w800, height: 1.1, color: Colors.white)),
                 ],
               ),
             ),

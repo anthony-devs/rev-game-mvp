@@ -55,6 +55,9 @@ dependencies:
   # Game sounds and music.
   audioplayers: ^6.1.0
 
+  # Remembers light/dark between launches.
+  shared_preferences: ^2.3.2
+
   # Support: attach photos, videos and PDFs to appeals and messages.
   image_picker: ^1.1.2
   file_picker: ^10.0.0
@@ -80,6 +83,22 @@ flutter:
   # Required. Without it the Material icon font is not bundled and icons show as "?".
   uses-material-design: true
 
+  fonts:
+    - family: SpaceGrotesk
+      fonts:
+        - asset: assets/fonts/SpaceGrotesk-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/SpaceGrotesk-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/SpaceGrotesk-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/SpaceGrotesk-Bold.ttf
+          weight: 700
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Medium.ttf
+          weight: 500
+
   assets:
   #crash game assets
     - assets/Crash_assets/character/Idle/
@@ -87,6 +106,8 @@ flutter:
     - assets/Crash_assets/character/Dead/
     # sounds
     - assets/sounds/
+    # payment logos
+    - assets/logos/
     # slots game assets
     - assets/slots/machine_clean.png
 

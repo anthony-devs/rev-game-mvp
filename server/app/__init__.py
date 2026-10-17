@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+import threading
 import os
+import time
 
 from .env import load_env
 
@@ -13,6 +15,10 @@ from flask import Flask, Response, g, jsonify, request, stream_with_context
 
 from .account import AccountService, firebase_account_deleter
 from .admin import make_admin
+from .catalog import CatalogService
+from .live import LiveService
+from .live_routes import make_live
+from .providers import build_providers
 from .auth import Verifier, firebase_verifier, require_auth
 from .blackjack import BlackjackService
 from .config import Config
@@ -24,7 +30,7 @@ from .roulette import RouletteService
 from .slots import SlotsService
 from .staff import StaffService, make_staff
 from .standing import StandingService
-from .store import FirestoreStore, Store
+from .store import FirestoreStore, Store, live_uid
 from .support import CATEGORIES, SupportService
 from .support_site import make_support_site
 from .uploads import UploadService, file_response
@@ -43,6 +49,19 @@ def _total_bet(data: dict) -> float | None:
     return None
 
 
+def _warm_up(store) -> None:
+    """Open the database connection and fetch Google's token keys in the background, so the
+    first player after a deploy doesn't pay for the cold start."""
+
+    def go():
+        try:
+            store.list("games", limit=1)
+        except Exception as e:
+            logging.getLogger("app").info("warm-up: database not ready yet (%s)", e)
+
+    threading.Thread(target=go, daemon=True).start()
+
+
 def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg: Config | None = None, **services) -> Flask:
     """Build the app. Tests pass a MemoryStore and a fake verifier; production
     passes nothing and gets Firestore + real Firebase token checks."""
@@ -59,6 +78,8 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
             firebase_admin.initialize_app(options={"projectId": os.environ.get("FIREBASE_PROJECT_ID", "rev-games")})
         store = FirestoreStore(firestore.client())
     app.config["VERIFIER"] = verifier or firebase_verifier()
+    if isinstance(store, FirestoreStore):
+        _warm_up(store)
 
     fair = services.get("fair") or FairnessService(store)
     wallet = services.get("wallet") or WalletService(store, cfg)
@@ -71,10 +92,15 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
     standing = services.get("standing") or StandingService(store, cfg)
     staff = services.get("staff") or StaffService(store, cfg)
     uploads = services.get("uploads") or UploadService(store, cfg)
+    catalog = services.get("catalog") or CatalogService(store, cfg.catalog_cache_seconds)
+    app.extensions["catalog"] = catalog
     support = services.get("support") or SupportService(store, cfg, uploads)
+    live = services.get("live") or LiveService(store, cfg, services.get("providers") or build_providers(store, cfg), standing)
+    app.extensions["live"] = live
     app.config["MAX_CONTENT_LENGTH"] = int((cfg.upload_max_mb + 1) * 1024 * 1024)
     app.register_blueprint(make_staff(staff))
-    app.register_blueprint(make_admin(store, standing, cfg, staff, uploads))
+    app.register_blueprint(make_live(live))
+    app.register_blueprint(make_admin(store, standing, cfg, staff, uploads, live))
     app.register_blueprint(make_support_site(store, support, standing, uploads, staff))
     fair.replayers = {
         "slots": slots.replay,
@@ -83,6 +109,22 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
         "roulette": roulette.replay,
         "blackjack": blackjack.replay,
     }
+
+    # ---- timing --------------------------------------------------------------
+    # One line per request with how long it took, so slowness shows up in the log.
+    # Anything over SLOW_MS is logged as a warning.
+    @app.before_request
+    def _start_timer():
+        g._t0 = time.perf_counter()
+
+    @app.after_request
+    def _log_timing(resp):
+        t0 = g.get("_t0")
+        if t0 is not None and not request.path.startswith(("/staff", "/admin/api", "/support/api")):
+            ms = (time.perf_counter() - t0) * 1000
+            level = logging.WARNING if ms >= cfg.slow_ms else logging.INFO
+            app.logger.log(level, "%s %s -> %s in %.0f ms%s", request.method, request.path, resp.status_code, ms, " (SLOW)" if ms >= cfg.slow_ms else "")
+        return resp
 
     # ---- errors --------------------------------------------------------------
 
@@ -104,6 +146,9 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
 
     @app.errorhandler(Exception)
     def crash_guard(e: Exception):
+        if type(e).__name__ in ("ResourceExhausted", "TooManyRequests"):  # Firestore quota / rate limit
+            app.logger.warning("database quota exceeded (resets daily on the free plan)")
+            return jsonify({"error": "database_busy", "message": "The database quota is used up for now. Try again later."}), 503
         app.logger.exception("unhandled error")
         return jsonify({"error": "server_error", "message": "Something went wrong."}), 500
 
@@ -125,7 +170,7 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
                     data = request.get_json(silent=True)
                     if isinstance(data, dict):
                         bet = _total_bet(data)
-                standing.enforce(g.uid, kind, bet)
+                standing.enforce(getattr(g, "real_uid", g.uid), kind, bet)
                 return view(*args, **kwargs)
 
             return wrapper
@@ -137,6 +182,11 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
     @app.get("/healthz")
     def healthz():
         return {"ok": True}
+
+    @app.get("/v1/games")
+    @require_auth
+    def list_games():
+        return {"games": catalog.games()}
 
     @app.get("/v1/wallet")
     @require_auth
@@ -185,11 +235,13 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
     @require_auth
     @gate('delete')
     def delete_account():
+        live.assert_can_delete(g.uid)  # money first: nothing is deleted while real balance or payouts are open
         try:
             uploads.purge(g.uid)
         except Exception:
             app.logger.exception("could not delete attachments for %s", g.uid)
         account.delete(g.uid)
+        store.delete_user(live_uid(g.uid))
         return jsonify({"deleted": True})
 
     @app.get("/v1/account/standing")

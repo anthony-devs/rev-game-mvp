@@ -30,7 +30,7 @@ const _credits = _Step(Icons.toll_rounded, 'Credits only', 'Everything here uses
 _Guide _guideFor(GameType t) {
   switch (t) {
     case GameType.roulette:
-      return const _Guide(
+      return _Guide(
         name: 'Roulette',
         accent: AppColors.green,
         intro: 'A ball lands on one of 37 pockets, numbered 0 to 36. You bet on where it will land.',
@@ -49,7 +49,7 @@ _Guide _guideFor(GameType t) {
         tip: 'Red/Black and the other 1-to-1 bets win almost half the time. A single number is rare but pays the most.',
       );
     case GameType.blackjack:
-      return const _Guide(
+      return _Guide(
         name: 'Blackjack',
         accent: AppColors.purple,
         intro: 'Get a hand closer to 21 than the dealer, without going over.',
@@ -69,7 +69,7 @@ _Guide _guideFor(GameType t) {
         tip: 'Split and insurance are not available in this version.',
       );
     case GameType.dice:
-      return const _Guide(
+      return _Guide(
         name: 'Dice',
         accent: AppColors.blue,
         intro: 'A number from 0.00 to 99.99 is rolled. You bet on whether it lands over or under your target.',
@@ -82,7 +82,7 @@ _Guide _guideFor(GameType t) {
         tip: 'A high win chance gives small, frequent wins. A low win chance gives big, rare ones.',
       );
     case GameType.crash:
-      return const _Guide(
+      return _Guide(
         name: 'Dash Crash',
         accent: AppColors.gold,
         intro: 'A multiplier climbs from 1.00x. Cash out before it crashes.',
@@ -95,7 +95,7 @@ _Guide _guideFor(GameType t) {
         tip: 'Nobody can predict the crash point, and it is decided before the round starts. Verify any round with the shield icon.',
       );
     case GameType.slots:
-      return const _Guide(
+      return _Guide(
         name: 'Slots',
         accent: AppColors.gold,
         intro: 'Spin the reels and line up matching symbols.',
@@ -244,7 +244,7 @@ class _HowToPlayPageState extends State<HowToPlayPage> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.toll_rounded, size: 18, color: AppColors.gold),
+                Icon(Icons.toll_rounded, size: 18, color: AppColors.gold),
                 const SizedBox(width: 10),
                 Expanded(child: Text(extra, style: AppText.body(12.5, color: AppColors.textDim, height: 1.5))),
               ],
@@ -267,7 +267,7 @@ class _HowToPlayPageState extends State<HowToPlayPage> {
             child: Column(
               children: [
                 for (var i = 0; i < _g.reference.length; i++) ...[
-                  if (i > 0) const Divider(height: 1, color: AppColors.line),
+                  if (i > 0) Divider(height: 1, color: AppColors.line),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     child: Row(

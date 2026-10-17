@@ -32,9 +32,40 @@ from __future__ import annotations
 
 import copy
 import threading
+import time
 from typing import Any, Callable, Iterable, Optional
 
 Doc = dict
+
+
+# Live (real money) play uses a second, completely separate player record. Every game
+# already works on "a player id", so live play simply uses ``L_<uid>``: its own wallet,
+# fairness seeds, history and level. Demo credits and real money can never mix.
+LIVE_PREFIX = "L_"
+
+
+def live_uid(uid: str) -> str:
+    return uid if uid.startswith(LIVE_PREFIX) else LIVE_PREFIX + uid
+
+
+def is_live(uid: str) -> bool:
+    return uid.startswith(LIVE_PREFIX)
+
+
+def payment_path(pid: str) -> str:
+    return f"payments/{pid}"  # the ledger (staff view, kept even if the player deletes their account)
+
+
+def user_payment_path(uid: str, pid: str) -> str:
+    return f"users/{uid}/payments/{pid}"  # the same record, for the player's own list
+
+
+def payment_key_path(kind: str, uid: str, key: str) -> str:
+    return f"payment_keys/{kind}_{uid}_{key}"  # one document per idempotency key
+
+
+def payment_ref_path(provider: str, ref: str) -> str:
+    return f"payment_refs/{provider}_{ref}"  # provider reference -> our payment; credited once
 
 
 def wallet_path(uid: str) -> str:
@@ -101,6 +132,13 @@ class Txn:
     def delete(self, path: str) -> None:
         raise NotImplementedError
 
+    def preload(self, *paths: str) -> None:
+        """Read several documents in one round trip (Firestore) so the ``get`` calls
+        that follow are free. Optional: ``get`` works without it, just slower."""
+
+    def preload_player(self, uid: str) -> None:
+        self.preload(wallet_path(uid), progress_path(uid), fair_public_path(uid), fair_secret_path(uid))
+
     # Named helpers so the game code reads clearly.
     def get_wallet(self, uid): return self.get(wallet_path(uid))
     def set_wallet(self, uid, data): self.set(wallet_path(uid), data)
@@ -111,6 +149,57 @@ class Txn:
     def add_round(self, uid, round_id, data): self.set(round_path(uid, round_id), data)
 
 
+class WatchedList:
+    """Plain version: reads every time (the in-memory store is free to read)."""
+
+    def __init__(self, loader: Callable[[], list]):
+        self._loader = loader
+
+    def rows(self) -> list[tuple[str, Doc]]:
+        return self._loader()
+
+
+class _ListenerList(WatchedList):
+    """Rows kept current by a Firestore snapshot listener."""
+
+    RETRY_AFTER = 60.0
+
+    def __init__(self, query, loader: Callable[[], list]):
+        super().__init__(loader)
+        self._query = query
+        self._rows: list | None = None
+        self._ready = threading.Event()
+        self._lock = threading.Lock()
+        self._unsub = None
+        self._failed_at = 0.0
+
+    def _on_snapshot(self, docs, _changes, _read_time):
+        self._rows = [(d.id, d.to_dict()) for d in docs]  # the library only bills the changed ones
+        self._ready.set()
+
+    def _on_error(self, *_a):
+        self._failed_at = time.monotonic()
+        self._unsub = None
+
+    def _start(self):
+        self._failed_at = 0.0
+        self._unsub = self._query.on_snapshot(self._on_snapshot)
+
+    def rows(self) -> list[tuple[str, Doc]]:
+        with self._lock:
+            if self._unsub is not None and not getattr(self._unsub, "is_active", True):
+                self._on_error()  # the listener closed itself (quota, network): restart it later
+            if self._unsub is None and (self._rows is None or time.monotonic() - self._failed_at > self.RETRY_AFTER):
+                try:
+                    self._start()
+                except Exception:
+                    self._failed_at = time.monotonic()
+        if self._rows is None:
+            if not self._ready.wait(10):  # first fill: wait for the listener, else one plain read
+                return self._loader()
+        return copy.deepcopy(self._rows or [])
+
+
 class Store:
     def run(self, fn: Callable[[Txn], Any]) -> Any:
         raise NotImplementedError
@@ -119,9 +208,15 @@ class Store:
         """Plain read outside a transaction."""
         raise NotImplementedError
 
-    def list(self, collection: str, limit: int = 200) -> list[tuple[str, Doc]]:
+    def list(self, collection: str, limit: int = 200, order_by: str | None = None) -> list[tuple[str, Doc]]:
         """Documents directly inside a collection path. Not transactional."""
         raise NotImplementedError
+
+    def watch_list(self, collection: str, limit: int = 200, order_by: str | None = None) -> "WatchedList":
+        """A list that keeps itself current. Same rows as :meth:`list`, but on Firestore it is
+        fed by a snapshot listener: billed once when it starts, then only for documents that
+        change, instead of a full read every time it is asked for."""
+        return WatchedList(lambda: self.list(collection, limit, order_by))
 
     def delete_user(self, uid: str) -> None:
         """Remove everything stored for this player."""
@@ -205,7 +300,7 @@ class MemoryStore(Store):
             d = self.docs.get(path)
             return copy.deepcopy(d) if d is not None else None
 
-    def list(self, collection, limit=200):
+    def list(self, collection, limit=200, order_by=None):
         prefix = collection.rstrip("/") + "/"
         with self._lock:
             out = [
@@ -213,6 +308,8 @@ class MemoryStore(Store):
                 for path, doc in self.docs.items()
                 if path.startswith(prefix) and "/" not in path[len(prefix):]
             ]
+        if order_by:
+            out.sort(key=lambda r: str(r[1].get(order_by) or ""), reverse=True)
         return out[:limit]
 
     def delete_user(self, uid):
@@ -240,10 +337,24 @@ class _FsTxn(Txn):
         self._db = db
         self._t = transaction
         self._pending: dict[str, Optional[Doc]] = {}
+        self._loaded: dict[str, Optional[Doc]] = {}
+
+    def preload(self, *paths):
+        todo = [p for p in paths if p not in self._pending and p not in self._loaded]
+        if not todo:
+            return
+        refs = [self._db.document(p) for p in todo]
+        for p in todo:
+            self._loaded[p] = None
+        for snap in self._db.get_all(refs, transaction=self._t):
+            self._loaded[snap.reference.path] = snap.to_dict() if snap.exists else None
 
     def get(self, path):
         if path in self._pending:  # read your own writes (Firestore applies them at the end)
             d = self._pending[path]
+            return copy.deepcopy(d) if d is not None else None
+        if path in self._loaded:
+            d = self._loaded[path]
             return copy.deepcopy(d) if d is not None else None
         snap = self._db.document(path).get(transaction=self._t)
         return snap.to_dict() if snap.exists else None
@@ -288,8 +399,21 @@ class FirestoreStore(Store):
         snap = self._db.document(path).get()
         return snap.to_dict() if snap.exists else None
 
-    def list(self, collection, limit=200):
-        return [(snap.id, snap.to_dict()) for snap in self._db.collection(collection).limit(limit).stream()]
+    def list(self, collection, limit=200, order_by=None):
+        q = self._db.collection(collection)
+        if order_by:  # newest first, and Firestore only reads (and bills) the `limit` documents it returns
+            from google.cloud.firestore_v1 import Query
+
+            q = q.order_by(order_by, direction=Query.DESCENDING)
+        return [(snap.id, snap.to_dict()) for snap in q.limit(limit).stream()]
+
+    def watch_list(self, collection, limit=200, order_by=None):
+        from google.cloud.firestore_v1 import Query
+
+        q = self._db.collection(collection)
+        if order_by:
+            q = q.order_by(order_by, direction=Query.DESCENDING)
+        return _ListenerList(q.limit(limit), lambda: self.list(collection, limit, order_by))
 
     def delete_user(self, uid):
         from google.cloud.firestore_v1.base_query import FieldFilter

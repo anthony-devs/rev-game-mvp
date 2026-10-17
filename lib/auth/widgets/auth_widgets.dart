@@ -43,7 +43,7 @@ class AuthDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const line = Expanded(child: Divider(height: 1, color: AppColors.line));
+    final line = Expanded(child: Divider(height: 1, color: AppColors.line));
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 22),
       child: Row(

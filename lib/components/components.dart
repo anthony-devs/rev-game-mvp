@@ -10,6 +10,7 @@ export 'core/app_text.dart';
 export 'core/app_tokens.dart';
 export 'core/formatters.dart';
 export 'core/glow_background.dart';
+export 'core/play_mode.dart';
 export 'core/press_scale.dart';
 
 // buttons

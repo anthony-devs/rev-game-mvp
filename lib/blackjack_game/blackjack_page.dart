@@ -32,7 +32,8 @@ class _BlackjackPageState extends State<BlackjackPage> with GameSessionMixin<Bla
   double _bet = 100;
   BjState? _hand;
   bool _busy = false;
-  bool _loading = true;
+  bool _loading = false; // the table shows at once; resuming an open hand happens behind it
+  bool _resuming = true;
 
   double get _minBet => widget.info?.minBet ?? 10;
   double get _maxBet => maxBetFor(widget.info?.maxBet ?? 100000);
@@ -58,7 +59,8 @@ class _BlackjackPageState extends State<BlackjackPage> with GameSessionMixin<Bla
         _release(s.balance);
       }
     } catch (_) {}
-    if (mounted) setState(() => _loading = false);
+    _resuming = false;
+    if (mounted) setState(() {});
   }
 
   Future<void> _release(double expected) async {
@@ -73,7 +75,7 @@ class _BlackjackPageState extends State<BlackjackPage> with GameSessionMixin<Bla
   // ------------------------------------------------------------------ actions
 
   Future<void> _deal() async {
-    if (_busy || _playing) return;
+    if (_busy || _playing || _resuming) return;
     if (!checkCanPlay()) return;
     if (_bet > walletBalance) {
       showNoCredits(context, needed: _bet);
@@ -175,7 +177,7 @@ class _BlackjackPageState extends State<BlackjackPage> with GameSessionMixin<Bla
         child: Text('BLACKJACK PAYS 3 TO 2  ·  DEALER STANDS ON 17', style: AppText.label(color: AppColors.gold, size: 10)),
       ),
       stage: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.green))
+          ? Center(child: CircularProgressIndicator(color: AppColors.green))
           : Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -306,14 +308,14 @@ class _BlackjackPageState extends State<BlackjackPage> with GameSessionMixin<Bla
           setState(() => _bet = v.clamp(_minBet, _maxBet).toDouble());
         }),
         const SizedBox(height: 14),
-        AppButton(label: 'DEAL', sublabel: 'BET ${formatCredits(_bet, decimals: 0)}', variant: AppButtonVariant.success, height: 64, loading: _busy, onPressed: _busy ? null : _deal),
+        AppButton(label: 'DEAL', sublabel: 'BET ${formatCredits(_bet, decimals: 0)}', variant: AppButtonVariant.success, height: 64, loading: _busy || _resuming, onPressed: _busy || _resuming ? null : _deal),
       ]);
     }
 
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(16, 16, 16, 12 + MediaQuery.of(context).padding.bottom),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.sheet,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         border: Border(top: BorderSide(color: AppColors.line)),

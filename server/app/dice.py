@@ -13,10 +13,10 @@ from .config import Config
 from .errors import ApiError, bad_request
 from .fairness import FairnessService
 from .rounds import record_round
-from .store import Doc, Store, Txn
+from .store import Doc, Store, Txn, is_live
 from .wallet import Clock, load_wallet, money, utcnow
 
-MIN_TARGET, MAX_TARGET = 2.0, 98.0
+MIN_TARGET, MAX_TARGET = 10.0, 90.0  # win chance stays between 10% and 90%
 
 
 def chance_for(target: float, mode: str) -> float:
@@ -41,22 +41,27 @@ class DiceService:
         self.store, self.cfg, self.clock = store, cfg, clock
         self.fair = fair or FairnessService(store, clock, rng_override=rng)
 
-    def quote(self, target, mode) -> dict:
+    def edge_for(self, uid: str) -> float:
+        return self.cfg.dice_house_edge if is_live(uid) else self.cfg.demo_dice_edge
+
+    def quote(self, target, mode, edge: float | None = None) -> dict:
         target, mode = self._validate_target(target, mode)
+        edge = self.cfg.dice_house_edge if edge is None else edge
         chance = chance_for(target, mode)
         return {
             "target": target,
             "mode": mode,
             "chance": chance,
-            "multiplier": multiplier_for(chance, self.cfg.dice_house_edge),
+            "multiplier": multiplier_for(chance, edge),
         }
 
     def roll(self, uid: str, bet, target, mode) -> dict:
         bet = self._validate_bet(bet)
-        q = self.quote(target, mode)
+        q = self.quote(target, mode, self.edge_for(uid))
 
         def fn(txn: Txn):
             now = self.clock()
+            txn.preload_player(uid)
             wallet = load_wallet(txn, uid, self.cfg, now)
             if wallet["balance"] < bet:
                 raise ApiError(402, "insufficient_credits", "Not enough credits for this bet.")

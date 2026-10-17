@@ -145,7 +145,7 @@ class ReelWidgetState extends State<ReelWidget> with SingleTickerProviderStateMi
           stops: [0, 0.24, 0.5, 0.76, 1],
         ),
         boxShadow: widget.highlight
-            ? const [
+            ? [
                 BoxShadow(color: kGold, spreadRadius: 2),
                 BoxShadow(color: Color(0xBFFFC83D), blurRadius: 18, spreadRadius: 2),
               ]

@@ -42,11 +42,12 @@ class FeaturedGameCard extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             if (image != null) Image(image: image!, fit: BoxFit.cover) else GameArt(kind: kind, borderRadius: 0),
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(begin: Alignment.centerLeft, end: Alignment.centerRight, colors: [Color(0xE6000000), Colors.transparent]),
+            if (image != null)
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(begin: Alignment.centerLeft, end: Alignment.centerRight, colors: [Color(0xE6000000), Colors.transparent]),
+                ),
               ),
-            ),
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(

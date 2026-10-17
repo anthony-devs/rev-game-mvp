@@ -12,14 +12,14 @@ class AppProgressBar extends StatelessWidget {
   const AppProgressBar({
     super.key,
     required this.value,
-    this.color = AppColors.purple,
-    this.trackColor = AppColors.track,
+    this.color,
+    this.trackColor,
     this.height = 8,
   });
 
   final double value;
-  final Color color;
-  final Color trackColor;
+  final Color? color;
+  final Color? trackColor;
   final double height;
 
   @override
@@ -28,14 +28,14 @@ class AppProgressBar extends StatelessWidget {
       borderRadius: BorderRadius.circular(height),
       child: Container(
         height: height,
-        color: trackColor,
+        color: trackColor ?? AppColors.track,
         alignment: Alignment.centerLeft,
         child: FractionallySizedBox(
           widthFactor: value.clamp(0.0, 1.0),
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(height),
-              gradient: LinearGradient(colors: [color.withValues(alpha: .75), color]),
+              color: color ?? AppColors.purple,
             ),
           ),
         ),

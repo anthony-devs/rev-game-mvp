@@ -27,16 +27,16 @@ class SegmentedToggle<T> extends StatelessWidget {
     required this.selected,
     required this.onChanged,
     this.height = 48,
-    this.activeColor = Colors.white,
-    this.activeTextColor = AppColors.bg,
+    this.activeColor,
+    this.activeTextColor,
   });
 
   final List<SegmentOption<T>> options;
   final T selected;
   final ValueChanged<T> onChanged;
   final double height;
-  final Color activeColor;
-  final Color activeTextColor;
+  final Color? activeColor;
+  final Color? activeTextColor;
 
   @override
   Widget build(BuildContext context) {
@@ -58,14 +58,14 @@ class SegmentedToggle<T> extends StatelessWidget {
                   duration: const Duration(milliseconds: 160),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: o.value == selected ? activeColor : Colors.transparent,
+                    color: o.value == selected ? (activeColor ?? AppColors.inverse) : Colors.transparent,
                     borderRadius: BorderRadius.circular(height),
                   ),
                   child: Text(
                     o.label,
                     style: AppText.body(14,
                         weight: FontWeight.w700,
-                        color: o.value == selected ? activeTextColor : AppColors.textMuted),
+                        color: o.value == selected ? (activeTextColor ?? AppColors.onInverse) : AppColors.textMuted),
                   ),
                 ),
               ),

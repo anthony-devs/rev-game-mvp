@@ -16,23 +16,23 @@ class ListRowTile extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.icon,
-    this.iconColor = AppColors.textMuted,
+    this.iconColor,
     this.trailingText,
     this.trailing,
     this.onTap,
     this.showChevron = true,
-    this.titleColor = AppColors.text,
+    this.titleColor,
   });
 
   final String title;
   final String? subtitle;
   final IconData? icon;
-  final Color iconColor;
+  final Color? iconColor;
   final String? trailingText;
   final Widget? trailing;
   final VoidCallback? onTap;
   final bool showChevron;
-  final Color titleColor;
+  final Color? titleColor;
 
   @override
   Widget build(BuildContext context) {
@@ -43,12 +43,12 @@ class ListRowTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            if (icon != null) ...[Icon(icon, size: 22, color: iconColor), const SizedBox(width: 14)],
+            if (icon != null) ...[Icon(icon, size: 22, color: (iconColor ?? AppColors.textMuted)), const SizedBox(width: 14)],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: AppText.body(15, weight: FontWeight.w600, color: titleColor)),
+                  Text(title, style: AppText.body(15, weight: FontWeight.w600, color: (titleColor ?? AppColors.text))),
                   if (subtitle != null) ...[
                     const SizedBox(height: 2),
                     Text(subtitle!, style: AppText.body(12, color: AppColors.textDim)),
@@ -60,7 +60,7 @@ class ListRowTile extends StatelessWidget {
             if (trailing != null) trailing!,
             if (onTap != null && showChevron && trailing == null) ...[
               const SizedBox(width: 4),
-              const Icon(Icons.chevron_right_rounded, size: 22, color: AppColors.textFaint),
+              Icon(Icons.chevron_right_rounded, size: 22, color: AppColors.textFaint),
             ],
           ],
         ),

@@ -15,27 +15,27 @@ class InfoCard extends StatelessWidget {
     required this.message,
     this.title,
     this.icon = Icons.info_outline_rounded,
-    this.color = AppColors.blue,
+    this.color,
   });
 
   final String? title;
   final String message;
   final IconData icon;
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: .08),
+        color: (color ?? AppColors.blue).withValues(alpha: .08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: .3)),
+        border: Border.all(color: (color ?? AppColors.blue).withValues(alpha: .3)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: color),
+          Icon(icon, size: 20, color: (color ?? AppColors.blue)),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

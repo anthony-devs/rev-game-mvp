@@ -9,11 +9,11 @@ import '../core/app_text.dart';
 /// StatTile(label: 'Biggest win', value: '12,400', valueColor: AppColors.gold)
 /// ```
 class StatTile extends StatelessWidget {
-  const StatTile({super.key, required this.label, required this.value, this.valueColor = AppColors.text, this.icon});
+  const StatTile({super.key, required this.label, required this.value, this.valueColor, this.icon});
 
   final String label;
   final String value;
-  final Color valueColor;
+  final Color? valueColor;
   final IconData? icon;
 
   @override
@@ -33,7 +33,7 @@ class StatTile extends StatelessWidget {
             Flexible(child: Text(label.toUpperCase(), style: AppText.label())),
           ]),
           const SizedBox(height: 8),
-          FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: AppText.number(20, color: valueColor))),
+          FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: AppText.number(20, color: (valueColor ?? AppColors.text)))),
         ],
       ),
     );

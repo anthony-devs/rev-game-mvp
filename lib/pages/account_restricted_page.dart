@@ -44,13 +44,13 @@ class _Look {
 _Look _lookFor(StandingType t) {
   switch (t) {
     case StandingType.ban:
-      return const _Look(Icons.block_rounded, AppColors.loss, 'Account banned', 'This account can no longer play.', 'You can appeal this decision below. Explain what happened and what has changed. If the appeal is approved, you will get access back.');
+      return _Look(Icons.block_rounded, AppColors.loss, 'Account banned', 'This account can no longer play.', 'You can appeal this decision below. Explain what happened and what has changed. If the appeal is approved, you will get access back.');
     case StandingType.suspension:
       return const _Look(Icons.pause_circle_outline_rounded, Color(0xFFFF9A5A), 'Account suspended', 'Play is paused for now.', 'Your access comes back by itself when the suspension ends. If you think this is a mistake, you can appeal below.');
     case StandingType.investigation:
-      return const _Look(Icons.manage_search_rounded, AppColors.blue, 'Account under review', 'We are looking into recent activity.', 'Nothing is needed from you unless we asked for something below. Play comes back as soon as the review is finished.');
+      return _Look(Icons.manage_search_rounded, AppColors.blue, 'Account under review', 'We are looking into recent activity.', 'Nothing is needed from you unless we asked for something below. Play comes back as soon as the review is finished.');
     case StandingType.payoutRestriction:
-      return const _Look(Icons.money_off_csred_rounded, AppColors.gold, 'Account restricted', 'Play and credit rewards are on hold.', 'Follow the steps below, then appeal so we can lift the restriction.');
+      return _Look(Icons.money_off_csred_rounded, AppColors.gold, 'Account restricted', 'Play and credit rewards are on hold.', 'Follow the steps below, then appeal so we can lift the restriction.');
   }
 }
 
@@ -177,7 +177,7 @@ class _AccountRestrictedPageState extends State<AccountRestrictedPage> {
 
   Widget _appeal(StandingAction a, DateTime now) {
     if (!a.appealAllowed) {
-      return const _InfoCard(label: 'APPEAL', child: Text('This decision cannot be appealed. Contact support if you need help.', style: TextStyle(color: AppColors.textMuted, height: 1.5)));
+      return _InfoCard(label: 'APPEAL', child: Text('This decision cannot be appealed. Contact support if you need help.', style: TextStyle(color: AppColors.textMuted, height: 1.5)));
     }
     if (a.appealStatus == AppealStatus.pending) {
       return _InfoCard(
@@ -185,7 +185,7 @@ class _AccountRestrictedPageState extends State<AccountRestrictedPage> {
         accent: AppColors.gold,
         child: Row(
           children: [
-            const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.gold)),
+            SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.gold)),
             const SizedBox(width: 12),
             Expanded(child: Text('Your appeal is being reviewed. This screen updates by itself when we decide.', style: AppText.body(13.5, height: 1.5))),
           ],

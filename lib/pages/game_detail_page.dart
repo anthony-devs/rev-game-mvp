@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../components/components.dart';
+import '../catalog/catalog_cubit.dart';
+import '../catalog/server_banner.dart';
 import '../games/game_launcher.dart';
 import '../games/game_support.dart';
 import '../model/model.dart';
@@ -67,9 +69,9 @@ class GameDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final favs = context.select((ProfileCubit c) => c.state.settings.favourites);
     final settings = context.select((ProfileCubit c) => c.state.settings);
-    final uid = context.select((ProfileCubit c) => c.state.user.id);
+    final uid = context.select((ProfileCubit c) => c.state.dataId);
     final isFav = favs.contains(game.id);
-    final style = GameArtStyle.of(game.type.kind);
+    final accent = GameArtStyle.accentOf(game.type.kind);
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -84,7 +86,6 @@ class GameDetailPage extends StatelessWidget {
               fit: StackFit.expand,
               children: [
                 GameArt(kind: game.type.kind, borderRadius: 0),
-                DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, AppColors.bg.withValues(alpha: .6), AppColors.bg], stops: const [.4, .8, 1]))),
               ],
             ),
           ),
@@ -113,6 +114,7 @@ class GameDetailPage extends StatelessWidget {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(20, 120, 20, 24),
                     children: [
+                      const ServerBanner(),
                       Text(game.name, style: AppText.heading(30, letterSpacing: -1)),
                       const SizedBox(height: 4),
                       Text(_blurb(game.type), style: AppText.body(14, color: AppColors.textMuted)),
@@ -123,7 +125,7 @@ class GameDetailPage extends StatelessWidget {
                           const SizedBox(width: 10),
                           Expanded(child: _Stat(label: 'Max bet', value: formatCredits(game.maxBet, decimals: 0))),
                           const SizedBox(width: 10),
-                          Expanded(child: _Stat(label: 'Top prize', value: _top(game.type), color: style.accent)),
+                          Expanded(child: _Stat(label: 'Top prize', value: _top(game.type), color: accent)),
                         ],
                       ),
                       const SizedBox(height: 20),
@@ -157,10 +159,10 @@ class GameDetailPage extends StatelessWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: AppButton(
-                          label: 'PLAY NOW',
+                          label: context.watch<CatalogCubit>().state.offline ? 'SERVER OFFLINE' : 'PLAY NOW',
                           variant: AppButtonVariant.success,
                           height: 64,
-                          onPressed: () {
+                          onPressed: context.watch<CatalogCubit>().state.offline ? null : () {
                             final nav = Navigator.of(context);
                             nav.pushReplacement(MaterialPageRoute<void>(builder: (_) => gamePage(game)));
                           },
@@ -179,13 +181,13 @@ class GameDetailPage extends StatelessWidget {
 }
 
 class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value, this.color = AppColors.text});
+  const _Stat({required this.label, required this.value, this.color});
   final String label;
   final String value;
-  final Color color;
+  final Color? color;
 
   @override
-  Widget build(BuildContext context) => StatTile(label: label, value: value, valueColor: color);
+  Widget build(BuildContext context) => StatTile(label: label, value: value, valueColor: (color ?? AppColors.text));
 }
 
 class _Last extends StatelessWidget {

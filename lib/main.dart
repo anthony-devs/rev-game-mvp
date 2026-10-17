@@ -6,6 +6,7 @@ import 'components/core/app_sound.dart';
 import 'auth/data/auth_repository.dart';
 import 'core/api/api_client.dart';
 import 'firebase_options.dart';
+import 'theme/theme_cubit.dart';
 import 'user/data/user_repository.dart';
 
 Future<void> main() async {
@@ -17,8 +18,9 @@ Future<void> main() async {
     return;
   }
   await AppSound.init();
+  final theme = await ThemeCubit.load();
   final auth = AuthRepository();
-  runApp(RevApp(authRepository: auth, userRepository: UserRepository(), apiClient: ApiClient(tokenProvider: auth.idToken)));
+  runApp(RevApp(themeCubit: theme, authRepository: auth, userRepository: UserRepository(), apiClient: ApiClient(tokenProvider: auth.idToken, tokenRefresher: () => auth.idToken(force: true))));
 }
 
 class _StartupError extends StatelessWidget {
@@ -31,7 +33,7 @@ class _StartupError extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
-        backgroundColor: const Color(0xFF0B0B0C),
+        backgroundColor: const Color(0xFF0B0B0C), // plain colours: nothing has loaded yet
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),

@@ -68,7 +68,7 @@ class _Tab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = active ? Colors.white : AppColors.textDim;
+    final c = active ? AppColors.text : AppColors.textDim;
     return Semantics(
       button: true,
       selected: active,
@@ -93,7 +93,7 @@ class _Tab extends StatelessWidget {
                 duration: const Duration(milliseconds: 180),
                 width: active ? 22 : 0,
                 height: 3,
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(2)),
+                decoration: BoxDecoration(color: AppColors.text, borderRadius: BorderRadius.circular(2)),
               ),
             ),
           ],

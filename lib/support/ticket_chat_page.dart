@@ -153,7 +153,7 @@ class _TicketChatPageState extends State<TicketChatPage> {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(16, 14, 16, 14 + MediaQuery.of(context).padding.bottom),
-      decoration: const BoxDecoration(color: AppColors.surface, border: Border(top: BorderSide(color: AppColors.line))),
+      decoration: BoxDecoration(color: AppColors.surface, border: Border(top: BorderSide(color: AppColors.line))),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -170,7 +170,7 @@ class _TicketChatPageState extends State<TicketChatPage> {
       listenable: _files,
       builder: (context, _) => Container(
         padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + MediaQuery.of(context).padding.bottom + MediaQuery.of(context).viewInsets.bottom),
-        decoration: const BoxDecoration(color: AppColors.surface, border: Border(top: BorderSide(color: AppColors.line))),
+        decoration: BoxDecoration(color: AppColors.surface, border: Border(top: BorderSide(color: AppColors.line))),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -205,7 +205,7 @@ class _TicketChatPageState extends State<TicketChatPage> {
                 IconSquareButton(
                   icon: Icons.arrow_upward_rounded,
                   semanticLabel: 'Send',
-                  iconColor: _canSend ? AppColors.bg : AppColors.textFaint,
+                  iconColor: _canSend ? AppColors.gold : AppColors.textFaint,
                   onPressed: _canSend ? _send : null,
                   filled: true,
                 ),
@@ -253,7 +253,7 @@ class _Bubble extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.support_agent_rounded, size: 14, color: AppColors.gold),
+                      Icon(Icons.support_agent_rounded, size: 14, color: AppColors.gold),
                       const SizedBox(width: 4),
                       Text(m.author.isEmpty ? 'Support' : '${m.author} · Support', style: AppText.body(11.5, weight: FontWeight.w700, color: AppColors.gold)),
                     ],
@@ -265,7 +265,7 @@ class _Bubble extends StatelessWidget {
                 Wrap(spacing: 8, runSpacing: 8, children: [for (final a in m.attachments) AttachmentView(attachment: a)]),
               ],
               const SizedBox(height: 4),
-              Align(alignment: Alignment.centerRight, child: Text(ticketTime(m.createdAt), style: AppText.body(10.5, color: Colors.white54))),
+              Align(alignment: Alignment.centerRight, child: Text(ticketTime(m.createdAt), style: AppText.body(10.5, color: AppColors.textFaint))),
             ],
           ),
         ),

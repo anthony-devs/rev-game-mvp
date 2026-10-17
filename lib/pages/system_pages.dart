@@ -59,16 +59,18 @@ class GameUnavailablePage extends StatelessWidget {
     this.comingSoon = false,
     this.message,
     this.icon,
+    this.title,
   });
 
   final String? name;
   final bool comingSoon;
   final String? message;
   final IconData? icon;
+  final String? title;
 
   @override
   Widget build(BuildContext context) {
-    final title = comingSoon ? 'Coming soon' : 'Game unavailable';
+    final heading = title ?? (comingSoon ? 'Coming soon' : 'Game unavailable');
     final text = message ??
         (comingSoon
             ? '${name ?? 'This game'} is on its way. We will add it in a future update.'
@@ -91,7 +93,7 @@ class GameUnavailablePage extends StatelessWidget {
                       child: GameTile(title: name ?? 'More soon', tag: comingSoon ? 'Coming' : 'Paused', kind: GameKind.soon, aspectRatio: 112 / 150, onTap: null),
                     ),
                     const SizedBox(height: 28),
-                    Text(title, style: AppText.body(22, weight: FontWeight.w700)),
+                    Text(heading, style: AppText.body(22, weight: FontWeight.w700)),
                     const SizedBox(height: 8),
                     Text(text, textAlign: TextAlign.center, style: AppText.body(14, color: AppColors.textDim, height: 1.5)),
                     const SizedBox(height: 28),
@@ -253,10 +255,10 @@ Future<void> showLossLimitReached(BuildContext context) async {
 }
 
 class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value, this.color = AppColors.text});
+  const _Stat({required this.label, required this.value, this.color});
   final String label;
   final String value;
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -267,7 +269,7 @@ class _Stat extends StatelessWidget {
         children: [
           Text(label.toUpperCase(), style: AppText.label(size: 10)),
           const SizedBox(height: 4),
-          FittedBox(fit: BoxFit.scaleDown, child: Text(value, style: AppText.number(16, color: color))),
+          FittedBox(fit: BoxFit.scaleDown, child: Text(value, style: AppText.number(16, color: (color ?? AppColors.text)))),
         ],
       ),
     );

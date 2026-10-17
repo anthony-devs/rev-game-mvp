@@ -27,6 +27,8 @@ credits goes through ``enforce``. The app's screens are only a courtesy.
 """
 from __future__ import annotations
 
+import time
+
 import uuid
 from datetime import datetime, timedelta
 from typing import Optional
@@ -69,6 +71,8 @@ def _human(value) -> Optional[str]:
 class StandingService:
     def __init__(self, store: Store, cfg: Config, clock: Clock = utcnow):
         self.store, self.cfg, self.clock = store, cfg, clock
+        self._cache: dict[str, tuple[float, Doc]] = {}
+        self._log_watch = store.watch_list("moderation_log", 300, order_by="at")
 
     # ------------------------------------------------------------------ reading
 
@@ -83,10 +87,26 @@ class StandingService:
     def summary(self, uid: str) -> Doc:
         """The player's standing, with finished actions settled first."""
         now = self.clock()
-        doc = self.store.read(standing_path(uid)) or self._empty()
+        ttl = self.cfg.standing_cache_seconds
+        hit = self._cache.get(uid) if ttl > 0 else None
+        if hit and time.monotonic() - hit[0] < ttl:
+            doc = hit[1]
+        else:
+            doc = self.store.read(standing_path(uid)) or self._empty()
+            if ttl > 0:
+                if len(self._cache) > 5000:
+                    self._cache.clear()
+                self._cache[uid] = (time.monotonic(), doc)
         if any(self._expired(e, now) for e in doc.get("active", [])):
             doc = self.refresh(uid)
         return doc
+
+    def _run(self, uid: str, fn):
+        """Run a standing change and forget the cached copy of this player's standing."""
+        try:
+            return self.store.run(fn)
+        finally:
+            self._cache.pop(uid, None)
 
     def refresh(self, uid: str) -> Doc:
         """Close actions whose end date has passed, start probation, write the summary."""
@@ -109,7 +129,7 @@ class StandingService:
             txn.set(standing_path(uid), doc)
             return doc
 
-        return self.store.run(fn)
+        return self._run(uid, fn)
 
     @staticmethod
     def _later(a, b):
@@ -154,7 +174,7 @@ class StandingService:
     # -------------------------------------------------------------- enforcement
 
     def enforce(self, uid: str, kind: str, bet: float | None = None, endpoint: str = "") -> None:
-        """Raise a 403 if this player may not do ``kind`` (play | credits | delete) right now."""
+        """Raise a 403 if this player may not do ``kind`` (play | credits | deposit | payout | delete) right now."""
         now = self.clock()
         doc = self.summary(uid)
         active = [e for e in doc.get("active", []) if not self._expired(e, now)]
@@ -181,6 +201,10 @@ class StandingService:
                     f"Free credits are paused until {_human(pub['probationUntil'])} while your account is on probation.",
                     standing=pub,
                 )
+        elif kind in ("deposit", "payout"):
+            # Real money moves only for accounts in good standing (probation is fine).
+            if active:
+                raise self._blocked(max(active, key=lambda e: SEVERITY[e["type"]]), pub, credits=True)
         elif kind == "delete":
             if active or pub["probationUntil"]:
                 raise ApiError(
@@ -272,7 +296,7 @@ class StandingService:
             self._log(txn, uid, action_id, "created", type_, actor, reason, now)
             return action
 
-        return self.store.run(fn)
+        return self._run(uid, fn)
 
     def lift(self, uid: str, action_id: str, *, actor: str, note: str = "", probation_hours: float | None = None, outcome: str = "lifted") -> Doc:
         def fn(txn: Txn):
@@ -280,7 +304,7 @@ class StandingService:
             doc = txn.get(standing_path(uid)) or self._empty()
             return self._lift_in_txn(txn, uid, doc, action_id, actor, note, probation_hours, outcome, now)
 
-        return self.store.run(fn)
+        return self._run(uid, fn)
 
     def _lift_in_txn(self, txn, uid, doc, action_id, actor, note, probation_hours, outcome, now):
         entry = next((e for e in doc.get("active", []) if e["id"] == action_id), None)
@@ -353,7 +377,7 @@ class StandingService:
             self._log(txn, uid, action_id, "appeal_created", entry["type"], "player", message[:200], now)
             return {"id": appeal_id, "status": "pending"}
 
-        return self.store.run(fn)
+        return self._run(uid, fn)
 
     def decide_appeal(self, uid: str, appeal_id: str, decision: str, response: str, *, actor: str, probation_hours: float | None = None) -> dict:
         if decision not in ("approve", "reject"):
@@ -391,7 +415,7 @@ class StandingService:
                 self._log(txn, uid, appeal["actionId"], "appeal_rejected", appeal["actionType"], actor, response, now)
             return appeal
 
-        return self.store.run(fn)
+        return self._run(uid, fn)
 
     # -------------------------------------------------------------------- risk
 
@@ -440,7 +464,7 @@ class StandingService:
 
     def recent_events(self, days: int, limit: int = 500) -> list[Doc]:
         since = self.clock() - timedelta(days=days)
-        rows = [d for _id, d in self.store.list("moderation_log", limit) if as_utc(d["at"]) >= since]
+        rows = [d for _id, d in self._log_watch.rows() if as_utc(d["at"]) >= since]
         rows.sort(key=lambda d: as_utc(d["at"]), reverse=True)
         return rows
 

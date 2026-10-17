@@ -6,29 +6,29 @@ import '../core/app_colors.dart';
 
 enum GameKind { slots, roulette, blackjack, dice, crash, soon }
 
-/// Gradient colours per game, used by tiles and cards.
+/// Accent colour per game, used by tiles and cards.
 class GameArtStyle {
-  const GameArtStyle(this.top, this.bottom, this.accent);
-  final Color top;
-  final Color bottom;
-  final Color accent;
+  const GameArtStyle._();
 
-  static GameArtStyle of(GameKind k) {
+  static Color accentOf(GameKind k) {
     switch (k) {
       case GameKind.slots:
-        return const GameArtStyle(Color(0xFF4A2A00), Color(0xFF1A0F00), AppColors.gold);
+        return AppColors.gold;
       case GameKind.roulette:
-        return const GameArtStyle(Color(0xFF0B3B2A), Color(0xFF06150F), AppColors.green);
+        return AppColors.green;
       case GameKind.blackjack:
-        return const GameArtStyle(Color(0xFF2A1A4A), Color(0xFF110A1F), AppColors.purple);
+        return AppColors.purple;
       case GameKind.dice:
-        return const GameArtStyle(Color(0xFF0A2F4A), Color(0xFF06131F), AppColors.blue);
+        return AppColors.blue;
       case GameKind.crash:
-        return const GameArtStyle(Color(0xFF4A1014), Color(0xFF1A0507), AppColors.loss);
+        return AppColors.loss;
       case GameKind.soon:
-        return const GameArtStyle(Color(0xFF232326), Color(0xFF121214), AppColors.textDim);
+        return AppColors.textDim;
     }
   }
+
+  /// Flat panel colour: the accent washed into the surface.
+  static Color panelOf(GameKind k) => Color.alphaBlend(accentOf(k).withValues(alpha: AppColors.light ? .12 : .16), AppColors.surface);
 }
 
 /// Painted artwork for a game (no image assets needed).
@@ -44,14 +44,11 @@ class GameArt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final s = GameArtStyle.of(kind);
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [s.top, s.bottom]),
-        ),
-        child: SizedBox.expand(child: CustomPaint(painter: _ArtPainter(kind, s.accent))),
+      child: ColoredBox(
+        color: GameArtStyle.panelOf(kind),
+        child: SizedBox.expand(child: CustomPaint(painter: _ArtPainter(kind, GameArtStyle.accentOf(kind)))),
       ),
     );
   }

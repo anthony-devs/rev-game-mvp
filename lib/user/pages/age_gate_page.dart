@@ -98,7 +98,7 @@ class _Bullet extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(width: 6, height: 6, decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.green)),
+          Container(width: 6, height: 6, decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.green)),
           const SizedBox(width: 10),
           Flexible(child: Text(text, style: AppText.body(13, weight: FontWeight.w600, color: AppColors.textSoft))),
         ],

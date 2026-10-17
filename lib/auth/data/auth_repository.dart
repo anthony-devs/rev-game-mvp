@@ -119,7 +119,7 @@ class AuthRepository {
   }
 
   /// Firebase ID token for the game server. Refreshed automatically when it expires.
-  Future<String?> idToken() async => _auth.currentUser?.getIdToken();
+  Future<String?> idToken({bool force = false}) async => _auth.currentUser?.getIdToken(force);
 
   // ---- Session ------------------------------------------------------------
 
