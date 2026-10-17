@@ -44,3 +44,25 @@ class _SkeletonBoxState extends State<SkeletonBox> with SingleTickerProviderStat
     );
   }
 }
+
+/// A few placeholder rows that stand in for a list or a form while it loads.
+class SkeletonList extends StatelessWidget {
+  const SkeletonList({super.key, this.rows = 3, this.rowHeight = 56, this.gap = 12, this.radius = 16});
+
+  final int rows;
+  final double rowHeight;
+  final double gap;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (var i = 0; i < rows; i++) ...[
+          if (i > 0) SizedBox(height: gap),
+          SkeletonBox(height: rowHeight, radius: radius),
+        ],
+      ],
+    );
+  }
+}

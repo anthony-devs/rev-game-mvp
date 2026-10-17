@@ -5,6 +5,7 @@ import '../components/components.dart';
 import '../games/game_support.dart';
 import '../user/bloc/profile_cubit.dart';
 import '../user/pages/profile_page.dart';
+import '../legal/legal_page.dart';
 import 'help_page.dart';
 import 'history_page.dart';
 import 'limits_page.dart';
@@ -110,6 +111,7 @@ class SettingsPage extends StatelessWidget {
             ListRowTile(icon: Icons.shield_outlined, title: 'Play limits and breaks', onTap: () => pushPage<void>(context, const LimitsPage())),
             ListRowTile(icon: Icons.history_rounded, title: 'Game history', onTap: () => pushPage<void>(context, const HistoryPage())),
             ListRowTile(icon: Icons.help_outline_rounded, title: 'Help Centre', trailing: const SupportBadge(), onTap: () => pushPage<void>(context, const HelpPage())),
+            ListRowTile(icon: Icons.gavel_rounded, title: 'Legal and policies', onTap: () => pushPage<void>(context, const LegalPage())),
             const ListRowTile(icon: Icons.language_rounded, title: 'Language', trailingText: 'English', showChevron: false),
           ],
         ),

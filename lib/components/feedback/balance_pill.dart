@@ -72,6 +72,7 @@ class BalancePill extends StatelessWidget {
               const SizedBox(width: 8),
               PressScale(
                 onTap: onAdd,
+                cooldown: const Duration(milliseconds: 600),
                 child: Container(
                   width: 34,
                   height: 34,

@@ -107,7 +107,7 @@ class _WithdrawBodyState extends State<_WithdrawBody> {
   Widget build(BuildContext context) {
     final s = context.watch<LiveCubit>().state.status;
     final balance = context.select((ProfileCubit c) => c.state.wallet.balance);
-    if (s == null) return const Padding(padding: EdgeInsets.all(30), child: Center(child: AppLoader()));
+    if (s == null) return const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: SkeletonList(rows: 4, rowHeight: 56));
 
     if (_sent != null) {
       return Column(children: [

@@ -136,7 +136,7 @@ class FairnessService:
                     raise ApiError(
                         409,
                         "round_in_progress",
-                        "Finish your current round before changing the seed.",
+                        "A round is still in progress. Finish it, then try again.",
                     )
                 revealed = {
                     "serverSeedHash": pub["serverSeedHash"],

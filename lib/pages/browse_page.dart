@@ -7,6 +7,7 @@ import '../games/game_launcher.dart';
 import '../games/game_support.dart';
 import '../model/model.dart';
 import '../shell/shell_cubit.dart';
+import '../legal/legal_page.dart';
 import 'help_page.dart';
 import 'history_page.dart';
 import 'limits_page.dart';
@@ -76,6 +77,7 @@ class _BrowsePageState extends State<BrowsePage> {
               ListRowTile(icon: Icons.history_rounded, title: 'Game history', onTap: () => pushPage<void>(context, const HistoryPage())),
               ListRowTile(icon: Icons.help_outline_rounded, title: 'Help Centre', trailing: const SupportBadge(), onTap: () => pushPage<void>(context, const HelpPage())),
               ListRowTile(icon: Icons.shield_outlined, title: 'Responsible Play', onTap: () => pushPage<void>(context, const LimitsPage())),
+              ListRowTile(icon: Icons.gavel_rounded, title: 'Legal and policies', onTap: () => pushPage<void>(context, const LegalPage())),
               ListRowTile(icon: Icons.settings_outlined, title: 'Settings', trailingText: 'English', onTap: () => shell.go(ShellTab.settings)),
             ],
           ),

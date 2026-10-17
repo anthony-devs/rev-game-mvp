@@ -51,11 +51,7 @@ class GameTile extends StatelessWidget {
             children: [
               if (image != null) Image(image: image!, fit: BoxFit.cover) else GameArt(kind: kind, borderRadius: 0),
               if (image != null)
-                const DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(begin: Alignment.center, end: Alignment.bottomCenter, colors: [Colors.transparent, Color(0xCC000000)]),
-                  ),
-                ),
+                const ColoredBox(color: Color(0x73000000)), // flat scrim so the title stays readable
               Positioned(
                 left: 14,
                 right: 14,

@@ -56,13 +56,14 @@ class ReelWidgetState extends State<ReelWidget> with SingleTickerProviderStateMi
   }
 
   /// Lands the reel on [col] = [top, payline, bottom]. Completes when it settles.
-  Future<void> stopTo(List<SlotSymbol> col, {bool fast = false}) {
+  /// [slow] is the drawn-out last stop when the first two reels already match.
+  Future<void> stopTo(List<SlotSymbol> col, {bool fast = false, bool slow = false}) {
     if (!_spinning) {
       setState(() => _tape = List.of(col));
       _pos = 0;
       return Future.value();
     }
-    final target = _pos.ceil() + (fast ? 3 : 6);
+    final target = _pos.ceil() + (fast ? 3 : (slow ? 14 : 8));
     while (_tape.length < target + 6) {
       _tape.add(_rand());
     }
@@ -71,7 +72,7 @@ class ReelWidgetState extends State<ReelWidget> with SingleTickerProviderStateMi
     }
     _from = _pos;
     _to = target.toDouble();
-    _dur = Duration(milliseconds: fast ? 260 : 520);
+    _dur = Duration(milliseconds: fast ? 260 : (slow ? 1500 : 800));
     _t0 = _last;
     _stopping = true;
     _done = Completer<void>();

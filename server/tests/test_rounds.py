@@ -83,3 +83,16 @@ def test_players_have_their_own_allowance(make_client, on):
         spin(c, "alice")
     assert spin(c, "alice").status_code == 402
     assert spin(c, "bob").status_code == 200
+
+
+def test_round_cooloff_slows_rapid_taps(make_client, cfg):
+    object.__setattr__(cfg, "round_cooloff_seconds", 30.0)
+    try:
+        c = make_client()
+        assert spin(c).status_code == 200
+        r = spin(c)
+        assert r.status_code == 429 and r.json["error"] == "slow_down"
+        assert c.post("/v1/dice/roll", json={"bet": 10, "target": 50, "mode": "under"}, headers=auth()).status_code == 429  # any game
+        assert spin(c, "bob").status_code == 200  # other players are not held up
+    finally:
+        object.__setattr__(cfg, "round_cooloff_seconds", 0.0)

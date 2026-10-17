@@ -4,6 +4,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../components/core/play_mode.dart';
+import '../core/api/api_cache.dart';
 import '../core/api/api_client.dart';
 import '../core/api/rounds_hub.dart';
 import '../model/model.dart';
@@ -132,6 +133,7 @@ class CatalogCubit extends Cubit<CatalogState> {
     _warmed = false;
     ApiSlotsServer.cached = null;
     RoundsHub.clear();
+    ApiCache.clear(); // drafts and saved pages belong to the player who just left
     emit(const CatalogState());
   }
 

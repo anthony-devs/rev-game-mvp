@@ -66,7 +66,7 @@ _Guide _guideFor(GameType t) {
           ('Push (tie)', 'bet returned'),
           ('Bust (over 21)', 'bet lost'),
         ],
-        tip: 'Split and insurance are not available in this version.',
+        tip: 'Split a pair of the same rank once, as your first move. It needs a second bet equal to your first. Split aces get one card each. Insurance is not offered.',
       );
     case GameType.dice:
       return _Guide(

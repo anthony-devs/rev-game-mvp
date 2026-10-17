@@ -39,33 +39,38 @@ class GameTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: padding,
-      child: Row(
-        children: [
-          IconSquareButton(icon: Icons.chevron_left_rounded, iconSize: 26, semanticLabel: 'Back', onPressed: onBack),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.body(18, weight: FontWeight.w700),
+      child: LayoutBuilder(builder: (context, box) {
+        // On a phone the bar is crowded: tighter gaps and a smaller title keep everything on one line.
+        final narrow = box.maxWidth < 420;
+        final gap = SizedBox(width: narrow ? 6 : 8);
+        return Row(
+          children: [
+            IconSquareButton(icon: Icons.chevron_left_rounded, iconSize: 26, semanticLabel: 'Back', onPressed: onBack),
+            SizedBox(width: narrow ? 8 : 12),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.body(narrow ? 16 : 18, weight: FontWeight.w700),
+              ),
             ),
-          ),
-          const RoundsPill(),
-          const SizedBox(width: 8),
-          BalancePill(balance: balance, low: low, compact: true),
-          if (onVerify != null) ...[
-            const SizedBox(width: 8),
-            IconSquareButton(
-              icon: Icons.verified_user_outlined,
-              iconColor: AppColors.green,
-              semanticLabel: 'Provably fair',
-              onPressed: onVerify,
-            ),
+            RoundsPill(compact: narrow),
+            gap,
+            BalancePill(balance: balance, low: low, compact: true),
+            if (onVerify != null) ...[
+              gap,
+              IconSquareButton(
+                icon: Icons.verified_user_outlined,
+                iconColor: AppColors.green,
+                semanticLabel: 'Provably fair',
+                onPressed: onVerify,
+              ),
+            ],
+            for (final a in actions) ...[gap, a],
           ],
-          for (final a in actions) ...[const SizedBox(width: 8), a],
-        ],
-      ),
+        );
+      }),
     );
   }
 }

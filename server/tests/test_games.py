@@ -133,6 +133,44 @@ def test_blackjack_double(make_client):
     assert bal(c) == 10000 + 200  # staked 200, won 400
 
 
+def test_blackjack_split_plays_two_hands(make_client):
+    # 8 8 v 9 7. Split draws 3 and 2, hit A with K (21, moves on), hit B with K (20), stand, dealer draws 2 -> 18.
+    c = make_client(bj_rng=StackedRng(["8S", "9H", "8D", "7C", "3S", "2S", "KS", "KH", "2H"]))
+    r = deal(c).get_json()
+    assert r["canSplit"] and bal(c) == 9900
+    r = act(c, r["roundId"], "split").get_json()
+    assert r["split"] and len(r["hands"]) == 2 and r["active"] == 0 and bal(c) == 9800
+    assert r["hands"][0]["cards"] == ["8S", "3S"] and r["hands"][1]["cards"] == ["8D", "2S"]
+    assert not r["canSplit"]
+    r = act(c, r["roundId"], "hit").get_json()  # hand 1 reaches 21 and moves on
+    assert r["active"] == 1 and r["status"] == "player"
+    r = act(c, r["roundId"], "hit").get_json()  # hand 2: 20
+    r = act(c, r["roundId"], "stand").get_json()
+    assert r["status"] == "done" and r["result"]["outcome"] == "win"
+    assert bal(c) == 10000 + 200  # staked 200, both hands beat 18
+
+
+def test_blackjack_split_aces_get_one_card_each(make_client):
+    c = make_client(bj_rng=StackedRng(["AS", "9H", "AD", "7C", "KS", "5S", "2H"]))
+    r = deal(c).get_json()
+    r = act(c, r["roundId"], "split").get_json()
+    assert r["status"] == "done"  # no further play on split aces
+    assert [h["total"] for h in r["hands"]] == [21, 16]
+    assert r["result"]["outcome"] == "push" and bal(c) == 10000  # 21 beats 18, 16 loses
+
+
+def test_blackjack_split_rules(make_client):
+    c = make_client(bj_rng=StackedRng(["10S", "9H", "6D", "8C"]))
+    r = deal(c).get_json()
+    assert not r["canSplit"]
+    assert act(c, r["roundId"], "split").status_code == 400
+    act(c, r["roundId"], "stand")
+    c2 = make_client(bj_rng=StackedRng(["8S", "9H", "8D", "7C", "3S", "2S"]))
+    r = deal(c2).get_json()
+    assert act(c2, r["roundId"], "split").status_code == 200
+    assert act(c2, r["roundId"], "split").status_code == 400  # one split only
+
+
 def test_blackjack_one_active_hand_and_resume(make_client):
     c = make_client(bj_rng=StackedRng(["10S", "6H", "5D", "10C"]))
     r = deal(c).get_json()
@@ -220,3 +258,44 @@ def test_delete_account_wipes_everything_for_that_user_only(make_client, store, 
 def test_public_config_has_limits(make_client):
     j = make_client().get("/v1/config").get_json()
     assert j["dice"]["minTarget"] and j["dailyRewards"][-1] == 10000
+
+
+# ---- legal pages and unsubscribe -------------------------------------------------
+
+def test_legal_pages_are_public_and_complete(make_client):
+    c = make_client()
+    docs = c.get("/v1/legal").get_json()["documents"]
+    assert {d["slug"] for d in docs} == {"terms", "privacy", "refunds", "cookies", "about"}
+    for d in docs:
+        j = c.get(f"/v1/legal/{d['slug']}").get_json()
+        assert j["sections"] and not any("{" in x["body"] for x in j["sections"])
+        assert c.get(f"/legal/{d['slug']}").status_code == 200
+    assert c.get("/v1/legal/nope").status_code == 404
+
+
+def test_unsubscribe_link_needs_the_right_token(make_client, store):
+    from app import legal
+    c = make_client()
+    store.docs["users/alice"] = {"email": "a@b.co"}
+    assert c.get("/unsubscribe?u=alice&t=bad").status_code == 400
+    tok = legal.unsubscribe_token("s" * 32, "alice")
+    assert c.get(f"/unsubscribe?u=alice&t={tok}").status_code == 200
+    assert store.docs["users/alice"]["emailOptOut"] is True
+
+
+def test_web_build_can_call_the_server(make_client):
+    c = make_client()
+    r = c.options("/v1/games", headers={"Origin": "http://localhost:5555", "Access-Control-Request-Method": "GET"})
+    assert r.headers.get("Access-Control-Allow-Origin") == "http://localhost:5555"
+    assert "Authorization" in r.headers.get("Access-Control-Allow-Headers", "")
+    r = c.get("/v1/legal", headers={"Origin": "https://evil.example"})
+    assert "Access-Control-Allow-Origin" not in r.headers
+
+
+def test_fairness_check_works_right_after_a_crash_round_ends(make_client):
+    c = make_client(crash_rng=FixedRng([0.5]))
+    rid = c.post("/v1/crash/rounds", json={"bet": 100}, headers=auth()).get_json()["roundId"]
+    # while the round runs, the check has to wait
+    assert c.post("/v1/fairness/rotate", json={}, headers=auth()).status_code == 409
+    c.get(f"/v1/crash/rounds/{rid}/events", headers=auth()).get_data()  # plays out to the crash
+    assert c.post("/v1/fairness/rotate", json={}, headers=auth()).status_code == 200

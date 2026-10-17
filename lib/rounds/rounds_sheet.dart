@@ -89,7 +89,7 @@ class _RoundsBodyState extends State<_RoundsBody> {
     return ValueListenableBuilder<RoundsInfo?>(
       valueListenable: _hub,
       builder: (context, info, _) {
-        if (info == null) return const Padding(padding: EdgeInsets.symmetric(vertical: 30), child: Center(child: AppLoader()));
+        if (info == null) return const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: SkeletonList(rows: 3, rowHeight: 52));
         final wait = info.untilRefresh;
         final low = info.available == 0;
         return Column(

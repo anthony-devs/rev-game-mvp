@@ -285,7 +285,7 @@ class _Thumb extends StatelessWidget {
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(color: Colors.black.withValues(alpha: .55), borderRadius: BorderRadius.circular(14)),
-                child: const Center(child: AppLoader(size: 22)),
+                child: const Center(child: AppLoader(size: 22, color: Colors.white)),
               ),
             ),
           if (failed)

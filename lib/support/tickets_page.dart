@@ -50,7 +50,7 @@ class TicketsPage extends StatelessWidget {
           Expanded(
             child: BlocBuilder<SupportCubit, SupportState>(
               builder: (context, s) {
-                if (!s.ready) return const Center(child: AppLoader());
+                if (!s.ready) return const Padding(padding: EdgeInsets.all(AppSpacing.screen), child: SkeletonList(rows: 4, rowHeight: 76));
                 if (s.tickets.isEmpty) {
                   return StatusView(
                     icon: Icons.forum_outlined,

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../components/components.dart';
 import '../core/api/api_client.dart';
+import '../core/open_guard.dart';
 import '../live/deposit_sheet.dart';
 import '../model/model.dart';
 import '../pages/fairness_page.dart';
@@ -13,8 +14,10 @@ import '../session/session_guard.dart';
 import '../user/bloc/profile_cubit.dart';
 
 /// Push a page on the app navigator.
-Future<T?> pushPage<T>(BuildContext context, Widget page) =>
-    Navigator.of(context).push<T>(MaterialPageRoute<T>(builder: (_) => page));
+Future<T?> pushPage<T>(BuildContext context, Widget page) {
+  if (!OpenGuard.allow('page:${page.runtimeType}')) return Future<T?>.value(null);
+  return Navigator.of(context).push<T>(MaterialPageRoute<T>(builder: (_) => page));
+}
 
 /// The one balance every screen shows: the Firestore wallet, held steady while
 /// a round is animating. Rebuilds the widget when it changes.
@@ -81,6 +84,7 @@ Future<void> showNoCredits(BuildContext context, {double? needed}) {
 
 /// A short message at the bottom of the screen.
 void showToast(BuildContext context, String message, {bool error = false}) {
+  if (message.isEmpty) return; // nothing to say (e.g. a tap during the short cool-off)
   final m = ScaffoldMessenger.maybeOf(context);
   if (m == null) return;
   m
@@ -94,10 +98,12 @@ void showToast(BuildContext context, String message, {bool error = false}) {
 }
 
 /// What went wrong with a server call, in plain words.
-enum FailKind { network, down, noCredits, noRounds, other }
+enum FailKind { network, down, noCredits, noRounds, busy, coolOff, other }
 
 FailKind failKind(Object e) {
   if (e is ApiException) {
+    if (e.code == 'cooloff' || e.code == 'slow_down') return FailKind.coolOff;
+    if (e.code == 'slow') return FailKind.busy;
     if (e.isOffline) return FailKind.network;
     if (e.isNetwork || e.isServerDown) return FailKind.down;
     if (e.code == 'insufficient_credits') return FailKind.noCredits;

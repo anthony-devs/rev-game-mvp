@@ -191,11 +191,11 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
       }
       releaseBalance();
       _auto = false;
-      AppSound.play(Sfx.error);
+      if (failKind(e) != FailKind.coolOff) AppSound.play(Sfx.error);
       setState(() {
         _phase = SlotsPhase.idle;
         final k = failKind(e);
-        _plate = k == FailKind.noRounds ? 'Out of rounds' : k == FailKind.network ? "You're offline. Try again" : (k == FailKind.down ? 'Temporarily unavailable. Try again' : 'Something went wrong. Try again');
+        _plate = k == FailKind.coolOff ? 'Match 3 on the line to win' : k == FailKind.noRounds ? 'Out of rounds' : k == FailKind.busy ? 'One moment, then try again' : k == FailKind.network ? "You're offline. Try again" : (k == FailKind.down ? 'Temporarily unavailable. Try again' : 'Something went wrong. Try again');
       });
       if (failKind(e) == FailKind.noRounds) {
       showRoundsSheet(context);
@@ -208,17 +208,21 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
     }
     if (!mounted) return;
 
-    final minSpin = Duration(milliseconds: _turbo ? 350 : 900);
+    final minSpin = Duration(milliseconds: _turbo ? 600 : 2000);
     final elapsed = DateTime.now().difference(started);
     if (!_skip && elapsed < minSpin) await Future<void>.delayed(minSpin - elapsed);
     if (!mounted) return;
 
-    final gap = _turbo ? 60 : 160;
+    // Reels stop one after another, left to right, like a real machine. When the first two already
+    // match, the last reel is held back and slows down for the final symbol.
+    final gap = _turbo ? 90 : 520;
+    final tease = !_turbo && !_skip && res.columns[0][1] == res.columns[1][1];
     final stops = <Future<void>>[];
     for (var i = 0; i < 3; i++) {
-      stops.add(Future<void>.delayed(Duration(milliseconds: _skip ? 0 : gap * i), () {
+      final extra = (i == 2 && tease) ? 700 : 0;
+      stops.add(Future<void>.delayed(Duration(milliseconds: _skip ? 0 : gap * i + extra), () {
         AppSound.play(Sfx.reelStop, volume: .7);
-        return _reelKeys[i].currentState?.stopTo(res.columns[i], fast: _skip || _turbo);
+        return _reelKeys[i].currentState?.stopTo(res.columns[i], fast: _skip || _turbo, slow: i == 2 && tease);
       }));
     }
     await Future.wait(stops);

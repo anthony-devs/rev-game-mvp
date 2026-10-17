@@ -30,11 +30,7 @@ class NextUpBanner extends StatelessWidget {
               fit: StackFit.expand,
               children: [
                 GameArt(kind: info.kind, borderRadius: 0),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(begin: Alignment.centerLeft, end: Alignment.centerRight, colors: [AppColors.bg.withValues(alpha: .92), AppColors.bg.withValues(alpha: .15)]),
-                  ),
-                ),
+                ColoredBox(color: AppColors.bg.withValues(alpha: .6)),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
                   child: Column(

@@ -51,16 +51,37 @@
   td.n,th.n{white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums} tr.hl td{background:#1b1b1f}
   .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
   .bar+.s{margin-top:3px}
+
+  #bar{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--gold),var(--green));z-index:20;opacity:0;transition:width .25s ease,opacity .25s ease;pointer-events:none}
+  #bar.on{opacity:1}
+  .skel{background:linear-gradient(100deg,var(--panel2) 30%,#26262b 50%,var(--panel2) 70%);background-size:200% 100%;animation:sh 1.2s linear infinite;border-radius:12px}
+  @keyframes sh{to{background-position:-200% 0}}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:rot .7s linear infinite;vertical-align:-2px;margin-right:6px}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  #view{transition:opacity .15s ease} #view.stale{opacity:.55;pointer-events:none}
+  .fade{animation:fin .25s ease} @keyframes fin{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .errbox{background:#2a0f10;border:1px solid var(--red);border-radius:14px;padding:18px;text-align:center}
+  .errbox b{display:block;font-size:16px;margin-bottom:4px} .errbox p{margin:0 0 12px;color:var(--dim)}
+  .live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dim)}
+  .live i{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(46,229,157,.6);animation:pulse 2s infinite}
+  .live.off i{background:var(--dim);animation:none} @keyframes pulse{70%{box-shadow:0 0 0 7px rgba(46,229,157,0)}100%{box-shadow:0 0 0 0 rgba(46,229,157,0)}}
+  .toast{display:block!important;opacity:0;transform:translate(-50%,12px);pointer-events:none;transition:opacity .2s,transform .2s} .toast.show{opacity:1;transform:translate(-50%,0)}
+  .toast.ok{border-color:var(--green);color:var(--green)}
+  button.busy{opacity:.7;cursor:progress}
+  button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+  tr:hover td{background:#17171a}
 </style>
 </head>
 <body>
+<div id="bar"></div>
 <header>
   <h1>REV <b>Games</b> · Insights</h1>
   <span class="spacer"></span>
+  <span id="status" class="live" title="Press R to refresh"><i></i><span>Live</span></span>
   <a href="/admin/payments">Payout desk</a><a href="/admin">← Moderation</a>
 </header>
 <nav id="tabs"></nav>
-<main id="view"><div class="s">Loading…</div></main>
+<main id="view"></main>
 <div id="toast" class="toast"></div>
 <!-- click-guard:start -->
 <script>
@@ -111,13 +132,42 @@ const TOKEN = ss('staffToken'), KEY = ss('adminKey');
 if (!TOKEN || !KEY) location.replace('/admin');
 let CUR = 'NGN';
 
-function toast(m, err) { const t = $('#toast'); t.textContent = m; t.className = 'toast' + (err ? ' err' : ''); t.style.display = 'block'; clearTimeout(toast.h); toast.h = setTimeout(() => t.style.display = 'none', 4500); }
-async function api(path, body) {
-  const res = await fetch(path, {method: body === undefined ? 'GET' : 'POST', headers: {'Authorization': 'Bearer ' + TOKEN, 'X-Admin-Key': KEY, 'Content-Type': 'application/json'}, body: body === undefined ? undefined : JSON.stringify(body)});
-  const d = await res.json().catch(() => ({}));
-  if (!res.ok) { if (res.status === 401) location.replace('/admin'); throw new Error(d.message || 'HTTP ' + res.status); }
-  return d;
+// ---- feedback: progress bar, toasts, request handling
+let pending = 0, barTimer;
+function progress(delta) {
+  pending = Math.max(0, pending + delta); const bar = $('#bar');
+  if (pending > 0) { clearTimeout(barTimer); bar.classList.add('on'); bar.style.width = '70%'; }
+  else { bar.style.width = '100%'; barTimer = setTimeout(() => { bar.classList.remove('on'); bar.style.width = '0'; }, 250); }
 }
+function toast(m, err) {
+  const t = $('#toast'); t.textContent = (err === 'ok' ? '✓ ' : '') + m; t.className = 'toast show' + (err === true ? ' err' : err === 'ok' ? ' ok' : '');
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), err === true ? 6000 : 3000);
+}
+const FRIENDLY = e => e.name === 'AbortError' ? 'The server took too long to answer. Try again.' : (e instanceof TypeError ? "Can't reach the server. Check that it is running." : e.message);
+let TAB_CTRL = new AbortController();
+async function api(path, body, opts = {}) {
+  const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), opts.timeout || 30000);
+  const stop = () => ctrl.abort(); TAB_CTRL.signal.addEventListener('abort', stop, {once: !0});
+  progress(1);
+  try {
+    const res = await fetch(path, {method: body === undefined ? 'GET' : 'POST', signal: ctrl.signal, headers: {'Authorization': 'Bearer ' + TOKEN, 'X-Admin-Key': KEY, 'Content-Type': 'application/json'}, body: body === undefined ? undefined : JSON.stringify(body)});
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { if (res.status === 401) location.replace('/admin'); throw new Error(d.message || 'Something went wrong (' + res.status + ').'); }
+    return d;
+  } catch (e) { throw Object.assign(new Error(FRIENDLY(e)), {name: e.name}); }
+  finally { clearTimeout(timer); TAB_CTRL.signal.removeEventListener('abort', stop); progress(-1); }
+}
+/** Runs a button action with a spinner, a toast for the result, and no double clicks. */
+async function act(btn, busyText, fn, okText) {
+  if (!btn || btn.classList.contains('busy')) return;
+  const old = btn.innerHTML; btn.classList.add('busy'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>' + busyText;
+  try { const r = await fn(); if (okText) toast(okText, 'ok'); return r; }
+  catch (e) { if (e.name !== 'AbortError' || !TAB_CTRL.signal.aborted) toast(e.message, true); }
+  finally { if (btn.isConnected) { btn.classList.remove('busy'); btn.disabled = false; btn.innerHTML = old; } }
+}
+const skel = (h, w = '100%') => `<div class="skel" style="height:${h}px;width:${w}"></div>`;
+const SKELETON = `<div class="grid" style="margin-bottom:14px">${[1, 2, 3, 4].map(() => skel(96)).join('')}</div><div class="grid" style="margin-bottom:14px">${[1, 2, 3, 4].map(() => skel(60)).join('')}</div><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">${skel(190)}${skel(190)}</div><div style="margin-top:14px">${skel(220)}</div>`;
+const LIST_SKELETON = `<div class="card">${skel(22, '40%')}<div style="height:12px"></div>${[1, 2, 3, 4, 5].map(() => skel(38) + '<div style="height:8px"></div>').join('')}</div>`;
 const num = n => Number(n ?? 0).toLocaleString(undefined, {maximumFractionDigits: 2});
 const money = n => CUR + ' ' + num(n);
 const pct = n => n == null ? '—' : (n * 100).toFixed(1) + '%';
@@ -153,8 +203,11 @@ function pairBars(series, a, b, ca, cb, w = 760, h = 150) {
 }
 const delta = (cur, prev, invert) => { if (!prev) return ''; const p = (cur - prev) / Math.abs(prev), good = invert ? p < 0 : p > 0;
   return `<span class="${p === 0 ? '' : good ? 'pos' : 'neg'}">${p > 0 ? '▲' : p < 0 ? '▼' : '•'} ${Math.abs(p * 100).toFixed(0)}%</span> vs yesterday`; };
-let MODE = 'live', PERIOD = 'today';
+let MODE = ss('dashMode') === 'demo' ? 'demo' : 'live', PERIOD = ['today', 'yesterday', 'week', 'month', 'all'].includes(ss('dashPeriod')) ? ss('dashPeriod') : 'today';
+const keep = (k, v) => { try { sessionStorage.setItem(k, v); } catch {} };
 const PERIODS = {today: 'Today', yesterday: 'Yesterday', week: '7 days', month: '30 days', all: 'All time'};
+let AUTO = ss('dashAuto') === '1', autoTimer, agoTimer;
+const ago = iso => { const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000)); return 'Updated ' + (s < 5 ? 'just now' : s < 60 ? s + 's ago' : s < 3600 ? Math.round(s / 60) + ' min ago' : fmt(iso)); };
 const dur = s => s > 86400 ? Math.floor(s / 86400) + 'd ' + Math.floor(s % 86400 / 3600) + 'h' : s > 3600 ? Math.floor(s / 3600) + 'h ' + Math.floor(s % 3600 / 60) + 'm' : Math.floor(s / 60) + 'm';
 
 function renderDashboard(d) {
@@ -170,7 +223,7 @@ function renderDashboard(d) {
   <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
     <div class="seg" id="modeSeg"><button data-m="live" class="${live ? 'on' : ''}">Live money</button><button data-m="demo" class="${live ? '' : 'on'}">Demo credits</button></div>
     <div class="seg" id="perSeg">${Object.entries(PERIODS).map(([k, v]) => `<button data-p="${k}" class="${k === PERIOD ? 'on' : ''}">${v}</button>`).join('')}</div>
-    <span class="spacer"></span><span class="s">Updated ${fmt(d.asOf)}${d.since ? ' · history since ' + esc(d.since) : ''}</span><button class="small" id="refresh">Refresh</button>
+    <span class="spacer"></span><span class="s" id="ago">${ago(d.fetchedAt || d.asOf)}</span>${d.since ? '<span class="s">· history since ' + esc(d.since) + '</span>' : ''}<label class="s" style="margin:0;display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" id="auto" ${AUTO ? 'checked' : ''}> Auto-refresh</label><button class="small" id="refresh" title="Press R">↻ Refresh</button>
   </div>
   ${live ? '' : '<div class="warn">Demo credits are practice play and are never counted as profit or money.</div>'}
   <div class="hero">
@@ -199,14 +252,16 @@ function renderDashboard(d) {
 }
 
 const TABS = {
-  overview: {label: 'Dashboard', run: async () => { window.DASH = await api('/admin/api/insights/dashboard'); return renderDashboard(window.DASH); },
+  overview: {label: 'Dashboard', skeleton: SKELETON, run: async () => { window.DASH = await api('/admin/api/insights/dashboard'); window.DASH.fetchedAt = new Date().toISOString(); return renderDashboard(window.DASH); },
     after: () => {
       const redo = () => { $('#view').innerHTML = renderDashboard(window.DASH); TABS.overview.after(); };
-      $('#modeSeg').onclick = e => { const m = e.target.dataset.m; if (m) { MODE = m; redo(); } };
-      $('#perSeg').onclick = e => { const p = e.target.dataset.p; if (p) { PERIOD = p; redo(); } };
-      $('#refresh').onclick = () => show('overview');
+      $('#modeSeg').onclick = e => { const m = e.target.dataset.m; if (m) { MODE = m; keep('dashMode', m); redo(); } };
+      $('#perSeg').onclick = e => { const p = e.target.dataset.p; if (p) { PERIOD = p; keep('dashPeriod', p); redo(); } };
+      $('#refresh').onclick = e => act(e.currentTarget, 'Refreshing…', () => reload(), 'Dashboard updated');
+      $('#auto').onchange = e => { AUTO = e.target.checked; keep('dashAuto', AUTO ? '1' : '0'); schedule(); };
+      clearInterval(agoTimer); agoTimer = setInterval(() => { const el = $('#ago'); if (el && window.DASH) el.textContent = ago(window.DASH.fetchedAt || window.DASH.asOf); }, 10000);
     }},
-  profit: {label: 'Profit', run: async () => {
+  profit: {label: 'Profit', skeleton: SKELETON, run: async () => {
     const days = +($('#range')?.value || 30), d = await api('/admin/api/insights/profit?days=' + days); CUR = d.currency; const L = d.live, M = d.money;
     const games = Object.entries(L.games).map(([g, r]) => `<tr><td>${esc(g)}</td><td>${num(r.rounds)}</td><td>${money(r.wagered)}</td><td>${money(r.paid)}</td><td class="${sign(r.ggr)}">${money(r.ggr)}</td><td>${pct(r.rtp)}</td></tr>`).join('');
     return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><select id="range">${[7, 14, 30, 60, 90].map(n => `<option ${n === days ? 'selected' : ''}>${n}</option>`).join('')}</select><span class="s">days</span></div>
@@ -217,31 +272,32 @@ const TABS = {
       <div class="card"><h2>Demo credits (not real money)</h2><div class="grid">${kv('Rounds', num(d.demo.rounds))}${kv('Credits wagered', num(d.demo.wagered))}${kv('Win rate', pct(d.demo.winRate))}${kv('Return to player', pct(d.demo.rtp))}</div></div>
       <p class="s">${esc(d.note)}</p>`;
   },
-    after: () => { $('#range').onchange = () => show('profit'); }},
-  payouts: {label: 'Payouts', run: async () => {
+    after: () => { $('#range').onchange = () => reload(); }},
+  payouts: {skeleton: LIST_SKELETON, label: 'Payouts', run: async () => {
     const d = await api('/admin/api/payments?kind=payout&status=pending_review'); CUR = d.currency;
     return `<div class="card"><h2>Waiting for your approval (${d.payments.length})</h2>` + (d.mock ? '<div class="warn">Mock payments: no real money moves.</div>' : '') +
       (d.payments.length ? `<table><tr><th>Player</th><th>Amount</th><th>Via</th><th>Requested</th></tr>${d.payments.map(p => `<tr><td>${esc(p.player)}</td><td>${money(p.amount)}</td><td>${esc(p.provider)}</td><td>${fmt(p.createdAt)}</td></tr>`).join('')}</table>` : '<div class="s">Nothing waiting.</div>') +
       `<p><a href="/admin/payments">Open the payout desk</a>: every payout is approved there one at a time by typing its own reference.</p></div>`;
   }},
-  accounts: {label: 'Accounts', run: async () => `<div class="card"><input id="q" placeholder="Search name, email or id" style="width:100%"><div id="hits" style="margin-top:10px"></div></div><div id="acct"></div>`,
+  accounts: {skeleton: LIST_SKELETON, label: 'Accounts', run: async () => `<div class="card"><input id="q" placeholder="Search name, email or id" style="width:100%"><div id="hits" style="margin-top:10px"></div></div><div id="acct"></div>`,
     after: () => { let h; $('#q').oninput = () => { clearTimeout(h); h = setTimeout(async () => {
-      const d = await api('/admin/api/users?q=' + encodeURIComponent($('#q').value));
+      $('#hits').innerHTML = '<div class="s"><span class="spin"></span>Searching…</div>';
+      let d; try { d = await api('/admin/api/users?q=' + encodeURIComponent($('#q').value)); } catch (e) { $('#hits').innerHTML = `<div class="s neg">${esc(e.message)}</div>`; return; }
       $('#hits').innerHTML = d.users.slice(0, 12).map(u => `<div class="row" data-u="${esc(u.uid)}"><b>${esc(u.displayName || u.email || u.uid)}</b> <span class="s">${esc(u.email || '')} · ${esc(u.state)}</span></div>`).join('') || '<div class="s">No one found.</div>';
       document.querySelectorAll('[data-u]').forEach(r => r.onclick = () => account(r.dataset.u)); }, 300); }; $('#q').oninput(); }},
-  activity: {label: 'Activity', run: async () => {
+  activity: {skeleton: LIST_SKELETON, label: 'Activity', run: async () => {
     const d = await api('/admin/api/insights/activity'), list = rows => rows.map(r => `<tr><td>${esc(r.name || r.email || r.uid)}</td><td class="s">${fmt(r.lastSeenAt)}</td></tr>`).join('') || '<tr><td class="s">None</td></tr>';
     return `<div class="grid">${kv('Players', num(d.total))}${kv('Active today', num(d.active24h))}${kv('Active this week', num(d.active7d))}${kv('Active ' + d.activeDays + ' days', num(d['active' + d.activeDays + 'd']))}${kv('Inactive', num(d.inactive))}${kv('Daily / monthly', d.stickiness == null ? '—' : pct(d.stickiness))}</div>
       <div class="grid" style="margin-top:14px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))"><div class="card"><h2>Active (newest players)</h2><table>${list(d.active)}</table></div><div class="card"><h2>Gone quiet</h2><table>${list(d.quiet)}</table><p class="s">Email them from the Email tab.</p></div></div>
       <p class="s">${esc(d.note)}</p>`;
   }},
-  crashes: {label: 'Crashes', run: async () => {
+  crashes: {skeleton: LIST_SKELETON, label: 'Crashes', run: async () => {
     const d = await api('/admin/api/insights/crashes');
     return `<div class="card"><h2>Crash groups</h2><p class="s">The same bug is counted once with a total. Reported by the app and by the server.</p>` + (d.crashes.length ? d.crashes.map(c => `<div class="row" style="cursor:default"><div><span class="pill ${esc(c.status)}">${esc(c.status)}</span> <b>${esc(c.kind)}</b> · ${esc(c.source)} · ×${num(c.count)}</div><div class="s">${esc(c.message)}</div><div class="s">${esc(c.platform || '')} ${esc(c.appVersion || '')} ${esc(c.path || '')} · first ${fmt(c.firstSeenAt)} · last ${fmt(c.lastSeenAt)}</div><details><summary class="s">Stack</summary><pre>${esc(c.stack)}</pre></details>
       <button class="small" data-c="${esc(c.id)}" data-s="resolved">Resolve</button> <button class="small" data-c="${esc(c.id)}" data-s="ignored">Ignore</button> <button class="small" data-c="${esc(c.id)}" data-s="open">Reopen</button></div>`).join('') : '<div class="s">No crashes reported. 🎉</div>') + '</div>';
   },
-    after: () => document.querySelectorAll('[data-c]').forEach(b => b.onclick = async () => { try { await api(`/admin/api/insights/crashes/${b.dataset.c}/status`, {status: b.dataset.s}); show('crashes'); } catch (e) { toast(e.message, true); } })},
-  email: {label: 'Email', run: async () => {
+    after: () => document.querySelectorAll('[data-c]').forEach(b => b.onclick = () => act(b, {resolved: 'Resolving…', ignored: 'Ignoring…', open: 'Reopening…'}[b.dataset.s], async () => { await api(`/admin/api/insights/crashes/${b.dataset.c}/status`, {status: b.dataset.s}); await reload(); }, {resolved: 'Marked resolved', ignored: 'Ignored', open: 'Reopened'}[b.dataset.s]))},
+  email: {skeleton: LIST_SKELETON, label: 'Email', run: async () => {
     const c = await api('/admin/api/email/campaigns');
     return `<div class="card"><h2>New message</h2>${c.mode === 'mock' ? '<div class="warn">Mock mode: set SMTP_HOST on the server to really send. Nothing leaves the server now.</div>' : ''}
       <label>To</label><select id="aud"><option value="all">Everyone</option><option value="active">Active players</option><option value="inactive">Inactive players</option><option value="user">One player…</option></select>
@@ -255,25 +311,54 @@ const TABS = {
     const check = () => $('#go').disabled = $('#conf').value !== 'SEND';
     $('#aud').onchange = async () => { $('#one').style.display = $('#aud').value === 'user' ? '' : 'none'; if ($('#aud').value !== 'user') { try { $('#cnt').textContent = ' ≈ ' + num((await api('/admin/api/email/count', {audience: aud()})).count) + ' players'; } catch {} } else $('#cnt').textContent = ''; };
     $('#aud').onchange(); $('#conf').oninput = check;
-    $('#go').onclick = async () => { $('#go').disabled = true; try { await api('/admin/api/email/send', {audience: aud(), subject: $('#sub').value, body: $('#msg').value, key, confirm: $('#conf').value}); key = crypto.randomUUID(); toast('Queued'); show('email'); } catch (e) { toast(e.message, true); check(); } };
+    $('#go').onclick = e => act(e.currentTarget, 'Sending…', async () => { await api('/admin/api/email/send', {audience: aud(), subject: $('#sub').value, body: $('#msg').value, key, confirm: $('#conf').value}); key = crypto.randomUUID(); await reload(); }, 'Message queued');
   }},
 };
 
 async function account(uid) {
-  const a = await api('/admin/api/insights/accounts/' + encodeURIComponent(uid)); CUR = a.money.currency;
+  $('#acct').innerHTML = LIST_SKELETON; $('#acct').scrollIntoView({behavior: 'smooth', block: 'start'});
+  let a; try { a = await api('/admin/api/insights/accounts/' + encodeURIComponent(uid)); } catch (e) { $('#acct').innerHTML = `<div class="errbox"><b>Could not load this player</b><p>${esc(e.message)}</p></div>`; return; }
+  CUR = a.money.currency;
   $('#acct').innerHTML = `<div class="card"><h2>${esc(a.name || a.email || a.uid)} <span class="pill">${esc(a.state)}</span></h2><div class="s">${esc(a.email || 'no email')} · ${esc(a.uid)}${a.anonymous ? ' · guest' : ''}</div>
     <div class="grid" style="margin-top:10px">${kv('Joined', fmt(a.createdAt))}${kv('Last sign-in', fmt(a.lastLoginAt))}${kv('Last seen', fmt(a.lastSeenAt))}${kv('Demo balance', num(a.demo.balance))}${kv('Live balance', money(a.live.balance))}${kv('Deposited', money(a.money.deposited))}${kv('Paid out', money(a.money.paidOut))}${kv('Payout pending', money(a.money.payoutPending))}${kv('House result on this player', money(a.money.netToHouse), sign(a.money.netToHouse))}${kv('Live rounds', num(a.live.totalRounds))}${kv('Demo rounds', num(a.demo.totalRounds))}${kv('Level (live / demo)', (a.live.level ?? '—') + ' / ' + (a.demo.level ?? '—'))}</div>
     <h3>Timeline</h3><table>${a.timeline.map(e => `<tr><td class="s">${fmt(e.at)}</td><td>${esc(e.kind)}</td><td>${esc(e.text)}</td></tr>`).join('') || '<tr><td class="s">Nothing yet.</td></tr>'}</table>
     <p class="s">To restrict or ban, use <a href="/admin">Moderation</a> and search this player.</p></div>`;
 }
 
-let cur = 'overview';
-async function show(t) {
-  cur = t; $('#tabs').innerHTML = Object.entries(TABS).map(([k, v]) => `<button data-t="${k}" class="${k === t ? 'on' : ''}">${v.label}</button>`).join('');
-  document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => show(b.dataset.t));
-  try { $('#view').innerHTML = await TABS[t].run(); if (TABS[t].after) TABS[t].after(); } catch (e) { $('#view').innerHTML = `<div class="card">${esc(e.message)}</div>`; }
+const TAB_IDS = Object.keys(TABS);
+let cur = TAB_IDS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview', seq = 0;
+function tabs() {
+  $('#tabs').innerHTML = Object.entries(TABS).map(([k, v]) => `<button data-t="${k}" class="${k === cur ? 'on' : ''}">${v.label}</button>`).join('');
+  document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => b.dataset.t !== cur || !$('#view').dataset.ok ? show(b.dataset.t) : reload());
 }
-show('overview');
+/** Loads a tab. A new tab shows placeholders; reloading the same tab keeps the old content on screen (dimmed) until the new data arrives. */
+async function load(t, soft) {
+  const my = ++seq, view = $('#view'); TAB_CTRL.abort(); TAB_CTRL = new AbortController();
+  clearInterval(agoTimer);
+  if (soft && view.dataset.ok) view.classList.add('stale'); else { view.classList.remove('stale'); view.innerHTML = TABS[t].skeleton || LIST_SKELETON; delete view.dataset.ok; }
+  setStatus('Updating…', true);
+  try {
+    const html = await TABS[t].run();
+    if (my !== seq) return;
+    const y = window.scrollY; view.innerHTML = html; view.dataset.ok = '1'; view.classList.remove('stale');
+    if (!soft) view.firstElementChild?.classList.add('fade'); else window.scrollTo(0, y);
+    if (TABS[t].after) TABS[t].after();
+    setStatus('Live'); schedule();
+  } catch (e) {
+    if (my !== seq) return;
+    view.classList.remove('stale');
+    if (soft && view.dataset.ok) { toast(e.message, true); setStatus('Offline', false, true); throw e; }
+    view.innerHTML = `<div class="errbox"><b>Could not load ${esc(TABS[t].label)}</b><p>${esc(e.message)}</p><button class="primary" id="retry">Try again</button></div>`;
+    $('#retry').onclick = () => load(t); setStatus('Offline', false, true);
+  }
+}
+function setStatus(text, busy, off) { const el = $('#status'); el.className = 'live' + (off ? ' off' : ''); el.lastElementChild.textContent = text; el.firstElementChild.style.opacity = busy ? .4 : 1; }
+function show(t) { cur = t; try { history.replaceState(null, '', '#' + t); } catch {} tabs(); return load(t); }
+const reload = () => load(cur, true);
+function schedule() { clearTimeout(autoTimer); if (AUTO && cur === 'overview') autoTimer = setTimeout(() => { if (!document.hidden) reload().catch(() => {}); else schedule(); }, 60000); }
+document.addEventListener('keydown', e => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) { e.preventDefault(); reload().catch(() => {}); } });
+window.addEventListener('online', () => reload().catch(() => {}));
+show(cur);
 </script>
 </body>
 </html>

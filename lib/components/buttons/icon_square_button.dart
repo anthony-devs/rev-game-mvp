@@ -48,6 +48,7 @@ class IconSquareButton extends StatelessWidget {
       label: semanticLabel,
       child: PressScale(
         onTap: onPressed,
+        cooldown: const Duration(milliseconds: 400),
         child: SizedBox(
           width: size,
           height: size,

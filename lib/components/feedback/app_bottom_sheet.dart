@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
+import '../../core/open_guard.dart';
 import '../core/app_text.dart';
 
 /// Opens a dark bottom sheet with a drag handle and optional title.
@@ -14,6 +15,7 @@ Future<T?> showAppBottomSheet<T>(
   String? title,
   bool isScrollControlled = true,
 }) {
+  if (!OpenGuard.allow('sheet:${child.runtimeType}:${title ?? ''}')) return Future<T?>.value(null);
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: isScrollControlled,
@@ -32,6 +34,16 @@ class AppBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Lift the sheet above the keyboard so the field being typed in is always visible.
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: _sheet(context),
+    );
+  }
+
+  Widget _sheet(BuildContext context) {
     return Container(
       padding: EdgeInsets.fromLTRB(20, 10, 20, 20 + MediaQuery.of(context).padding.bottom),
       decoration: BoxDecoration(

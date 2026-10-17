@@ -47,11 +47,7 @@ class ComingSoonPage extends StatelessWidget {
                       fit: StackFit.expand,
                       children: [
                         GameArt(kind: info.kind, borderRadius: 0),
-                        DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, AppColors.bg.withValues(alpha: .85)]),
-                          ),
-                        ),
+                        ColoredBox(color: AppColors.bg.withValues(alpha: .55)),
                         const Positioned(top: 14, left: 14, child: StatusPill(label: 'COMING SOON', pulsing: true)),
                         Positioned(
                           left: 18,

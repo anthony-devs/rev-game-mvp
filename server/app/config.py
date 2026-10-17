@@ -38,6 +38,13 @@ class Config:
     dice_house_edge: float = _f("DICE_EDGE_LIVE", 0.05, "DICE_HOUSE_EDGE")
     # Back-office changes: an identical request right after a successful one is refused for this long.
     dup_cooloff_seconds: float = _f("DUP_COOLOFF_SECONDS", 1.5)
+    # A player can only have one round being processed at a time, and must wait this long after one finishes
+    # before the next starts. Stops rapid tapping from piling requests onto the database (which makes everything slow).
+    # Crash: after a round crashes, a cash out that was SENT before the crash is still honoured for this many
+    # seconds, even if the database was slow to process it. The decision uses when the request ARRIVED at the
+    # server, never a time the app claims, so it cannot be abused.
+    crash_settle_grace_seconds: float = _f("CRASH_SETTLE_GRACE_SECONDS", 4.0)
+    round_cooloff_seconds: float = _f("ROUND_COOLOFF_SECONDS", 1.0)
     plinko_min_bet: float = _f("PLINKO_MIN_BET", 10)
     plinko_max_bet: float = _f("PLINKO_MAX_BET", 100000)
     plinko_house_edge: float = _f("PLINKO_EDGE_LIVE", 0.04, "PLINKO_HOUSE_EDGE")  # live return to player = 96%
@@ -141,6 +148,17 @@ class Config:
     smtp_port: int = int(_f("SMTP_PORT", 587))
     smtp_user: str = os.environ.get("SMTP_USER", "")
     smtp_password: str = os.environ.get("SMTP_PASSWORD", "")
+    # Who runs the service. Shown on the Who we are page and used in the legal texts. Leave a value empty to hide it.
+    business_name: str = os.environ.get("BUSINESS_NAME", "")
+    business_address: str = os.environ.get("BUSINESS_ADDRESS", "")
+    business_reg_no: str = os.environ.get("BUSINESS_REG_NO", "")
+    licence_no: str = os.environ.get("LICENCE_NO", "")
+    regulator: str = os.environ.get("REGULATOR", "")
+    business_email: str = os.environ.get("BUSINESS_EMAIL", "")
+    business_phone: str = os.environ.get("BUSINESS_PHONE", "")
+    governing_law: str = os.environ.get("GOVERNING_LAW", "")
+    # Public address of this server (https://api.example.com). Used for the unsubscribe link in emails.
+    public_url: str = os.environ.get("PUBLIC_URL", "").rstrip("/")
     mail_from: str = os.environ.get("MAIL_FROM", "REV Games <no-reply@example.com>")
     campaign_max_recipients: int = int(_f("CAMPAIGN_MAX_RECIPIENTS", 1000))
     active_days: int = int(_f("ACTIVE_DAYS", 30))  # "active" = seen in this many days

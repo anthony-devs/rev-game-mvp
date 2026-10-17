@@ -43,11 +43,7 @@ class FeaturedGameCard extends StatelessWidget {
           children: [
             if (image != null) Image(image: image!, fit: BoxFit.cover) else GameArt(kind: kind, borderRadius: 0),
             if (image != null)
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(begin: Alignment.centerLeft, end: Alignment.centerRight, colors: [Color(0xE6000000), Colors.transparent]),
-                ),
-              ),
+              const ColoredBox(color: Color(0x80000000)), // flat scrim so the text stays readable
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(

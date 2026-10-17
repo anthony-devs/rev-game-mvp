@@ -117,7 +117,7 @@ class _RaysPainter extends CustomPainter {
         ..close();
       canvas.drawPath(
         path,
-        Paint()..shader = RadialGradient(colors: [AppColors.gold.withValues(alpha: .22), AppColors.gold.withValues(alpha: 0)]).createShader(Rect.fromCircle(center: c, radius: len)),
+        Paint()..color = AppColors.gold.withValues(alpha: .1),
       );
     }
   }

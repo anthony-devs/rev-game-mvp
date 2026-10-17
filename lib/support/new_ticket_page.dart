@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../components/components.dart';
+import '../core/api/api_cache.dart';
 import '../core/api/api_client.dart';
 import 'attachments.dart';
 import 'support_api.dart';
@@ -29,6 +30,37 @@ class _NewTicketPageState extends State<NewTicketPage> {
   bool _sending = false;
   String? _error;
 
+  static const _draftKey = 'draft.ticket';
+
+  @override
+  void initState() {
+    super.initState();
+    // Coming back after a back-press or a crash: put back what was typed (unless a screen opened this one pre-filled).
+    if (widget.subject.isEmpty && widget.message.isEmpty) _restoreDraft();
+  }
+
+  Future<void> _restoreDraft() async {
+    final d = await ApiCache.read(_draftKey);
+    if (d == null || !mounted) return;
+    if (_subject.text.isNotEmpty || _message.text.isNotEmpty) return; // the player already started again
+    setState(() {
+      _subject.text = (d['subject'] ?? '').toString();
+      _message.text = (d['message'] ?? '').toString();
+      final c = (d['category'] ?? '').toString();
+      for (final v in TicketCategory.values) {
+        if (v.name == c && _category == null) _category = v;
+      }
+    });
+  }
+
+  void _saveDraft() {
+    if (_subject.text.trim().isEmpty && _message.text.trim().isEmpty) {
+      ApiCache.remove(_draftKey);
+    } else {
+      ApiCache.write(_draftKey, {'subject': _subject.text, 'message': _message.text, 'category': _category?.name ?? ''});
+    }
+  }
+
   @override
   void dispose() {
     _subject.dispose();
@@ -52,6 +84,7 @@ class _NewTicketPageState extends State<NewTicketPage> {
             message: _message.text.trim(),
             attachments: _files.ids,
           );
+      ApiCache.remove(_draftKey);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(MaterialPageRoute<void>(builder: (_) => TicketChatPage(ticketId: id)));
     } catch (e) {
@@ -81,13 +114,22 @@ class _NewTicketPageState extends State<NewTicketPage> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                for (final c in TicketCategory.values) PillChip(label: c.label, icon: c.icon, selected: _category == c, onTap: () => setState(() => _category = c)),
+                for (final c in TicketCategory.values) PillChip(label: c.label, icon: c.icon, selected: _category == c, onTap: () {
+                  setState(() => _category = c);
+                  _saveDraft();
+                }),
               ],
             ),
             const SizedBox(height: 18),
-            AppTextField(label: 'Title', controller: _subject, hint: 'e.g. My balance dropped after a round', onChanged: (_) => setState(() {}), textInputAction: TextInputAction.next),
+            AppTextField(label: 'Title', controller: _subject, hint: 'e.g. My balance dropped after a round', onChanged: (_) {
+              setState(() {});
+              _saveDraft();
+            }, textInputAction: TextInputAction.next),
             const SizedBox(height: 14),
-            AppTextField(label: 'Tell us what happened', controller: _message, maxLines: 6, hint: 'Which game, roughly when, and what you expected.', onChanged: (_) => setState(() {})),
+            AppTextField(label: 'Tell us what happened', controller: _message, maxLines: 6, hint: 'Which game, roughly when, and what you expected.', onChanged: (_) {
+              setState(() {});
+              _saveDraft();
+            }),
             const SizedBox(height: 6),
             Text('${_message.text.trim().length}/2000', style: AppText.body(11, color: AppColors.textFaint)),
             const SizedBox(height: 14),

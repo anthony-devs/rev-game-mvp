@@ -82,7 +82,7 @@ class _LiveAgreementPageState extends State<LiveAgreementPage> {
           Expanded(
             child: d == null
                 ? (_loadError == null
-                    ? const Center(child: AppLoader())
+                    ? const Padding(padding: EdgeInsets.all(AppSpacing.screen), child: SkeletonList(rows: 5, rowHeight: 72))
                     : Center(child: StatusView(icon: Icons.cloud_off_rounded, title: 'Could not load', message: _loadError!, actionLabel: 'Try again', onAction: _load)))
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 4, AppSpacing.screen, 24),

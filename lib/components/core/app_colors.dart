@@ -32,8 +32,8 @@ class AppColors {
   static Color get text => _p(const Color(0xFFFFFFFF), const Color(0xFF101012));
   static Color get textSoft => _p(const Color(0xFFD1D1D6), const Color(0xFF38383D));
   static Color get textMuted => _p(const Color(0xFFAEAEB2), const Color(0xFF55555C));
-  static Color get textDim => _p(const Color(0xFF8E8E93), const Color(0xFF70707A));
-  static Color get textFaint => _p(const Color(0xFF6E6E73), const Color(0xFF9B9BA3));
+  static Color get textDim => _p(const Color(0xFF8E8E93), const Color(0xFF62626A));
+  static Color get textFaint => _p(const Color(0xFF85858B), const Color(0xFF6A6A72));
 
   /// Fill for high-contrast controls (selected chip, primary button): white on dark, ink on light.
   static Color get inverse => _p(const Color(0xFFFFFFFF), const Color(0xFF101012));
@@ -45,15 +45,15 @@ class AppColors {
   static Color get onAccent => _p(const Color(0xFF0B0B0C), const Color(0xFFFFFFFF));
 
   // Brand + status. Slightly deeper in light mode so they stay readable on white.
-  static Color get gold => _p(const Color(0xFFFFC83D), const Color(0xFFB57A00));
+  static Color get gold => _p(const Color(0xFFFFC83D), const Color(0xFF8F6000));
   static Color get goldSoft => _p(const Color(0xFFFFD36B), const Color(0xFFCB9200));
   static Color get goldDark => _p(const Color(0xFFB8860B), const Color(0xFF8A5E00));
-  static Color get green => _p(const Color(0xFF2EE59D), const Color(0xFF0B9B69));
+  static Color get green => _p(const Color(0xFF2EE59D), const Color(0xFF08785A));
   static Color get greenDark => _p(const Color(0xFF17A872), const Color(0xFF087A52));
   static Color get mint => _p(const Color(0xFF5DF2B5), const Color(0xFF14B382));
   static Color get purple => _p(const Color(0xFFB26BFF), const Color(0xFF7C3AED));
   static Color get purpleDeep => _p(const Color(0xFF7A2FD0), const Color(0xFF5B21B6));
-  static Color get loss => _p(const Color(0xFFFF6B6D), const Color(0xFFD93441));
+  static Color get loss => _p(const Color(0xFFFF6B6D), const Color(0xFFC42A37));
   static Color get lossStrong => _p(const Color(0xFFFF4D4F), const Color(0xFFC62833));
   static Color get blue => _p(const Color(0xFF2E9BFF), const Color(0xFF1B6BD6));
 

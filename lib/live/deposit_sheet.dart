@@ -137,7 +137,7 @@ class _DepositBodyState extends State<_DepositBody> {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LiveCubit>().state.status;
-    if (s == null) return const Padding(padding: EdgeInsets.all(30), child: Center(child: AppLoader()));
+    if (s == null) return const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: SkeletonList(rows: 4, rowHeight: 56));
     final providers = [for (final p in s.providers) if (p.deposit && _availableHere(p.id)) p];
 
     if (_done != null) {

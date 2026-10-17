@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+
 import logging
 import threading
 import os
@@ -13,6 +15,7 @@ from functools import wraps
 
 from flask import Flask, Response, g, jsonify, request, stream_with_context
 
+from . import legal
 from .account import AccountService, firebase_account_deleter
 from .admin import make_admin
 from .catalog import CatalogService
@@ -150,6 +153,39 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
     _BACKOFFICE = ("/staff/api/", "/admin/api/", "/support/api/")
     _DUP_EXEMPT = ("/v1/telemetry/",)
 
+    # The web build runs in a browser on another address, so the browser asks permission first (CORS).
+    # Local addresses are always allowed; add your own site with CORS_ORIGINS=https://a.com,https://b.com
+    _cors = {o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()}
+
+    @app.after_request
+    def _cors_headers(resp):
+        origin = request.headers.get("Origin", "")
+        if origin and (origin in _cors or origin.startswith(("http://localhost:", "http://127.0.0.1:"))):
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, X-Play-Mode, Accept"
+            resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+            resp.headers["Access-Control-Max-Age"] = "600"
+        return resp
+
+    @app.before_request
+    def _stamp_arrival():
+        # When the request reached us, before sign-in checks and database reads (which can be slow).
+        g.arrived_at = crash.clock()
+
+    _ROUND_STARTS = ("/v1/slots/spin", "/v1/dice/roll", "/v1/plinko/drop", "/v1/roulette/spin", "/v1/blackjack/deal", "/v1/crash/rounds")
+
+    @app.before_request
+    def _one_round_at_a_time():
+        if request.method != "POST" or request.path not in _ROUND_STARTS or cfg.round_cooloff_seconds <= 0:
+            return None
+        who = request.headers.get("Authorization", "") or (request.remote_addr or "")
+        key = "round:" + hashlib.sha256(who.encode()).hexdigest()
+        if not dup_guard.enter(key, cfg.round_cooloff_seconds):
+            return jsonify({"error": "slow_down", "message": "One moment, your last round is still finishing."}), 429
+        g._round_key = key
+        return None
+
     @app.before_request
     def _no_duplicates():
         if request.method != "POST" or request.path.startswith(_DUP_EXEMPT):
@@ -163,6 +199,12 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
             return jsonify({"error": "duplicate_request", "message": "That is already being processed. Please wait a moment."}), 409
         g._dup_key = key
         return None
+
+    @app.teardown_request
+    def _release_round_key(exc):
+        key = g.pop("_round_key", None)
+        if key is not None:
+            dup_guard.leave(key, exc is None and getattr(g, "_dup_status", 500) < 400)
 
     @app.teardown_request
     def _release_duplicate_key(exc):
@@ -262,6 +304,36 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
         metrics.record_crash("client", str(d.get("kind") or "Error"), str(d.get("message") or ""), str(d.get("stack") or ""),
                              {"platform": d.get("platform"), "appVersion": d.get("appVersion")})
         return jsonify({"ok": True})
+
+    # ---- legal pages: public, no sign-in (linked from the app, the stores and emails)
+    @app.get("/v1/legal")
+    def legal_list():
+        return jsonify({"documents": legal.listing()})
+
+    @app.get("/v1/legal/<slug>")
+    def legal_doc(slug: str):
+        doc = legal.document(slug, cfg)
+        if doc is None:
+            raise ApiError(404, "not_found", "Document not found.")
+        return jsonify(doc)
+
+    @app.get("/legal")
+    @app.get("/legal/<slug>")
+    def legal_page(slug: str = "terms"):
+        html = legal.page(slug, cfg)
+        if html is None:
+            return Response("Not found", status=404, mimetype="text/plain")
+        return Response(html, mimetype="text/html")
+
+    @app.get("/unsubscribe")
+    def unsubscribe():
+        uid, token = request.args.get("u", ""), request.args.get("t", "")
+        if not legal.unsubscribe_ok(cfg.session_secret, uid, token):
+            return Response("This link is not valid.", status=400, mimetype="text/plain")
+        if store.read(f"users/{uid}") is not None:
+            store.merge(f"users/{uid}", {"emailOptOut": True})
+        return Response("<!doctype html><meta name=viewport content='width=device-width,initial-scale=1'><body style='font:16px system-ui;padding:32px;max-width:520px;margin:auto'>"
+                        "<h2>You are unsubscribed</h2><p>You will not get any more emails from REV GAMES. You will still get messages inside the app about your account.</p></body>", mimetype="text/html")
 
     @app.get("/healthz")
     def healthz():
@@ -496,7 +568,7 @@ def create_app(store: Store | None = None, verifier: Verifier | None = None, cfg
     @app.post("/v1/crash/rounds/<round_id>/cashout")
     @require_auth
     def crash_cashout(round_id: str):
-        return jsonify(crash.cash_out(g.uid, round_id))
+        return jsonify(crash.cash_out(g.uid, round_id, getattr(g, "arrived_at", None)))
 
     @app.get("/v1/crash/rounds/<round_id>/events")
     @require_auth

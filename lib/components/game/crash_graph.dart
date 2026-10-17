@@ -61,7 +61,7 @@ class _CrashPainter extends CustomPainter {
       ..close();
     canvas.drawPath(
       area,
-      Paint()..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [color.withValues(alpha: .28), color.withValues(alpha: 0)]).createShader(Offset.zero & size),
+      Paint()..color = color.withValues(alpha: .12),
     );
     canvas.drawPath(
       path,

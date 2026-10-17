@@ -26,6 +26,7 @@ class ApiCrashServer implements CrashServer {
   @override
   String? get roundId => _roundId;
   bool _settled = false; // cashed out
+  Future<void>? _cashing; // cash out request in flight
   double _growth = 0.12;
   final Stopwatch _clock = Stopwatch();
   Duration _offset = Duration.zero;
@@ -90,11 +91,26 @@ class ApiCrashServer implements CrashServer {
         _applyCashout(e.data);
         break;
       case 'crashed':
-        balance = parseDouble(e.data['balance'], balance);
-        ctrl.add(RoundEvent.crashed(parseDouble(e.data['crashPoint'], 1), balance));
-        _finish();
+        _onCrashed(e.data);
         break;
     }
+  }
+
+  /// Shows the crash the moment it happens. If a cash out was already sent
+  /// just before, its answer is still honoured (the server decides by when the
+  /// request arrived), so wait briefly for it instead of calling it a loss.
+  Future<void> _onCrashed(Json d) async {
+    final pending = _cashing;
+    if (pending != null && !_settled) {
+      try {
+        await pending.timeout(const Duration(seconds: 8));
+      } catch (_) {}
+    }
+    final ctrl = _ctrl;
+    if (ctrl == null || ctrl.isClosed) return;
+    if (!_settled) balance = parseDouble(d['balance'], balance);
+    ctrl.add(RoundEvent.crashed(parseDouble(d['crashPoint'], 1), balance));
+    _finish();
   }
 
   void _applyCashout(Json d) {
@@ -108,9 +124,9 @@ class ApiCrashServer implements CrashServer {
   void cashOut() {
     final id = _roundId;
     if (id == null || _settled || _ctrl == null) return;
-    _api.post('/v1/crash/rounds/$id/cashout').then(_applyCashout).catchError((Object _) {
+    _cashing = _api.post('/v1/crash/rounds/$id/cashout').then(_applyCashout).catchError((Object _) {
       // too_late: the crashed event is on its way. Network error: nothing paid.
-    });
+    }).whenComplete(() => _cashing = null);
   }
 
   void _finish() {

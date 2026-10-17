@@ -80,7 +80,7 @@ class _HelpPageState extends State<HelpPage> {
               ],
             ),
           const SizedBox(height: 12),
-          AppButton(label: 'Open fairness and seeds', variant: AppButtonVariant.outline, height: 50, fontSize: 14, onPressed: () => pushPage<void>(context, const FairnessPage())),
+          AppButton(label: 'Open Fair play', variant: AppButtonVariant.outline, height: 50, fontSize: 14, onPressed: () => pushPage<void>(context, const FairnessPage())),
           const SizedBox(height: 24),
           const _ContactCard(),
           const SizedBox(height: 16),

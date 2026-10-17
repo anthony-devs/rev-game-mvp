@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../auth/bloc/auth_bloc.dart';
 import '../components/components.dart';
+import '../core/api/api_cache.dart';
 import '../core/api/api_client.dart';
 import '../games/game_support.dart';
 import '../user/data/user_repository.dart';
@@ -33,6 +34,25 @@ class _TicketChatPageState extends State<TicketChatPage> {
   bool _sending = false;
   DateTime _lastMark = DateTime.fromMillisecondsSinceEpoch(0);
 
+  String get _draftKey => 'draft.chat.${widget.ticketId}';
+
+  @override
+  void initState() {
+    super.initState();
+    ApiCache.read(_draftKey).then((d) {
+      if (d != null && mounted && _text.text.isEmpty) setState(() => _text.text = (d['text'] ?? '').toString());
+    });
+  }
+
+  void _saveDraft() {
+    final t = _text.text;
+    if (t.trim().isEmpty) {
+      ApiCache.remove(_draftKey);
+    } else {
+      ApiCache.write(_draftKey, {'text': t});
+    }
+  }
+
   @override
   void dispose() {
     _text.dispose();
@@ -57,6 +77,7 @@ class _TicketChatPageState extends State<TicketChatPage> {
     try {
       await _api.reply(widget.ticketId, text, _files.ids);
       _text.clear();
+      ApiCache.remove(_draftKey);
       _files.clear();
     } catch (e) {
       if (mounted) showToast(context, e is ApiException ? e.message : 'Could not send. Please try again.', error: true);
@@ -126,7 +147,7 @@ class _TicketChatPageState extends State<TicketChatPage> {
               stream: _stream,
               builder: (context, snap) {
                 if (snap.hasError) return StatusView.offline(onRetry: () => setState(() {}));
-                if (!snap.hasData) return const Center(child: AppLoader());
+                if (!snap.hasData) return const Padding(padding: EdgeInsets.all(AppSpacing.screen), child: SkeletonList(rows: 4, rowHeight: 52, radius: 18));
                 final msgs = snap.data!.reversed.toList();
                 if (msgs.isEmpty) return const StatusView(icon: Icons.forum_outlined, title: 'No messages yet');
                 return ListView.builder(
@@ -187,7 +208,10 @@ class _TicketChatPageState extends State<TicketChatPage> {
                     minLines: 1,
                     maxLines: 5,
                     maxLength: 2000,
-                    onChanged: (_) => setState(() {}),
+                    onChanged: (_) {
+                      setState(() {});
+                      _saveDraft();
+                    },
                     textCapitalization: TextCapitalization.sentences,
                     style: AppText.body(15),
                     decoration: InputDecoration(

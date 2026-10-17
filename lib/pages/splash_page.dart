@@ -14,8 +14,7 @@ class SplashPage extends StatefulWidget {
   State<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateMixin {
-  late final AnimationController _bar = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat();
+class _SplashPageState extends State<SplashPage> {
   Timer? _timer;
   bool _slow = false;
 
@@ -30,7 +29,6 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   @override
   void dispose() {
     _timer?.cancel();
-    _bar.dispose();
     super.dispose();
   }
 
@@ -43,34 +41,11 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
           const Spacer(flex: 3),
           Text('REV', style: AppText.heading(64, letterSpacing: -3, height: .95)),
           Text('GAMES', style: AppText.heading(64, letterSpacing: -3, height: .95, color: AppColors.gold)),
-          const SizedBox(height: 12),
-          Text('Play for fun. Credits only.', style: AppText.body(14, color: AppColors.textMuted)),
           const Spacer(flex: 3),
-          SizedBox(
-            width: 160,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(3),
-              child: SizedBox(
-                height: 4,
-                child: AnimatedBuilder(
-                  animation: _bar,
-                  builder: (_, __) => Stack(
-                    children: [
-                      Container(color: AppColors.track),
-                      FractionallySizedBox(
-                        alignment: Alignment(-1 + 2 * _bar.value, 0),
-                        widthFactor: .4,
-                        child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(3), color: AppColors.gold)),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(_slow ? 'Taking longer than usual…' : 'Loading games', style: AppText.body(12, color: AppColors.textDim)),
+          const AppLoader(size: 24),
+          const SizedBox(height: 14),
           if (_slow) ...[
+            Text('Taking longer than usual…', style: AppText.body(12, color: AppColors.textDim)),
             const SizedBox(height: 12),
             AppButton(
               label: 'Sign out',
@@ -82,10 +57,6 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
             ),
           ],
           const Spacer(),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 28),
-            child: Text('DEMO VERSION · NO REAL MONEY', style: AppText.label(color: AppColors.textFaint, size: 10)),
-          ),
         ],
       ),
     );

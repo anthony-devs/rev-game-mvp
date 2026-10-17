@@ -69,7 +69,7 @@ def store():
 ADMIN_USER = "boss-owner"
 ADMIN_PASS = "Str0ng!Passphrase#1"
 ADMIN_KEY = "secret-key"
-ADMIN = dict(dup_cooloff_seconds=0, admin_key=ADMIN_KEY, admin_username=ADMIN_USER, admin_password=ADMIN_PASS, session_secret="s" * 32)
+ADMIN = dict(dup_cooloff_seconds=0, round_cooloff_seconds=0.0, admin_key=ADMIN_KEY, admin_username=ADMIN_USER, admin_password=ADMIN_PASS, session_secret="s" * 32)
 
 
 @pytest.fixture

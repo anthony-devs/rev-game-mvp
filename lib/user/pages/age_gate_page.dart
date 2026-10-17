@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../auth/bloc/auth_bloc.dart';
 import '../../components/components.dart';
+import '../../legal/legal_page.dart';
 import '../bloc/profile_cubit.dart';
 
 /// Shown once after sign up. The player must be 18 or older to continue.
@@ -57,14 +58,14 @@ class _AgeGatePageState extends State<AgeGatePage> {
             Text('Are you 18 or older?', textAlign: TextAlign.center, style: AppText.heading(28, letterSpacing: -1)),
             const SizedBox(height: 12),
             Text(
-              'This is a demo that uses virtual credits only. You must be 18 or over to play.',
+              'You must be 18 or over to use REV GAMES, or the legal gambling age where you live if that is higher.',
               textAlign: TextAlign.center,
               style: AppText.body(14, color: AppColors.textMuted, height: 1.5),
             ),
             const SizedBox(height: 22),
-            const _Bullet('No real money, deposits or withdrawals'),
-            const _Bullet('Credits have no cash value'),
-            const _Bullet('Every result is decided on the server'),
+            const _Bullet('Demo play uses credits with no cash value'),
+            const _Bullet('Live play uses your own money, after you accept the Live Money Agreement'),
+            const _Bullet('You can set limits or take a break at any time'),
             if (_error != null) ...[
               const SizedBox(height: 16),
               Text(_error!, textAlign: TextAlign.center, style: AppText.body(13, color: AppColors.loss)),
@@ -79,12 +80,37 @@ class _AgeGatePageState extends State<AgeGatePage> {
               onPressed: _busy ? null : () => context.read<AuthBloc>().add(const AuthSignOutRequested()),
             ),
             const SizedBox(height: 14),
-            Text('By continuing you accept the Terms and Privacy Policy.', textAlign: TextAlign.center, style: AppText.body(11, color: AppColors.textFaint)),
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text('By continuing you accept our ', style: AppText.body(12, color: AppColors.textDim)),
+                _Link('Terms of Service', () => openLegal(context, 'terms')),
+                Text(' and ', style: AppText.body(12, color: AppColors.textDim)),
+                _Link('Privacy Policy', () => openLegal(context, 'privacy')),
+                Text('.', style: AppText.body(12, color: AppColors.textDim)),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
+}
+
+class _Link extends StatelessWidget {
+  const _Link(this.text, this.onTap);
+  final String text;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => PressScale(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Text(text, style: AppText.body(12, weight: FontWeight.w700, color: AppColors.green, decoration: TextDecoration.underline)),
+        ),
+      );
 }
 
 class _Bullet extends StatelessWidget {

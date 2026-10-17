@@ -110,24 +110,40 @@ class _BlackjackPageState extends State<BlackjackPage> with GameSessionMixin<Bla
   Future<void> _act(String action) async {
     final h = _hand;
     if (_busy || h == null || !h.playing) return;
-    if (action == 'double' && h.bet > walletBalance) {
-      showNoCredits(context, needed: h.bet);
+    final extra = h.hands.isEmpty ? h.bet : h.hands[h.active.clamp(0, h.hands.length - 1)].bet;
+    final costs = action == 'double' || action == 'split';
+    if (costs && extra > walletBalance) {
+      showNoCredits(context, needed: extra);
       return;
     }
     setState(() => _busy = true);
-    if (action == 'double') holdBalance(walletBalance - h.bet);
+    if (costs) holdBalance(walletBalance - extra);
     AppSound.play(action == 'stand' ? Sfx.cardFlip : Sfx.card);
     AppHaptics.selection();
     try {
       final s = await _api.act(h.roundId, action);
       _apply(s);
     } catch (e) {
-      if (action == 'double') releaseBalance();
+      if (costs) releaseBalance();
       AppSound.play(Sfx.error);
       if (!mounted) return;
       setState(() => _busy = false);
       showToast(context, failText(e), error: true);
     }
+  }
+
+  /// A greyed-out Double or Split still answers a tap: it says why.
+  void _why(String action, BjState? h) {
+    if (h == null || !mounted) return;
+    final cost = h.hands.isEmpty ? h.bet : h.hands[h.active.clamp(0, h.hands.length - 1)].bet;
+    String msg;
+    if (action == 'split') {
+      final pair = h.hands.length == 1 && h.player.length == 2 && h.player[0].substring(0, h.player[0].length - 1) == h.player[1].substring(0, h.player[1].length - 1);
+      msg = h.split ? 'You can split once per hand.' : (!pair ? 'Split is for two cards of the same rank, as your first move.' : 'Not enough balance to split.');
+    } else {
+      msg = h.player.length != 2 ? 'You can only double on your first two cards.' : (walletBalance < cost ? 'Not enough balance to double.' : 'You cannot double this hand.');
+    }
+    showToast(context, msg);
   }
 
   void _apply(BjState s, {bool dealt = false}) {
@@ -139,7 +155,7 @@ class _BlackjackPageState extends State<BlackjackPage> with GameSessionMixin<Bla
     holdBalance(s.balance);
     final r = s.result;
     if (r != null) {
-      reportRound(bet: s.bet * (s.doubled ? 2 : 1), payout: r.payout);
+      reportRound(bet: s.bet, payout: r.payout);
       switch (r.outcome) {
         case 'blackjack':
           AppSound.play(Sfx.blackjack);
@@ -188,7 +204,7 @@ class _BlackjackPageState extends State<BlackjackPage> with GameSessionMixin<Bla
                 const SizedBox(height: 22),
                 _betLine(h),
                 const SizedBox(height: 22),
-                _hand_('YOU', h?.player ?? const [], h?.playerTotal, bust: (h?.playerTotal ?? 0) > 21),
+                if (h != null && h.split) _splitHands(h) else _hand_('YOU', h?.player ?? const [], h?.playerTotal, bust: (h?.playerTotal ?? 0) > 21),
               ],
             ),
       panel: _panel(h, r, tone),
@@ -196,14 +212,13 @@ class _BlackjackPageState extends State<BlackjackPage> with GameSessionMixin<Bla
   }
 
   Widget _betLine(BjState? h) {
-    final bet = h == null ? _bet : h.bet * (h.doubled ? 2 : 1);
+    final bet = h == null ? _bet : h.bet;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.line)),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Text('BET  ', style: AppText.label()),
         Text(formatCredits(bet, decimals: 0), style: AppText.number(14, color: AppColors.gold)),
-        if (h?.doubled == true) Text('  ×2', style: AppText.body(11, weight: FontWeight.w700, color: AppColors.textMuted)),
       ]),
     );
   }
@@ -233,8 +248,9 @@ class _BlackjackPageState extends State<BlackjackPage> with GameSessionMixin<Bla
               : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                   for (var i = 0; i < cards.length; i++)
                     Padding(
+                      key: ValueKey('${_hand?.roundId}_${who}_${cards[i]}'),
                       padding: EdgeInsets.only(left: i == 0 ? 0 : 8),
-                      child: _card(cards[i]),
+                      child: _card(cards[i], order: i),
                     ),
                 ]),
         ),
@@ -242,8 +258,62 @@ class _BlackjackPageState extends State<BlackjackPage> with GameSessionMixin<Bla
     );
   }
 
-  Widget _card(String c) {
-    if (c == '??') return const PlayingCardView(rank: 'A', suit: CardSuit.spades, faceDown: true, width: 66);
+  /// Two hands after a split. The hand being played is highlighted.
+  Widget _splitHands(BjState h) {
+    final over = !h.playing;
+    return Column(
+      children: [
+        Text('YOU', style: AppText.label()),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var i = 0; i < h.hands.length; i++) ...[
+              if (i > 0) const SizedBox(width: 14),
+              Flexible(child: _splitHand(i, h.hands[i], current: !over && i == h.active, over: over)),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _splitHand(int index, BjHand hand, {required bool current, required bool over}) {
+    final o = hand.outcome;
+    final tone = !over ? (current ? AppColors.green : AppColors.line) : (o == 'win' ? AppColors.green : (o == 'push' ? AppColors.gold : AppColors.loss));
+    final tag = over ? (o == 'win' ? '${hand.total} WON' : (o == 'push' ? '${hand.total} PUSH' : (hand.bust ? '${hand.total} BUST' : '${hand.total} LOST'))) : (hand.bust ? '${hand.total} BUST' : '${hand.total}');
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
+      decoration: BoxDecoration(
+        color: current ? AppColors.green.withValues(alpha: .08) : Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: tone.withValues(alpha: current || over ? .8 : 1), width: current ? 1.6 : 1),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(tag, style: AppText.number(12, color: over || hand.bust ? tone : AppColors.text)),
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              for (var i = 0; i < hand.cards.length; i++)
+                Padding(key: ValueKey('${_hand?.roundId}_s${index}_${hand.cards[i]}'), padding: EdgeInsets.only(left: i == 0 ? 0 : 5), child: _card(hand.cards[i], width: 46, order: i)),
+            ]),
+          ),
+          const SizedBox(height: 6),
+          Text(formatCredits(hand.bet, decimals: 0), style: AppText.body(11, weight: FontWeight.w700, color: AppColors.gold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _card(String c, {double width = 66, int order = 0}) => _Dealt(order: order, child: _face(c, width));
+
+  Widget _face(String c, double width) {
+    if (c == '??') return PlayingCardView(rank: 'A', suit: CardSuit.spades, faceDown: true, width: width);
     final rank = c.substring(0, c.length - 1);
     final suit = switch (c[c.length - 1]) {
       'S' => CardSuit.spades,
@@ -251,7 +321,7 @@ class _BlackjackPageState extends State<BlackjackPage> with GameSessionMixin<Bla
       'D' => CardSuit.diamonds,
       _ => CardSuit.clubs,
     };
-    return PlayingCardView(rank: rank, suit: suit, width: 66);
+    return PlayingCardView(rank: rank, suit: suit, width: width);
   }
 
   Widget _panel(BjState? h, BjResult? r, Color tone) {
@@ -259,19 +329,19 @@ class _BlackjackPageState extends State<BlackjackPage> with GameSessionMixin<Bla
     if (_playing) {
       body = Column(mainAxisSize: MainAxisSize.min, children: [
         Row(children: [
-          Expanded(child: AppButton(label: 'HIT', variant: AppButtonVariant.success, height: 58, loading: _busy, onPressed: _busy ? null : () => _act('hit'))),
+          Expanded(child: AppButton(label: 'HIT', variant: AppButtonVariant.success, height: 58, cooldown: Duration.zero, loading: _busy, onPressed: _busy ? null : () => _act('hit'))),
           const SizedBox(width: 10),
-          Expanded(child: AppButton(label: 'STAND', variant: AppButtonVariant.outline, height: 58, onPressed: _busy ? null : () => _act('stand'))),
+          Expanded(child: AppButton(label: 'STAND', variant: AppButtonVariant.outline, height: 58, cooldown: Duration.zero, onPressed: _busy ? null : () => _act('stand'))),
         ]),
         const SizedBox(height: 10),
         Row(children: [
-          Expanded(child: AppButton(label: h?.canDouble == true ? 'Double' : 'Double (first move)', variant: AppButtonVariant.outline, height: 46, fontSize: 13, onPressed: _busy || h?.canDouble != true ? null : () => _act('double'))),
+          Expanded(child: AppButton(label: 'Double', variant: AppButtonVariant.outline, height: 46, fontSize: 13, cooldown: Duration.zero, onDisabledTap: _busy ? null : () => _why('double', h), onPressed: _busy || h?.canDouble != true ? null : () => _act('double'))),
           const SizedBox(width: 10),
-          const Expanded(child: AppButton(label: 'Split (soon)', variant: AppButtonVariant.outline, height: 46, fontSize: 13, onPressed: null)),
+          Expanded(child: AppButton(label: 'Split', variant: AppButtonVariant.outline, height: 46, fontSize: 13, cooldown: Duration.zero, onDisabledTap: _busy ? null : () => _why('split', h), onPressed: _busy || h?.canSplit != true ? null : () => _act('split'))),
         ]),
       ]);
     } else if (r != null && h != null) {
-      final stake = h.bet * (h.doubled ? 2 : 1);
+      final stake = h.bet;
       body = Column(mainAxisSize: MainAxisSize.min, children: [
         Row(children: [
           Expanded(
@@ -290,7 +360,6 @@ class _BlackjackPageState extends State<BlackjackPage> with GameSessionMixin<Bla
               }))),
           const SizedBox(width: 10),
           Expanded(flex: 2, child: AppButton(label: 'DEAL AGAIN', variant: AppButtonVariant.success, height: 56, fontSize: 15, loading: _busy, onPressed: _busy ? null : () {
-                _bet = h.bet.clamp(_minBet, _maxBet).toDouble();
                 setState(() => _hand = null);
                 _deal();
               })),
@@ -334,4 +403,29 @@ class _BlackjackPageState extends State<BlackjackPage> with GameSessionMixin<Bla
         'bust' => 'Bust',
         _ => 'Hand lost',
       };
+}
+
+/// A card slides in from above and settles with a small bounce. Cards already on the table keep
+/// their place (they are keyed), so only the new card moves.
+class _Dealt extends StatelessWidget {
+  const _Dealt({required this.child, this.order = 0});
+
+  final Widget child;
+  final int order;
+
+  @override
+  Widget build(BuildContext context) {
+    final lead = (order * 110).clamp(0, 440);
+    final total = 280 + lead;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: total),
+      curve: Interval(lead / total, 1, curve: Curves.easeOutBack),
+      builder: (context, t, child) => Opacity(
+        opacity: t.clamp(0.0, 1.0),
+        child: Transform.translate(offset: Offset(0, -34 * (1 - t)), child: Transform.scale(scale: .86 + .14 * t, child: child)),
+      ),
+      child: child,
+    );
+  }
 }

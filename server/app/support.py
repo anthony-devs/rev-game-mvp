@@ -39,7 +39,7 @@ CANNED = [
     {"id": "hello", "title": "Greeting", "text": "Hi {name}, thanks for getting in touch. I'm looking into this now."},
     {"id": "more_info", "title": "Ask for details", "text": "Could you tell me a bit more about what happened, when it happened, and which game you were in? A screenshot helps a lot."},
     {"id": "balance", "title": "Balance question", "text": "Your balance is always the server's number. If the app shows something different, close and reopen it and it will refresh. If it still looks wrong, send me a screenshot of the History page."},
-    {"id": "fair", "title": "Fairness check", "text": "Every round can be verified. Open Fairness in the app, rotate your seed, then tap a round to check its proof. If a result doesn't verify, tell me the round time and game and I'll escalate it."},
+    {"id": "fair", "title": "Fairness check", "text": "Every round can be verified. Open Fair play in the app, or tap a round in your history, to check it. If a result doesn't verify, tell me the round time and game and I'll escalate it."},
     {"id": "appeal", "title": "How to appeal", "text": "You can appeal from the account screen. Explain what happened in your own words and attach anything that helps (screenshots, a video, a PDF). Our team reviews every appeal."},
     {"id": "credits", "title": "Free credits paused", "text": "Free credits are paused while an account is restricted or on probation after a restriction ends. They come back automatically when probation finishes."},
     {"id": "closing", "title": "Closing", "text": "I'm marking this as solved. If anything is still wrong, reply here and it will reopen automatically."},

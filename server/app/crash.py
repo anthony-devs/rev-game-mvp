@@ -93,6 +93,7 @@ class CrashService:
                     "crashPoint": crash_point,
                     "edge": edge,
                     "startedAt": now,
+                    "startBalance": balance,
                     "status": "running",
                     "fair": fair,
                 },
@@ -111,8 +112,8 @@ class CrashService:
 
     # ---- cash out ------------------------------------------------------------
 
-    def cash_out(self, uid: str, round_id: str) -> dict:
-        result = self.settle(uid, round_id)
+    def cash_out(self, uid: str, round_id: str, received_at=None) -> dict:
+        result = self.settle(uid, round_id, received_at)
         if result["status"] == "crashed":
             raise ApiError(
                 409, "too_late", "The round already crashed.", crashPoint=result["crashPoint"], balance=result["balance"]
@@ -121,16 +122,21 @@ class CrashService:
             raise ApiError(409, "already_settled", "This round is already settled.", balance=result["balance"])
         return {"multiplier": result["multiplier"], "payout": result["payout"], "balance": result["balance"]}
 
-    def settle(self, uid: str, round_id: str) -> dict:
+    def settle(self, uid: str, round_id: str, received_at=None) -> dict:
         """Atomically settle a running round using the server clock.
 
         status is one of: cashedOut, crashed, already (settled by someone else).
         An auto cash out target that was reached before the crash always pays,
         even if this call arrives late.
+
+        ``received_at`` is when the request reached the server. Slow database calls between arrival and
+        this transaction must not cost the player their cash out, so the multiplier is the one at arrival.
         """
 
         def fn(txn: Txn):
             now = self.clock()
+            at_time = min(received_at, now) if received_at is not None else now
+            txn.preload_player(uid)
             rnd = txn.get_crash(round_id)
             if rnd is None or rnd["uid"] != uid:
                 raise ApiError(404, "round_not_found", "Round not found.")
@@ -139,7 +145,7 @@ class CrashService:
             if rnd["status"] != "running":
                 return {"status": "already", "balance": money(wallet["balance"])}
 
-            elapsed = (now - _as_utc(rnd["startedAt"])).total_seconds()
+            elapsed = (at_time - _as_utc(rnd["startedAt"])).total_seconds()
             m_now = self.floor2(self.multiplier_at(elapsed))
             crash_point = rnd["crashPoint"]
             auto = rnd.get("auto")
@@ -148,6 +154,7 @@ class CrashService:
                 at = auto  # target reached before the crash
             elif m_now >= crash_point:
                 txn.set_crash(round_id, {**rnd, "status": "crashed"})
+                self.fair.release(txn, uid)  # the round is over: the fairness check may go ahead
                 self._log_round(txn, uid, round_id, rnd, payout=0.0, multiplier=crash_point, outcome="crashed", now=now)
                 return {"status": "crashed", "crashPoint": crash_point, "balance": money(wallet["balance"])}
             else:
@@ -157,6 +164,7 @@ class CrashService:
             balance = money(wallet["balance"] + payout)
             txn.set_wallet(uid, {**wallet, "balance": balance, "updatedAt": now})
             txn.set_crash(round_id, {**rnd, "status": "cashedOut", "cashedAt": at, "payout": payout})
+            self.fair.release(txn, uid)
             self._log_round(txn, uid, round_id, rnd, payout=payout, multiplier=at, outcome="cashedOut", now=now)
             return {"status": "cashedOut", "multiplier": at, "payout": payout, "balance": balance}
 
@@ -197,6 +205,7 @@ class CrashService:
         auto = rnd.get("auto")
         auto_at = self.seconds_to(auto) if auto and auto < rnd["crashPoint"] else None
         auto_done = False
+        known_balance = rnd.get("startBalance")
         last_beat = 0.0
 
         yield sse("open", {"roundId": round_id})
@@ -207,13 +216,20 @@ class CrashService:
                 auto_done = True
                 res = self.settle(uid, round_id)
                 if res["status"] == "cashedOut":
+                    known_balance = res["balance"]
                     yield sse("cashedOut", {k: res[k] for k in ("multiplier", "payout", "balance")})
 
             if elapsed >= crash_at:
+                # Tell the app straight away: the screen must stop the moment the round crashes, however slow the
+                # database is. Nothing here waits for it (the balance after the bet is already in the round).
+                balance = known_balance
+                if balance is None:
+                    balance = (self.store.read_wallet(uid) or {"balance": 0})["balance"]
+                yield sse("crashed", {"crashPoint": rnd["crashPoint"], "balance": money(balance)})
+                # A cash out sent just before the crash may still be on its way. Give it a moment, then close the round.
+                self.sleep(self.cfg.crash_settle_grace_seconds)
                 if (self.store.read_crash(round_id) or {}).get("status") == "running":
                     self.settle(uid, round_id)  # marks it crashed
-                wallet = self.store.read_wallet(uid) or {"balance": 0}
-                yield sse("crashed", {"crashPoint": rnd["crashPoint"], "balance": money(wallet["balance"])})
                 return
 
             if elapsed - last_beat >= 1.0:

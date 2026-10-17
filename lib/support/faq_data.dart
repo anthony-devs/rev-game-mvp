@@ -118,12 +118,12 @@ const List<Faq> kFaqs = [
 
   // ---- fairness
   Faq(FaqCategory.fairness, 'How are results decided?',
-      'Every result is decided on our server before you see it, using a random number generator tied to a seed we commit to in advance. The app only shows the result, it never decides it.'),
+      'Every result is decided on our server before you see it, using a secure random number generator, and it is sealed before you play. The app only shows the result, it never decides it.'),
   Faq(FaqCategory.fairness, 'How do I verify a round?',
-      'Open Game history and tap a round, or tap the shield icon in a game. We publish the hash of the server seed before you play. After you rotate your seed we reveal the old one, and the check hashes it and replays the round. If it matches, the result was fixed before you bet.',
+      'Open Game history and tap a round, or tap the shield icon in a game. The check confirms the result is the one that was sealed before you bet and that it has not been changed.',
       id: 'fair-verify'),
   Faq(FaqCategory.fairness, 'Why does a round say "pending"?',
-      'The server seed is secret until you rotate. Rotate your seed on the Fairness screen to reveal it, then every round that used it can be verified.'),
+      'Some rounds need one extra step before they can be checked. Open the round and tap Complete check.'),
   Faq(FaqCategory.fairness, 'What does RTP mean?',
       'Return to player. A 96% RTP means that over a very long time the game pays back 96 credits for every 100 bet. A single session can be far above or below that.'),
 
@@ -143,11 +143,11 @@ const List<Faq> kFaqs = [
 
   // ---- blackjack
   Faq(FaqCategory.blackjack, 'What are the blackjack rules?',
-      'Get closer to 21 than the dealer without going over. Blackjack (an ace and a ten-value card) pays 3 to 2. The dealer stands on every 17. You can double on your first two cards.'),
+      'Get closer to 21 than the dealer without going over. Blackjack (an ace and a ten-value card) pays 3 to 2. The dealer stands on every 17. You can double on your first two cards, and split a pair of the same rank once.'),
+  Faq(FaqCategory.blackjack, 'How does splitting work?',
+      'When your first two cards are the same rank, tap Split. A second bet equal to your first is placed and each card becomes its own hand, played one after the other. You can split once. Split aces get one card each. A 21 after a split pays 1 to 1, not 3 to 2.'),
   Faq(FaqCategory.blackjack, 'I left in the middle of a hand',
       'Your hand is saved on the server. Open Blackjack again and you will be asked to carry on with it. You cannot start a new hand until it is finished.'),
-  Faq(FaqCategory.blackjack, 'Why can I not rotate my seed?',
-      'A seed cannot change while a hand is open, because the deck for that hand was shuffled with it. Finish the hand, then rotate.'),
 
   // ---- dice
   Faq(FaqCategory.dice, 'How does Dice work?',

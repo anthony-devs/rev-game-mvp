@@ -65,8 +65,46 @@ class ApiClient {
   Future<Json> get(String path, {Duration? timeout}) =>
       _call((fresh) async => _http.get(await _uri(path), headers: await _headers(fresh: fresh)), timeout: timeout);
 
+  /// A read that needs no sign-in (the legal pages). Sent without a token.
+  Future<Json> getPublic(String path) async {
+    try {
+      final res = await _http.get(await _uri(path)).timeout(const Duration(seconds: 12));
+      if (res.statusCode >= 200 && res.statusCode < 300) return _decode(res.body);
+      throw _fromResponse(res.statusCode, res.body);
+    } on SocketException {
+      throw await _unreachable();
+    } on TimeoutException {
+      throw await _unreachable();
+    } on http.ClientException {
+      throw await _unreachable();
+    }
+  }
+
+  /// Starting a round writes several documents, which can take a while when the database is slow.
+  /// Give those calls longer, and never call a slow answer "downtime".
+  static const Duration _roundTimeout = Duration(seconds: 35);
+  static const List<String> _roundStarts = ['/v1/slots/spin', '/v1/dice/roll', '/v1/plinko/drop', '/v1/roulette/spin', '/v1/blackjack/deal', '/v1/crash/rounds'];
+
+  /// Rounds cannot start back to back. Instead of an error, a tap during the short cool-off is simply
+  /// ignored (the server enforces the same gap).
+  static const Duration _coolOff = Duration(milliseconds: 1200);
+  DateTime? _lastRoundStart;
+
   Future<Json> post(String path, [Json? body]) {
-    return _call((fresh) async => _http.post(await _uri(path), headers: await _headers(json: true, fresh: fresh), body: jsonEncode(body ?? {})));
+    final round = _roundStarts.contains(path);
+    if (round) {
+      final now = DateTime.now();
+      final last = _lastRoundStart;
+      if (last != null && now.difference(last) < _coolOff) {
+        return Future.error(const ApiException(429, 'cooloff', ''));
+      }
+      _lastRoundStart = now;
+    }
+    return _call(
+      (fresh) async => _http.post(await _uri(path), headers: await _headers(json: true, fresh: fresh), body: jsonEncode(body ?? {})),
+      timeout: round ? _roundTimeout : null,
+      round: round,
+    );
   }
 
   Future<Json> delete(String path) =>
@@ -160,7 +198,7 @@ class ApiClient {
     };
   }
 
-  Future<Json> _call(Future<http.Response> Function(bool fresh) send, {Duration? timeout}) async {
+  Future<Json> _call(Future<http.Response> Function(bool fresh) send, {Duration? timeout, bool round = false}) async {
     try {
       var res = await send(false).timeout(timeout ?? _timeout);
       // The server refused the token (expired, or the phone clock is off): get a new one and try once more.
@@ -176,10 +214,17 @@ class ApiClient {
     } on SocketException {
       throw await _unreachable();
     } on TimeoutException {
-      throw await _unreachable();
+      throw round ? await _slow() : await _unreachable();
     } on http.ClientException {
       throw await _unreachable();
     }
+  }
+
+  /// A round took too long. The phone is online and our service may well have finished the round,
+  /// so this is not "downtime": tell the player to let it settle before trying again.
+  Future<ApiException> _slow() async {
+    if (!await deviceHasInternet()) return await _unreachable();
+    return const ApiException(0, 'slow', 'This is taking longer than usual. Your balance will update in a moment. Check History before playing again.');
   }
 
   /// Nothing came back. Works out why: no internet on the phone, or our service is down.
@@ -204,6 +249,8 @@ class ApiClient {
     switch (code) {
       case 'maintenance':
         return message ?? "We're making things better. Back shortly.";
+      case 'slow_down':
+        return '';
       case 'service_unavailable':
         return "We're experiencing downtime. Please try again in a few minutes. Your balance is safe.";
       case 'database_busy':

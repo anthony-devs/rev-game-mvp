@@ -74,6 +74,10 @@ class AmountField extends StatelessWidget {
                   _Chip(label: '1/2', onTap: enabled ? () => onChanged(_clamp(value / 2)) : null),
                   const SizedBox(width: 6),
                   _Chip(label: '2x', onTap: enabled ? () => onChanged(_clamp(value * 2)) : null),
+                  if (max != null) ...[
+                    const SizedBox(width: 6),
+                    _Chip(label: 'MAX', onTap: enabled && value < max! ? () => onChanged(_clamp(max!)) : null),
+                  ],
                 ],
               ],
             ),
@@ -93,15 +97,16 @@ class _Chip extends StatelessWidget {
   Widget build(BuildContext context) {
     return PressScale(
       onTap: onTap,
+      haptic: true,
       child: Container(
-        width: 44,
+        width: 46,
         height: 38,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: AppColors.handle,
           borderRadius: BorderRadius.circular(AppRadius.sm),
         ),
-        child: Text(label, style: AppText.body(14, weight: FontWeight.w800)),
+        child: Text(label, style: AppText.body(label == 'MAX' ? 11 : 14, weight: FontWeight.w800)),
       ),
     );
   }

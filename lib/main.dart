@@ -15,7 +15,8 @@ Future<void> main() async {
   try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   } catch (e) {
-    runApp(_StartupError(message: '$e'));
+    debugPrint('Startup failed: $e');
+    runApp(const _StartupError(message: 'Please check your connection and open the app again. If this keeps happening, contact support.'));
     return;
   }
   await AppSound.init();

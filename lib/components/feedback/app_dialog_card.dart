@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../buttons/app_button.dart';
 import '../core/app_colors.dart';
 import '../core/app_text.dart';
+import '../../core/open_guard.dart';
 
 /// Centered dialog card (Reality check, confirmations).
 ///
@@ -16,6 +17,8 @@ import '../core/app_text.dart';
 /// ));
 /// ```
 Future<T?> showAppDialog<T>(BuildContext context, Widget card, {bool dismissible = false}) {
+  final label = card is AppDialogCard ? card.title : '';
+  if (!OpenGuard.allow('dialog:${card.runtimeType}:$label')) return Future<T?>.value(null);
   return showDialog<T>(
     context: context,
     barrierDismissible: dismissible,

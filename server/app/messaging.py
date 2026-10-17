@@ -15,6 +15,7 @@ import time
 from datetime import timedelta
 from email.message import EmailMessage
 
+from . import legal
 from .config import Config
 from .errors import ApiError, bad_request
 from .store import Store
@@ -158,7 +159,7 @@ class MessagingService:
         for p in people:
             name = str(p.get("displayName") or "there").split(" ")[0][:40]
             try:
-                self.mailer.send(p["email"], c["subject"], c["body"].replace("{name}", name) + FOOTER)
+                self.mailer.send(p["email"], c["subject"], c["body"].replace("{name}", name) + self._footer(p.get("uid")))
                 sent += 1
             except Exception:
                 log.exception("email to %s failed", p.get("uid"))
@@ -168,6 +169,14 @@ class MessagingService:
             if self.pause:
                 time.sleep(self.pause)
         self.store.merge(f"campaigns/{key}", {"status": "done" if not failed else "done_with_errors", "sent": sent, "failed": failed, "finishedAt": self.clock()})
+
+    def _footer(self, uid) -> str:
+        """Every email carries a one-click unsubscribe link when the server knows its public address."""
+        if not self.cfg.public_url or not uid:
+            return FOOTER
+        token = legal.unsubscribe_token(self.cfg.session_secret, uid)
+        link = f"{self.cfg.public_url}/unsubscribe?u={uid}&t={token}"
+        return f"\n\n--\nYou are receiving this because you have a REV Games account. Stop these emails: {link}"
 
     @staticmethod
     def public(c: dict) -> dict:

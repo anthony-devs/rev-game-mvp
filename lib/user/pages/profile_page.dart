@@ -112,7 +112,7 @@ class ProfilePage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Deleting removes your profile, credits, level and game history for good.',
+            'Deleting removes your profile, balance, game history, settings and support messages for good. Withdraw any live balance first. We may keep payment records where the law requires.',
             textAlign: TextAlign.center,
             style: AppText.body(12, color: AppColors.textDim),
           ),
@@ -159,7 +159,7 @@ class ProfilePage extends StatelessWidget {
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.black.withValues(alpha: .8),
-      builder: (_) => PopScope(canPop: false, child: Center(child: AppLoader())),
+      builder: (_) => PopScope(canPop: false, child: const Center(child: AppLoader(color: Colors.white))),
     );
     try {
       await cubit.deleteAccount();

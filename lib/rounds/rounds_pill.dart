@@ -12,7 +12,10 @@ import 'rounds_sheet.dart';
 /// const RoundsPill()
 /// ```
 class RoundsPill extends StatefulWidget {
-  const RoundsPill({super.key});
+  const RoundsPill({super.key, this.compact = false});
+
+  /// Smaller, for crowded bars.
+  final bool compact;
 
   @override
   State<RoundsPill> createState() => _RoundsPillState();
@@ -49,8 +52,8 @@ class _RoundsPillState extends State<RoundsPill> {
             return PressScale(
               onTap: () => showRoundsSheet(context),
               child: Container(
-                height: 40,
-                padding: const EdgeInsets.symmetric(horizontal: 11),
+                height: widget.compact ? 36 : 40,
+                padding: EdgeInsets.symmetric(horizontal: widget.compact ? 7 : 11),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(40),
                   border: Border.all(color: n == 0 ? AppColors.loss : AppColors.lineStrong, width: 1.2),
@@ -58,9 +61,9 @@ class _RoundsPillState extends State<RoundsPill> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.bolt_rounded, size: 18, color: color),
-                    const SizedBox(width: 4),
-                    Text(n == null ? '–' : '$n', style: AppText.body(14, weight: FontWeight.w700, color: color)),
+                    Icon(Icons.bolt_rounded, size: widget.compact ? 16 : 18, color: color),
+                    SizedBox(width: widget.compact ? 2 : 4),
+                    Text(n == null ? '–' : '$n', style: AppText.body(widget.compact ? 13 : 14, weight: FontWeight.w700, color: color)),
                   ],
                 ),
               ),

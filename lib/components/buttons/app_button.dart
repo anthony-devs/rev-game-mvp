@@ -4,6 +4,7 @@ import '../core/app_colors.dart';
 import '../core/app_text.dart';
 import '../core/app_tokens.dart';
 import '../core/press_scale.dart';
+import '../feedback/app_loader.dart';
 
 enum AppButtonVariant {
   /// White fill. Default call to action.
@@ -47,6 +48,8 @@ class AppButton extends StatelessWidget {
     this.letterSpacing,
     this.radius = AppRadius.lg,
     this.haptic = true,
+    this.cooldown = const Duration(milliseconds: 250),
+    this.onDisabledTap,
   });
 
   final String label;
@@ -67,6 +70,12 @@ class AppButton extends StatelessWidget {
   final double? letterSpacing;
   final double radius;
   final bool haptic;
+
+  /// Taps sooner than this after the last one are ignored. Actions already guarded by their own busy flag can use `Duration.zero`.
+  final Duration cooldown;
+
+  /// Tapping a disabled button wiggles it and calls this: use it to say why it is off.
+  final VoidCallback? onDisabledTap;
 
   bool get _disabled => onPressed == null || loading;
 
@@ -106,6 +115,9 @@ class AppButton extends StatelessWidget {
       );
     }
 
+    // While it works the label goes away and the app's bouncing loader takes its place.
+    if (loading) content = Center(child: AppLoader(size: (height * .46).clamp(18.0, 30.0).toDouble(), color: s.fg));
+
     final box = Container(
       height: height,
       width: expanded ? double.infinity : null,
@@ -127,8 +139,9 @@ class AppButton extends StatelessWidget {
       child: PressScale(
         onTap: _disabled ? null : onPressed,
         haptic: haptic,
-        cooldown: const Duration(milliseconds: 700),
-        child: AnimatedOpacity(opacity: loading ? .65 : 1, duration: const Duration(milliseconds: 120), child: box),
+        cooldown: cooldown,
+        onDisabledTap: loading ? null : (onPressed == null ? onDisabledTap : null),
+        child: AnimatedOpacity(opacity: loading ? .9 : 1, duration: const Duration(milliseconds: 120), child: box),
       ),
     );
   }
