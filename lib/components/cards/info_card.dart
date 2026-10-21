@@ -6,7 +6,7 @@ import '../core/app_text.dart';
 /// Tinted note card: demo disclaimers, tips, warnings.
 ///
 /// ```dart
-/// InfoCard(message: 'Credits have no cash value.')
+/// InfoCard(message: 'Coins have no cash value.')
 /// InfoCard(title: 'Heads up', message: 'Daily limit reached.', color: AppColors.gold, icon: Icons.warning_amber_rounded)
 /// ```
 class InfoCard extends StatelessWidget {

@@ -16,7 +16,7 @@ class ActivityRow extends StatelessWidget {
   final String game;
   final String? detail;
 
-  /// Net result in credits. Positive = green, negative = red.
+  /// Net result in coins. Positive = green, negative = red.
   final double amount;
   final IconData icon;
   final VoidCallback? onTap;

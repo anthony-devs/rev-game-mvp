@@ -5,7 +5,7 @@ import '../data/auth_failure.dart';
 import '../data/auth_repository.dart';
 
 /// Which button is spinning.
-enum AuthMethod { email, google, guest, reset }
+enum AuthMethod { email, google, apple, guest, reset }
 
 class AuthFormState extends Equatable {
   const AuthFormState({this.busy, this.error, this.info});
@@ -21,7 +21,7 @@ class AuthFormState extends Equatable {
   List<Object?> get props => [busy, error, info];
 }
 
-/// Email sign in, sign up, Google, guest and password reset.
+/// Email sign in, sign up, Google, Apple, guest and password reset.
 /// On success the [AuthBloc] sees the new user, so nothing is emitted here.
 class AuthFormCubit extends Cubit<AuthFormState> {
   AuthFormCubit(this._repo) : super(const AuthFormState());
@@ -39,6 +39,8 @@ class AuthFormCubit extends Cubit<AuthFormState> {
       _run(AuthMethod.email, () => _repo.signUpWithEmail(name: name, email: email, password: password));
 
   Future<void> google() => _run(AuthMethod.google, _repo.signInWithGoogle);
+
+  Future<void> apple() => _run(AuthMethod.apple, _repo.signInWithApple);
 
   Future<void> guest() => _run(AuthMethod.guest, _repo.signInAsGuest);
 

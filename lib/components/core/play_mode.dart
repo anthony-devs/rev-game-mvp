@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'formatters.dart';
 
-/// Demo credits or live (real money). One switch for the whole app.
+/// Demo coins or live (real money). One switch for the whole app.
 ///
 /// The profile cubit flips it; widgets that show money listen to [live], and the API
 /// client sends it with every request so the server plays on the right wallet.
@@ -11,6 +11,12 @@ class PlayMode {
 
   static final ValueNotifier<bool> live = ValueNotifier<bool>(false);
   static bool get isLive => live.value;
+
+  /// Demo coins are worth this many naira each. For display only: it never changes a balance.
+  static const double coinRate = 5;
+
+  /// `≈ ₦1,000` for 200 coins.
+  static String nairaEquivalent(num coins, {int decimals = 0}) => '≈ ₦${formatCredits(coins * coinRate, decimals: decimals)}';
 
   /// Symbol shown in front of live amounts. The server's currency decides it.
   static String symbol = '₦';

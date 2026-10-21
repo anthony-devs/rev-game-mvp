@@ -1,15 +1,14 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../catalog/catalog_cubit.dart';
-
 /// Tab order of the bottom bar.
 class ShellTab {
   ShellTab._();
   static const int browse = 0;
   static const int casino = 1;
   static const int slots = 2;
-  static const int settings = 3;
+  static const int events = 3;
+  static const int settings = 4;
 }
 
 class ShellState extends Equatable {
@@ -17,8 +16,8 @@ class ShellState extends Equatable {
 
   final int tab;
 
-  /// Lobby chip: `null` = All.
-  final GameGroup? filter;
+  /// Lobby chip: a group id (originals, crash, ...); `null` = All.
+  final String? filter;
   final bool favouritesOnly;
 
   @override
@@ -30,9 +29,9 @@ class ShellState extends Equatable {
 class ShellCubit extends Cubit<ShellState> {
   ShellCubit() : super(const ShellState());
 
-  void go(int tab, {GameGroup? filter, bool favouritesOnly = false}) =>
+  void go(int tab, {String? filter, bool favouritesOnly = false}) =>
       emit(ShellState(tab: tab, filter: filter, favouritesOnly: favouritesOnly));
 
-  void setFilter(GameGroup? filter, {bool favouritesOnly = false}) =>
+  void setFilter(String? filter, {bool favouritesOnly = false}) =>
       emit(ShellState(tab: state.tab, filter: filter, favouritesOnly: favouritesOnly));
 }

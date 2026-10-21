@@ -9,7 +9,7 @@ import '../user/bloc/profile_cubit.dart';
 import '../user/data/daily_rewards.dart';
 import '../user/data/user_repository.dart';
 
-/// W2. Free demo credits: the daily streak reward and a reset.
+/// W2. Free demo coins: the daily streak reward and a reset.
 Future<void> showGetCredits(BuildContext context) {
   return showAppBottomSheet<void>(context, child: const _GetCredits());
 }
@@ -47,7 +47,7 @@ class _GetCreditsState extends State<_GetCredits> {
       final claim = await context.read<ProfileCubit>().claimDaily();
       AppSound.play(Sfx.coin);
       AppHaptics.medium();
-      if (mounted) showToast(context, '+${formatCredits(claim.claimed, decimals: 0)} credits added');
+      if (mounted) showToast(context, '+${formatCredits(claim.claimed, decimals: 0)} coins added');
     } catch (e) {
       AppSound.play(Sfx.error);
       if (mounted) showToast(context, ProfileCubit.errorText(e), error: true);
@@ -61,7 +61,7 @@ class _GetCreditsState extends State<_GetCredits> {
       context,
       AppDialogCard(
         icon: Icons.restart_alt_rounded,
-        title: 'Reset your credits?',
+        title: 'Reset your coins?',
         message: 'Your balance goes back to ${formatCredits(UserRepository.startingBalance, decimals: 0)}. Your history and level stay.',
         primaryLabel: 'Reset',
         onPrimary: () => Navigator.of(context).pop(true),
@@ -76,7 +76,7 @@ class _GetCreditsState extends State<_GetCredits> {
       await context.read<ProfileCubit>().resetBalance();
       AppSound.play(Sfx.coin);
       if (mounted) {
-        showToast(context, 'Credits reset to ${formatCredits(UserRepository.startingBalance, decimals: 0)}');
+        showToast(context, 'Coins reset to ${formatCredits(UserRepository.startingBalance, decimals: 0)}');
         Navigator.of(context).pop();
       }
     } catch (e) {
@@ -102,7 +102,7 @@ class _GetCreditsState extends State<_GetCredits> {
       children: [
         Row(
           children: [
-            Expanded(child: Text('Get demo credits', style: AppText.body(20, weight: FontWeight.w700))),
+            Expanded(child: Text('Get free coins', style: AppText.body(20, weight: FontWeight.w700))),
             IconSquareButton(icon: Icons.close_rounded, semanticLabel: 'Close', onPressed: () => Navigator.of(context).pop()),
           ],
         ),
@@ -119,7 +119,7 @@ class _GetCreditsState extends State<_GetCredits> {
             children: [
               Text('DAILY REWARD  ·  DAY ${daily.day}', style: AppText.label(color: AppColors.gold)),
               const SizedBox(height: 6),
-              Text('+${formatCredits(daily.amount, decimals: 0)} credits', style: AppText.number(26, color: AppColors.gold)),
+              Text('+${formatCredits(daily.amount, decimals: 0)} coins', style: AppText.number(26, color: AppColors.gold)),
               const SizedBox(height: 14),
               Row(
                 children: [
@@ -137,7 +137,7 @@ class _GetCreditsState extends State<_GetCredits> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            i == 7 ? '10K' : (kDailyRewards[i - 1] >= 1000 ? '${(kDailyRewards[i - 1] / 1000).toStringAsFixed(kDailyRewards[i - 1] % 1000 == 0 ? 0 : 1)}K' : '${kDailyRewards[i - 1]}'),
+                            (kDailyRewards[i - 1] >= 1000 ? '${(kDailyRewards[i - 1] / 1000).toStringAsFixed(kDailyRewards[i - 1] % 1000 == 0 ? 0 : 1)}K' : '${kDailyRewards[i - 1]}'),
                             style: AppText.body(9, weight: FontWeight.w700, color: i == daily.day ? AppColors.gold : AppColors.textFaint, height: 1),
                           ),
                         ],
@@ -187,7 +187,7 @@ class _GetCreditsState extends State<_GetCredits> {
           ),
         ),
         const SizedBox(height: 14),
-        Text('Demo credits are virtual and cannot be bought, sold or cashed out.', textAlign: TextAlign.center, style: AppText.body(11, color: AppColors.textFaint)),
+        Text('Coins have no cash value and cannot be bought, sold or cashed out.', textAlign: TextAlign.center, style: AppText.body(11, color: AppColors.textFaint)),
       ],
     );
   }

@@ -9,7 +9,7 @@ import 'live_cubit.dart';
 
 bool _understood = false;
 
-/// Moves the whole app to live money or demo credits. Going live asks the player to confirm
+/// Moves the whole app to live money or demo coins. Going live asks the player to confirm
 /// once and checks with the server that live play is open for them. Returns true if it switched.
 bool _switching = false;
 
@@ -61,7 +61,7 @@ class _Intro extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Live mode uses your own money, not demo credits. Wins and losses are real, and your demo balance is not affected.',
+          'Live mode uses your own money, not your free coins. Wins and losses are real, and your coins balance is not affected.',
           style: AppText.body(14, color: AppColors.textMuted, height: 1.5),
         ),
         const SizedBox(height: 12),
@@ -77,7 +77,7 @@ class _Intro extends StatelessWidget {
         const SizedBox(height: 18),
         AppButton(label: 'I understand, go live', variant: AppButtonVariant.gold, onPressed: () => Navigator.of(context).pop(true)),
         const SizedBox(height: 10),
-        AppButton(label: 'Stay on demo', variant: AppButtonVariant.outline, height: 52, onPressed: () => Navigator.of(context).pop(false)),
+        AppButton(label: 'Stay on coins', variant: AppButtonVariant.outline, height: 52, onPressed: () => Navigator.of(context).pop(false)),
       ],
     );
   }

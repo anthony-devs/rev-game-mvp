@@ -8,10 +8,10 @@ import '../feedback/demo_badge.dart';
 /// Big balance card for the Wallet screen. Put action buttons in [actions].
 ///
 /// ```dart
-/// BalanceCard(balance: 94250, actions: [AppButton(label: 'Get credits', onPressed: open)])
+/// BalanceCard(balance: 94250, actions: [AppButton(label: 'Get coins', onPressed: open)])
 /// ```
 class BalanceCard extends StatelessWidget {
-  const BalanceCard({super.key, required this.balance, this.label = 'Available credits', this.actions = const [], this.header});
+  const BalanceCard({super.key, required this.balance, this.label = 'Available coins', this.actions = const [], this.header});
 
   final double balance;
   final String label;
@@ -42,6 +42,10 @@ class BalanceCard extends StatelessWidget {
             fit: BoxFit.scaleDown,
             child: Text(PlayMode.amount(balance), style: AppText.number(34, color: live ? AppColors.text : AppColors.green)),
           ),
+          if (!live) ...[
+            const SizedBox(height: 4),
+            Text(PlayMode.nairaEquivalent(balance), style: AppText.body(13, color: AppColors.textMuted)),
+          ],
           if (actions.isNotEmpty) ...[
             const SizedBox(height: 20),
             for (var i = 0; i < actions.length; i++) ...[if (i > 0) const SizedBox(height: 10), actions[i]],

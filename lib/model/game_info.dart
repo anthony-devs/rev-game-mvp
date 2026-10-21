@@ -12,10 +12,11 @@ class GameInfo extends Equatable {
     required this.type,
     required this.name,
     this.tag = '',
+    this.group = 'originals',
     this.enabled = true,
     this.comingSoon = false,
     this.minBet = 10,
-    this.maxBet = 100000,
+    this.maxBet = 2000,
     this.rtp = 0.96,
     this.sortOrder = 0,
   });
@@ -26,6 +27,9 @@ class GameInfo extends Equatable {
 
   /// Short label under the name, e.g. "Slots" or "Instant".
   final String tag;
+
+  /// The home screen section (originals, crash, adventure, table, slots, quick).
+  final String group;
   final bool enabled;
   final bool comingSoon;
   final double minBet;
@@ -40,6 +44,7 @@ class GameInfo extends Equatable {
   GameInfo copyWith({
     String? name,
     String? tag,
+    String? group,
     bool? enabled,
     bool? comingSoon,
     double? minBet,
@@ -52,6 +57,7 @@ class GameInfo extends Equatable {
       type: type,
       name: name ?? this.name,
       tag: tag ?? this.tag,
+      group: group ?? this.group,
       enabled: enabled ?? this.enabled,
       comingSoon: comingSoon ?? this.comingSoon,
       minBet: minBet ?? this.minBet,
@@ -66,10 +72,11 @@ class GameInfo extends Equatable {
         type: GameType.fromName(json['type']),
         name: parseString(json['name']) ?? '',
         tag: parseString(json['tag']) ?? '',
+        group: parseString(json['group']) ?? 'originals',
         enabled: parseBool(json['enabled'], true),
         comingSoon: parseBool(json['comingSoon']),
         minBet: parseDouble(json['minBet'], 10),
-        maxBet: parseDouble(json['maxBet'], 100000),
+        maxBet: parseDouble(json['maxBet'], 2000),
         rtp: parseDouble(json['rtp'], 0.96),
         sortOrder: parseInt(json['sortOrder']),
       );
@@ -79,6 +86,7 @@ class GameInfo extends Equatable {
         'type': type.name,
         'name': name,
         'tag': tag,
+        'group': group,
         'enabled': enabled,
         'comingSoon': comingSoon,
         'minBet': minBet,
@@ -91,5 +99,5 @@ class GameInfo extends Equatable {
   Json toFirestore() => toJson()..remove('id');
 
   @override
-  List<Object?> get props => [id, type, name, tag, enabled, comingSoon, minBet, maxBet, rtp, sortOrder];
+  List<Object?> get props => [id, type, name, tag, group, enabled, comingSoon, minBet, maxBet, rtp, sortOrder];
 }

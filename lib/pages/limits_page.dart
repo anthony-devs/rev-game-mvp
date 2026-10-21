@@ -102,7 +102,7 @@ class _LimitsPageState extends State<LimitsPage> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 4, AppSpacing.screen, 24),
               children: [
-                Text('Stay in control. These tools work even though this is a demo.', style: AppText.body(14, color: AppColors.textMuted, height: 1.5)),
+                Text('Stay in control. These tools apply to every game.', style: AppText.body(14, color: AppColors.textMuted, height: 1.5)),
                 const SizedBox(height: 16),
                 if (cooling)
                   Padding(
@@ -130,7 +130,7 @@ class _LimitsPageState extends State<LimitsPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       StepperField(
-                        label: 'Credits',
+                        label: PlayMode.isLive ? 'Amount' : 'Coins',
                         valueText: loss == null || loss <= 0 ? 'Off' : formatCredits(loss, decimals: 0),
                         active: loss != null && loss > 0,
                         onToggle: (on) => _edit((_) => _build(loss: on ? 20000.0 : null)),
@@ -149,10 +149,10 @@ class _LimitsPageState extends State<LimitsPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       StepperField(
-                        label: 'Credits per round',
+                        label: PlayMode.isLive ? 'Amount per round' : 'Coins per round',
                         valueText: bet == null || bet <= 0 ? 'Off' : formatCredits(bet, decimals: 0),
                         active: bet != null && bet > 0,
-                        onToggle: (on) => _edit((_) => _build(bet: on ? 1000.0 : null)),
+                        onToggle: (on) => _edit((_) => _build(bet: on ? 500.0 : null)),
                         onMinus: bet == null || bet <= 0 ? null : () => _edit((_) => _build(bet: (bet - _betStep).clamp(10.0, 1e9))),
                         onPlus: bet == null || bet <= 0 ? null : () => _edit((_) => _build(bet: bet + _betStep)),
                       ),

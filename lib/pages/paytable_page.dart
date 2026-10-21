@@ -11,6 +11,12 @@ class PaytablePage extends StatelessWidget {
 
   final SlotsConfig cfg;
 
+  String _pairText() {
+    final pair = cfg.pairSymbol;
+    if (pair == null || cfg.payRows.isEmpty) return '';
+    return 'Any two ${symbolNames[pair]!.toLowerCase()}s pay ×${cfg.payRows.last.multiplier}. ';
+  }
+
   @override
   Widget build(BuildContext context) {
     Widget stat(String k, String v) => Expanded(child: StatTile(label: k, value: v));
@@ -52,7 +58,7 @@ class PaytablePage extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   'Set your bet, then press SPIN. Three matching symbols on the payline pay your bet times the multiplier. '
-                  'Any two cherries pay ×2. The server decides every result before the reels stop, and you can check any spin in Provably fair.',
+                  '${_pairText()}You can check any spin in Provably fair.',
                   style: AppText.body(14, weight: FontWeight.w400, color: AppColors.textSoft, height: 1.5),
                 ),
                 const SizedBox(height: 18),

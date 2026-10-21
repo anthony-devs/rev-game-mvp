@@ -35,7 +35,7 @@ class _CrashPageState extends State<CrashPage> with SingleTickerProviderStateMix
   GameType get guideType => GameType.crash;
 
   static const double _minBet = 10;
-  static const double _maxBetDefault = 500000;
+  static const double _maxBetDefault = 2000;
   double get _maxBet => maxBetFor(widget.info?.maxBet ?? _maxBetDefault);
 
   late final CrashServer _server;
@@ -140,9 +140,14 @@ class _CrashPageState extends State<CrashPage> with SingleTickerProviderStateMix
     });
   }
 
-  void _cashOut() => _server.cashOut(); // the result arrives as a cashedOut event
+  void _cashOut() {
+    // Answer the tap at once; the payout arrives a moment later as a cashedOut event.
+    AppHaptics.medium();
+    AppSound.play(Sfx.tap);
+    _server.cashOut();
+  }
 
-  /// The bet was not taken (no connection, not enough credits) or the stream broke.
+  /// The bet was not taken (no connection, not enough coins) or the stream broke.
   void _onStreamError(Object error) {
     if (!mounted) return;
     final started = _phase == RoundPhase.running;

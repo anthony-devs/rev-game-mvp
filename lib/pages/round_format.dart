@@ -3,12 +3,39 @@ import 'package:flutter/material.dart';
 import '../components/components.dart';
 import '../model/model.dart';
 
+
+/// Name, short code, icon and artwork of the arcade games.
+class _Arc {
+  const _Arc(this.title, this.abbr, this.icon, this.kind);
+  final String title;
+  final String abbr;
+  final IconData icon;
+  final GameKind kind;
+}
+
+const _arcade = <GameType, _Arc>{
+  GameType.limbo: _Arc('Limbo', 'LI', Icons.rocket_launch_rounded, GameKind.limbo),
+  GameType.coinflip: _Arc('Coin Flip', 'CF', Icons.monetization_on_outlined, GameKind.coinflip),
+  GameType.rps: _Arc('Rock Paper Scissors', 'RP', Icons.back_hand_outlined, GameKind.rps),
+  GameType.darts: _Arc('Darts', 'DA', Icons.gps_fixed_rounded, GameKind.darts),
+  GameType.scratch: _Arc('Scratch Card', 'SC', Icons.confirmation_number_outlined, GameKind.scratch),
+  GameType.diamonds: _Arc('Diamonds', 'DM', Icons.diamond_outlined, GameKind.diamonds),
+  GameType.war: _Arc('Card War', 'CW', Icons.style_rounded, GameKind.war),
+  GameType.tower: _Arc('Tower', 'TW', Icons.stairs_rounded, GameKind.tower),
+  GameType.chicken: _Arc('Chicken Road', 'CH', Icons.directions_walk_rounded, GameKind.chicken),
+  GameType.pump: _Arc('Pump', 'PU', Icons.bubble_chart_rounded, GameKind.pump),
+  GameType.moles: _Arc('Moles', 'MO', Icons.grass_rounded, GameKind.moles),
+};
+
+/// Which arcade game a type is, or null for the older games.
+bool isArcade(GameType t) => _arcade.containsKey(t);
+
 /// Names, icons and text for rounds, shared by Wallet, History and Fairness.
 extension GameTypeX on GameType {
   String get title {
     switch (this) {
       case GameType.slots:
-        return 'Golden Reels';
+        return 'Slots';
       case GameType.roulette:
         return 'Euro Roulette';
       case GameType.blackjack:
@@ -19,6 +46,18 @@ extension GameTypeX on GameType {
         return 'Dash Crash';
       case GameType.plinko:
         return 'Plinko';
+      case GameType.mines:
+        return 'Mines';
+      case GameType.baccarat:
+        return 'Baccarat';
+      case GameType.wheel:
+        return 'Lucky Wheel';
+      case GameType.keno:
+        return 'Keno';
+      case GameType.hilo:
+        return 'Hi-Lo';
+      default:
+        return _arcade[this]!.title;
     }
   }
 
@@ -36,6 +75,18 @@ extension GameTypeX on GameType {
         return 'CR';
       case GameType.plinko:
         return 'PL';
+      case GameType.mines:
+        return 'MI';
+      case GameType.baccarat:
+        return 'BA';
+      case GameType.wheel:
+        return 'WH';
+      case GameType.keno:
+        return 'KE';
+      case GameType.hilo:
+        return 'HL';
+      default:
+        return _arcade[this]!.abbr;
     }
   }
 
@@ -53,6 +104,18 @@ extension GameTypeX on GameType {
         return Icons.show_chart_rounded;
       case GameType.plinko:
         return Icons.scatter_plot_rounded;
+      case GameType.mines:
+        return Icons.grid_view_rounded;
+      case GameType.baccarat:
+        return Icons.style_rounded;
+      case GameType.wheel:
+        return Icons.data_usage_rounded;
+      case GameType.keno:
+        return Icons.apps_rounded;
+      case GameType.hilo:
+        return Icons.swap_vert_rounded;
+      default:
+        return _arcade[this]!.icon;
     }
   }
 
@@ -70,7 +133,30 @@ extension GameTypeX on GameType {
         return GameKind.crash;
       case GameType.plinko:
         return GameKind.plinko;
+      case GameType.mines:
+        return GameKind.mines;
+      case GameType.baccarat:
+        return GameKind.baccarat;
+      case GameType.wheel:
+        return GameKind.wheel;
+      case GameType.keno:
+        return GameKind.keno;
+      case GameType.hilo:
+        return GameKind.hilo;
+      default:
+        return _arcade[this]!.kind;
     }
+  }
+}
+
+/// The artwork for a catalog entry: the slot themes have their own, everything else follows its type.
+extension GameInfoArt on GameInfo {
+  GameKind get kind {
+    switch (id) {
+      case 'lucky7':
+        return GameKind.lucky7;
+    }
+    return type.kind;
   }
 }
 

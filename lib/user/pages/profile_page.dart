@@ -1,7 +1,13 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/pwa/install_card.dart';
+import '../../referral/referral_page.dart';
 import '../../auth/bloc/auth_bloc.dart';
+import '../../auth/data/auth_failure.dart';
+import '../../auth/data/auth_repository.dart';
 import '../../auth/data/auth_validators.dart';
 import '../../components/components.dart';
 import '../../games/game_support.dart';
@@ -85,11 +91,15 @@ class ProfilePage extends StatelessWidget {
               Expanded(child: StatTile(label: 'Best multiplier', value: progress.bestMultiplier <= 0 ? '-' : formatMultiplier(progress.bestMultiplier, trim: true), valueColor: AppColors.gold)),
             ],
           ),
+          const SizedBox(height: 16),
+          const InviteCard(compact: true),
+          const SizedBox(height: 12),
+          const InstallCard(),
           if (user.isAnonymous) ...[
             const SizedBox(height: 16),
             InfoCard(
               title: 'You are playing as a guest',
-              message: 'Your credits and history are tied to this device. If you sign out as a guest you cannot get this account back.',
+              message: 'Your coins and history are tied to this device. If you sign out as a guest you cannot get this account back.',
               icon: Icons.person_outline_rounded,
               color: AppColors.gold,
             ),
@@ -99,15 +109,21 @@ class ProfilePage extends StatelessWidget {
           const SizedBox(height: 10),
           AppButton(
             label: 'Sign out',
-            variant: AppButtonVariant.outline,
+            variant: AppButtonVariant.ghost,
             icon: Icons.logout_rounded,
+            height: 42,
+            fontSize: 13,
+            radius: AppRadius.md,
             onPressed: () => _signOut(context, guest: user.isAnonymous),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           AppButton(
             label: 'Delete account',
-            variant: AppButtonVariant.danger,
+            variant: AppButtonVariant.ghost,
             icon: Icons.delete_outline_rounded,
+            height: 42,
+            fontSize: 13,
+            radius: AppRadius.md,
             onPressed: () => _delete(context),
           ),
           const SizedBox(height: 8),
@@ -128,7 +144,7 @@ class ProfilePage extends StatelessWidget {
         AppDialogCard(
           icon: Icons.logout_rounded,
           title: 'Sign out as a guest?',
-          message: 'Guest accounts cannot be signed back in to. Your credits and history on this account will be lost to you.',
+          message: 'Guest accounts cannot be signed back in to. Your coins and history on this account will be lost to you.',
           primaryLabel: 'Sign out',
           onPrimary: () => Navigator.of(context).pop(true),
           secondaryLabel: 'Stay',
@@ -138,8 +154,12 @@ class ProfilePage extends StatelessWidget {
       );
       if (ok != true || !context.mounted) return;
     }
+    // Take the bloc first: popping this page makes `context` unusable, which is why sign out
+    // used to just close the page. The app also returns to the first screen by itself once
+    // the player is signed out (see app.dart).
+    final auth = context.read<AuthBloc>();
+    auth.add(const AuthSignOutRequested());
     Navigator.of(context).popUntil((r) => r.isFirst);
-    context.read<AuthBloc>().add(const AuthSignOutRequested());
   }
 
   Future<void> _delete(BuildContext context) async {
@@ -154,6 +174,18 @@ class ProfilePage extends StatelessWidget {
     final cubit = context.read<ProfileCubit>();
     final auth = context.read<AuthBloc>();
     final nav = Navigator.of(context, rootNavigator: true);
+    // Apple accounts: Apple asks once more, then the link to this app is cut.
+    try {
+      await context.read<AuthRepository>().revokeAppleAccess();
+    } on AuthFailure catch (e) {
+      if (e.cancelled) {
+        _deleting = false;
+        return;
+      }
+    } catch (_) {
+      // Do not trap the player: carry on with the deletion.
+    }
+    if (!context.mounted) return;
     // Block the screen while the server removes everything.
     showDialog<void>(
       context: context,
@@ -203,12 +235,14 @@ class _DeleteDialogState extends State<_DeleteDialog> {
   @override
   Widget build(BuildContext context) {
     final ok = _c.text.trim().toUpperCase() == 'DELETE';
+    final media = MediaQuery.sizeOf(context);
     return Container(
-      width: 340,
-      margin: const EdgeInsets.symmetric(horizontal: 24),
+      width: math.min(340, media.width - 48),
+      constraints: BoxConstraints(maxHeight: media.height - 48),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(color: AppColors.sheet, borderRadius: BorderRadius.circular(28), border: Border.all(color: AppColors.loss.withValues(alpha: .5))),
-      child: Column(
+      child: SingleChildScrollView(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
@@ -221,7 +255,7 @@ class _DeleteDialogState extends State<_DeleteDialog> {
           Text('Delete your account?', textAlign: TextAlign.center, style: AppText.body(22, weight: FontWeight.w700)),
           const SizedBox(height: 8),
           Text(
-            'This permanently deletes your profile, credits, level and game history. It cannot be undone.',
+            'This permanently deletes your profile, coins, level and game history. It cannot be undone.',
             textAlign: TextAlign.center,
             style: AppText.body(14, color: AppColors.textMuted, height: 1.5),
           ),
@@ -232,6 +266,7 @@ class _DeleteDialogState extends State<_DeleteDialog> {
           const SizedBox(height: 10),
           AppButton(label: 'Keep my account', variant: AppButtonVariant.outline, height: 52, onPressed: () => Navigator.of(context).pop(false)),
         ],
+        ),
       ),
     );
   }

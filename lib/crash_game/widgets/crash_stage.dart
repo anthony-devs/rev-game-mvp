@@ -92,11 +92,6 @@ class CrashStage extends StatelessWidget {
                   Text('Round $roundNumber', style: AppText.body(11, weight: FontWeight.w600, color: AppColors.textDim)),
                 ]),
               ),
-              Positioned(
-                right: 14,
-                bottom: 10,
-                child: Text('Server decides the result', style: AppText.body(11, weight: FontWeight.w600, color: AppColors.textDim)),
-              ),
             ],
           );
         },

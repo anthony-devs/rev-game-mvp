@@ -43,7 +43,7 @@ class _DicePageState extends State<DicePage> with GameSessionMixin<DicePage> {
   final List<DiceResult> _history = [];
 
   double get _minBet => widget.info?.minBet ?? 10;
-  double get _maxBet => maxBetFor(widget.info?.maxBet ?? 100000);
+  double get _maxBet => maxBetFor(widget.info?.maxBet ?? 2000);
   double get _chance => DiceMath.chance(_target, _over);
   double get _mult => DiceMath.multiplier(_chance);
   double get _profit => _bet * _mult - _bet;

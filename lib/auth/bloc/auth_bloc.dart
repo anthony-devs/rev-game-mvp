@@ -4,6 +4,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../model/model.dart';
+import '../../push/push_registration.dart';
 import '../data/auth_repository.dart';
 
 enum AuthStatus { authenticated, unauthenticated }
@@ -45,7 +46,13 @@ class AuthSignOutRequested extends AuthEvent {
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc(this._repo) : super(_initial(_repo.currentUser)) {
     on<_UserChanged>(_onUserChanged);
-    on<AuthSignOutRequested>((event, emit) => _repo.signOut());
+    on<AuthSignOutRequested>((event, emit) async {
+      // Stopping push messages needs the network. Never let a slow server hold up signing out.
+      try {
+        await PushRegistration.stop().timeout(const Duration(milliseconds: 1500));
+      } catch (_) {}
+      await _repo.signOut();
+    });
     _sub = _repo.user.listen((u) => add(_UserChanged(u)));
   }
 

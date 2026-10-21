@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -56,19 +58,19 @@ Future<void> showNoCredits(BuildContext context, {double? needed}) {
   }
   return showAppBottomSheet<void>(
     context,
-    title: 'Not enough credits',
+    title: 'Not enough coins',
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           needed == null
-              ? 'Your balance is too low for this bet. Lower the bet or get free demo credits.'
-              : 'You need ${formatCredits(needed, decimals: 0)} credits for this bet. Lower it or get free demo credits.',
+              ? 'Your balance is too low for this bet. Lower the bet or get free coins.'
+              : 'You need ${formatCredits(needed, decimals: 0)} coins for this bet. Lower it or get free coins.',
           style: AppText.body(14, color: AppColors.textMuted, height: 1.5),
         ),
         const SizedBox(height: 20),
         AppButton(
-          label: 'Get demo credits',
+          label: 'Get free coins',
           variant: AppButtonVariant.gold,
           onPressed: () {
             Navigator.of(context).pop();
@@ -98,12 +100,13 @@ void showToast(BuildContext context, String message, {bool error = false}) {
 }
 
 /// What went wrong with a server call, in plain words.
-enum FailKind { network, down, noCredits, noRounds, busy, coolOff, other }
+enum FailKind { network, slowNet, down, noCredits, noRounds, busy, coolOff, other }
 
 FailKind failKind(Object e) {
   if (e is ApiException) {
     if (e.code == 'cooloff' || e.code == 'slow_down') return FailKind.coolOff;
     if (e.code == 'slow') return FailKind.busy;
+    if (e.code == 'slow_connection') return FailKind.slowNet;
     if (e.isOffline) return FailKind.network;
     if (e.isNetwork || e.isServerDown) return FailKind.down;
     if (e.code == 'insufficient_credits') return FailKind.noCredits;
@@ -114,10 +117,14 @@ FailKind failKind(Object e) {
 
 String failText(Object e) {
   if (e is ApiException) {
-    if (e.code == 'agreement_required') return 'We updated the Live Money Agreement. Switch to Demo and back to Live to read and accept it.';
+    if (e.code == 'agreement_required') return 'We updated the Live Money Agreement. Switch to Coins and back to Live to read and accept it.';
     return e.message;
   }
-  return 'Something went wrong. Please try again.';
+  // Not from the server: say what kind of problem it was, and print the real one for the developer.
+  debugPrint('failText: $e');
+  if (e is FormatException || e is TypeError) return 'We got an unexpected reply from the server. Please try again.';
+  if (e is TimeoutException) return 'This is taking too long. Please check your connection and try again.';
+  return "That didn't work. Please check your connection and try again.";
 }
 
 /// Shared behaviour of every game screen. Mix into the page's `State`:

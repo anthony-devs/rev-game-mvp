@@ -37,7 +37,7 @@ class PlinkoQuote {
         multipliers: [for (final m in (j['multipliers'] is List ? j['multipliers'] as List : const [])) parseDouble(m)],
         rtp: parseDouble(j['rtp']),
         minBet: parseDouble(j['minBet'], 10),
-        maxBet: parseDouble(j['maxBet'], 100000),
+        maxBet: parseDouble(j['maxBet'], 2000),
       );
 }
 

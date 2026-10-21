@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../components/components.dart';
 import '../games/game_support.dart';
 import '../model/model.dart';
+import 'game_detail_page.dart';
+import 'round_format.dart';
 import '../user/bloc/profile_cubit.dart';
 
 class _Step {
@@ -25,7 +27,7 @@ class _Guide {
   final String? tip;
 }
 
-const _credits = _Step(Icons.toll_rounded, 'Credits only', 'Everything here uses virtual credits. Nothing can be bought or cashed out, so play freely.');
+const _credits = _Step(Icons.verified_user_outlined, 'Provably fair', 'Every result is generated fairly, and you can verify any round yourself in Provably fair.');
 
 _Guide _guideFor(GameType t) {
   switch (t) {
@@ -107,6 +109,77 @@ _Guide _guideFor(GameType t) {
         ],
         tip: 'Nobody can predict the crash point, and it is decided before the round starts. Verify any round with the shield icon.',
       );
+    case GameType.mines:
+      return _Guide(
+        name: 'Mines',
+        accent: AppColors.mint,
+        intro: 'A 5 by 5 board hides mines. Open tiles to raise your multiplier and cash out before you hit one.',
+        steps: [
+          _Step(Icons.tune_rounded, 'Choose your mines', 'Pick how many mines hide on the board, from 1 to 24. More mines means a bigger reward for every safe tile, and a bigger risk.'),
+          _Step(Icons.paid_rounded, 'Set your bet and start', 'Choose your bet and press START. The mines are placed on the server before you open anything.'),
+          _Step(Icons.touch_app_rounded, 'Open tiles', 'Tap a tile. A gem is safe and raises your multiplier. A mine ends the round and the bet is lost.'),
+          _Step(Icons.emoji_events_rounded, 'Cash out', 'Press CASH OUT at any moment to collect your bet times the current multiplier. Clear the whole board and it pays out for you.'),
+        ],
+        tip: 'The multiplier for your next tile is shown on screen. Every round can be verified with the shield icon once it is over.',
+      );
+    case GameType.baccarat:
+      return _Guide(
+        name: 'Baccarat',
+        accent: AppColors.purple,
+        intro: 'Two hands are dealt, the Player and the Banker. The hand closest to 9 wins.',
+        steps: [
+          _Step(Icons.paid_rounded, 'Place your bet', 'Pick a chip and tap Player, Banker or Tie. You can bet on more than one.'),
+          _Step(Icons.style_rounded, 'Card values', 'Aces are worth 1. 2 to 9 are worth their number. 10, J, Q and K are worth 0. Only the last digit of a total counts, so 7 + 8 = 15 is a 5.'),
+          _Step(Icons.sync_rounded, 'Deal', 'Press DEAL. Each side gets two cards. A third card is drawn automatically by the standard rules. A total of 8 or 9 on the first two cards is a natural and stops the draw.'),
+          _Step(Icons.emoji_events_rounded, 'Get paid', 'The closest hand to 9 wins. If both are equal it is a Tie.'),
+        ],
+        reference: [
+          ('Player', 'pays 1 to 1'),
+          ('Banker', 'pays 1 to 1, less 5% commission'),
+          ('Tie', 'pays 8 to 1'),
+          ('Tie round', 'Player and Banker bets are returned'),
+        ],
+        tip: 'Banker wins slightly more often than Player, which is why it carries a commission.',
+      );
+    case GameType.wheel:
+      return _Guide(
+        name: 'Lucky Wheel',
+        accent: AppColors.gold,
+        intro: 'Spin a wheel of 20 segments. The segment it stops on pays its multiplier.',
+        steps: [
+          _Step(Icons.tune_rounded, 'Choose a risk level', 'Low has many small wins. Medium is balanced. High has mostly empty segments and a few big prizes.'),
+          _Step(Icons.paid_rounded, 'Set your bet', 'Choose your bet with the chips.'),
+          _Step(Icons.rotate_right_rounded, 'Spin', 'Press SPIN. The result is decided on the server first, then the wheel shows where it stopped.'),
+          _Step(Icons.emoji_events_rounded, 'Get paid', 'You receive your bet times the multiplier of the segment. A segment under 1x returns part of your bet, and 0x pays nothing.'),
+        ],
+        tip: 'Every segment is equally likely. Any round can be verified with the shield icon.',
+      );
+    case GameType.keno:
+      return _Guide(
+        name: 'Keno',
+        accent: AppColors.blue,
+        intro: 'Pick your numbers, then ten numbers are drawn. Match as many as you can.',
+        steps: [
+          _Step(Icons.grid_view_rounded, 'Pick numbers', 'Tap 1 to 10 numbers on the board of 40. Tap again to remove one. Auto picks random numbers for you.'),
+          _Step(Icons.paid_rounded, 'Set your bet', 'The pay table for your number of picks is shown under the board.'),
+          _Step(Icons.sync_rounded, 'Play', 'Press PLAY. Ten numbers are drawn on the server and your matches light up.'),
+          _Step(Icons.emoji_events_rounded, 'Get paid', 'Your bet times the multiplier for the number of matches you got.'),
+        ],
+        tip: 'Fewer picks win more often. More picks pay far more when most of them hit.',
+      );
+    case GameType.hilo:
+      return _Guide(
+        name: 'Hi-Lo',
+        accent: AppColors.mint,
+        intro: 'Guess whether the next card is higher or lower than the one showing, and build a streak.',
+        steps: [
+          _Step(Icons.paid_rounded, 'Bet and start', 'Choose your bet and press START. A card is shown.'),
+          _Step(Icons.swap_vert_rounded, 'Higher or Lower', 'Aces are low and kings are high. The same rank counts as a win for both guesses. Each button shows its chance and the multiplier you would reach.'),
+          _Step(Icons.trending_up_rounded, 'Build a streak', 'Each right guess multiplies your multiplier. A less likely guess pays more.'),
+          _Step(Icons.back_hand_rounded, 'Cash out', 'Press CASH OUT any time after a right guess to collect your bet times the multiplier. A wrong guess loses the bet.'),
+        ],
+        tip: 'The deck is shuffled once, so the chances are exact and change as cards are used. Verify any round with the shield icon.',
+      );
     case GameType.slots:
       return _Guide(
         name: 'Slots',
@@ -119,6 +192,27 @@ _Guide _guideFor(GameType t) {
           _Step(Icons.info_outline_rounded, 'Check the paytable', 'Tap the info icon to see what each symbol pays.'),
         ],
         tip: 'Wins are shown with a highlight on the winning symbols. Bigger wins get a celebration.',
+      );
+    default:
+      final climb = const {GameType.tower, GameType.chicken, GameType.pump, GameType.moles}.contains(t);
+      return _Guide(
+        name: t.title,
+        accent: GameArtStyle.accentOf(t.kind),
+        intro: GameDetailPage.howTo(t),
+        steps: climb
+            ? const [
+                _Step(Icons.tune_rounded, 'Pick a difficulty', 'Harder levels raise the multiplier faster but make a bad move more likely.'),
+                _Step(Icons.paid_rounded, 'Set your bet', 'Choose your bet with the chips and press START.'),
+                _Step(Icons.trending_up_rounded, 'Climb', 'Every safe move raises your multiplier. The result of each move is decided by the server.'),
+                _Step(Icons.back_hand_rounded, 'Cash out', 'Press CASH OUT any time to collect your bet times the multiplier. A bad move loses the bet.'),
+              ]
+            : const [
+                _Step(Icons.tune_rounded, 'Make your choice', 'Pick your target, side or risk level if the game has one.'),
+                _Step(Icons.paid_rounded, 'Set your bet', 'Choose your bet with the chips.'),
+                _Step(Icons.play_arrow_rounded, 'Play', 'Press the big button. The result is decided on the server first, then shown.'),
+                _Step(Icons.emoji_events_rounded, 'Get paid', 'A win pays your bet times the multiplier shown. Your balance updates straight away.'),
+              ],
+        tip: 'Every round is provably fair. Verify any round with the shield icon.',
       );
   }
 }

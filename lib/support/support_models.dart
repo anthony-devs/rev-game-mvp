@@ -63,7 +63,7 @@ extension TicketCategoryX on TicketCategory {
       case TicketCategory.account:
         return 'Account & sign-in';
       case TicketCategory.credits:
-        return 'Credits & balance';
+        return 'Coins & balance';
       case TicketCategory.gameplay:
         return 'A game or round';
       case TicketCategory.fairness:

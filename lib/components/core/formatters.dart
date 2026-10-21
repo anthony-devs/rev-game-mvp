@@ -1,4 +1,4 @@
-/// Credits with thousands separators: `formatCredits(91250)` -> `91,250.00`.
+/// Coins with thousands separators: `formatCredits(91250)` -> `91,250.00`.
 String formatCredits(num value, {int decimals = 2}) {
   final fixed = value.toStringAsFixed(decimals);
   final parts = fixed.split('.');
@@ -11,6 +11,18 @@ String formatCredits(num value, {int decimals = 2}) {
   }
   final whole = '${neg ? '-' : ''}$buf';
   return decimals > 0 ? '$whole.${parts[1]}' : whole;
+}
+
+/// Short form for big numbers in tight spaces: `1.25M`, `3.4B`. Under a million it is the usual
+/// `formatCredits`. Rounds down, so it never shows more than the player has.
+String formatCompact(num value, {int decimals = 2}) {
+  final a = value.abs();
+  if (a < 1e6) return formatCredits(value, decimals: decimals);
+  final (div, unit) = a >= 1e12 ? (1e12, 'T') : (a >= 1e9 ? (1e9, 'B') : (1e6, 'M'));
+  final scaled = (a / div * 100).floor() / 100;
+  var s = scaled.toStringAsFixed(2);
+  if (s.contains('.')) s = s.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+  return '${value < 0 ? '-' : ''}$s$unit';
 }
 
 /// `+2,420` / `-1,000`. Zero has no sign.

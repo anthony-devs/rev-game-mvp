@@ -35,6 +35,7 @@ class _FairnessPageState extends State<FairnessPage> {
   bool _rotating = false;
   bool _blocked = false; // a round is still open, so the check has to wait
   bool _autoTried = false;
+  bool _autoFailed = false; // the automatic check could not finish, so the button is offered
 
   @override
   void initState() {
@@ -69,10 +70,12 @@ class _FairnessPageState extends State<FairnessPage> {
         // Not an error: the check just has to wait until the open round (Blackjack or Crash) is finished.
         setState(() => _blocked = true);
       } else {
+        _autoFailed = true;
         AppSound.play(Sfx.error);
         showToast(context, failText(e), error: true);
       }
     } catch (e) {
+      _autoFailed = true;
       AppSound.play(Sfx.error);
       if (mounted) showToast(context, failText(e), error: true);
     } finally {
@@ -101,17 +104,18 @@ class _FairnessPageState extends State<FairnessPage> {
               future: _verify,
               builder: (context, snap) {
                 if (snap.hasError) return _error(snap.error!, () => setState(_load));
-                if (!snap.hasData) return const Column(children: [SkeletonBox(height: 84, radius: 20), SizedBox(height: 12), SkeletonBox(height: 260, radius: 20)]);
+                if (!snap.hasData) return const _Checking();
                 // A round that is waiting to be checked is completed by itself, once, without a tap.
                 if (snap.data!.isPending && !_autoTried && !_rotating) {
                   _autoTried = true;
+                  _rotating = true; // so no frame shows the button before the check starts
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (mounted) _rotate();
                   });
                 }
-                return _RoundCheck(result: snap.data!, round: _round, rotating: _rotating, blocked: _blocked, onRotate: () => _rotate(), onAgain: () => setState(() {
-                      _verify = _api.verify(widget.roundId!);
-                    }));
+                // While that automatic check runs, show the loader instead of a button that would vanish.
+                if (snap.data!.isPending && (_rotating || !_autoTried)) return const _Checking();
+                return _RoundCheck(roundId: widget.roundId, result: snap.data!, round: _round, rotating: _rotating, blocked: _blocked, onRotate: () => _rotate());
               },
             ),
             const SizedBox(height: 24),
@@ -147,14 +151,14 @@ class _FairnessPageState extends State<FairnessPage> {
 }
 
 class _RoundCheck extends StatelessWidget {
-  const _RoundCheck({required this.result, required this.round, required this.rotating, required this.blocked, required this.onRotate, required this.onAgain});
+  const _RoundCheck({required this.roundId, required this.result, required this.round, required this.rotating, required this.blocked, required this.onRotate});
 
+  final String? roundId;
   final VerifyResult result;
   final Future<GameRound?>? round;
   final bool rotating;
   final bool blocked;
   final VoidCallback onRotate;
-  final VoidCallback onAgain;
 
   @override
   Widget build(BuildContext context) {
@@ -212,7 +216,61 @@ class _RoundCheck extends StatelessWidget {
           builder: (context, snap) {
             final g = snap.data;
             final gameName = g?.game.title ?? r.game;
-            return _Field(label: 'Game · Round', value: g == null ? gameName : '$gameName · ${g.summary}');
+            final id = roundId ?? g?.id ?? '';
+            final when = g == null ? null : _when(g.createdAt.toLocal());
+            final lines = <String>[
+              'Round ID: $id',
+              'Game: $gameName',
+              if (when != null) 'Time: $when',
+              if (g != null) 'Bet: ${formatCredits(g.bet, decimals: 0)}',
+              if (g != null) 'Payout: ${formatCredits(g.payout, decimals: 0)}',
+              if (g != null && g.label.isNotEmpty) 'Result: ${g.label}',
+              'Status: ${r.isVerified ? 'Verified' : (r.isPending ? 'Waiting' : 'Does not match')}',
+              'Sealed code: ${r.serverSeedHash}',
+              'Your seed: ${r.clientSeed}',
+              'Round number: ${r.nonce}',
+              if (r.serverSeed != null) 'Revealed seed: ${r.serverSeed}',
+            ];
+            return Column(children: [
+              _Field(label: 'Round ID', value: id, mono: true, copyIcon: true),
+              const SizedBox(height: 10),
+              _Field(label: 'Game', value: g == null || g.label.isEmpty ? gameName : '$gameName · ${g.label}'),
+              if (g != null) ...[
+                const SizedBox(height: 10),
+                Row(children: [
+                  Expanded(child: _Stat(label: 'Bet', value: formatCredits(g.bet, decimals: 0))),
+                  const SizedBox(width: 10),
+                  Expanded(child: _Stat(label: 'Paid out', value: formatCredits(g.payout, decimals: 0), highlight: g.payout > 0)),
+                ]),
+                const SizedBox(height: 10),
+                _Field(label: 'Played at', value: when ?? '-', copy: false),
+              ],
+              const SizedBox(height: 10),
+              _Field(label: 'Sealed code (shown before you played)', value: r.serverSeedHash, mono: true, dim: true, copyIcon: true),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(child: _Field(label: 'Your seed', value: r.clientSeed, mono: true, dim: true, copyIcon: true)),
+                const SizedBox(width: 10),
+                Expanded(child: _Field(label: 'Round number', value: '${r.nonce}', mono: true, dim: true)),
+              ]),
+              if (r.serverSeed != null) ...[
+                const SizedBox(height: 10),
+                _Field(label: 'Revealed seed (after the round)', value: r.serverSeed!, mono: true, dim: true, copyIcon: true),
+              ],
+              const SizedBox(height: 12),
+              AppButton(
+                label: 'Copy all details',
+                variant: AppButtonVariant.outline,
+                icon: Icons.copy_rounded,
+                height: 46,
+                fontSize: 14,
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: lines.join('\n')));
+                  AppHaptics.light();
+                  showToast(context, 'Round details copied. Paste them in your report.');
+                },
+              ),
+            ]);
           },
         ),
         if (r.hashMatches != null || r.outcomeMatches != null) ...[
@@ -239,8 +297,6 @@ class _RoundCheck extends StatelessWidget {
             ],
             AppButton(label: blocked ? 'Try again' : 'Complete check', variant: AppButtonVariant.gold, loading: rotating, onPressed: rotating ? null : onRotate),
           ])
-        else
-          AppButton(label: 'Check again', variant: AppButtonVariant.success, onPressed: onAgain),
       ],
     );
   }
@@ -269,21 +325,24 @@ class _Check extends StatelessWidget {
 }
 
 class _Field extends StatelessWidget {
-  const _Field({required this.label, required this.value, this.mono = false, this.dim = false, this.onTap});
+  const _Field({required this.label, required this.value, this.mono = false, this.dim = false, this.onTap, this.copy = true, this.copyIcon = false});
 
   final String label;
   final String value;
   final bool mono;
   final bool dim;
   final VoidCallback? onTap;
+  final bool copy;
+  final bool copyIcon;
 
   @override
   Widget build(BuildContext context) {
     return PressScale(
-      onTap: onTap ?? () {
+      onTap: onTap ?? (!copy ? null : () {
         Clipboard.setData(ClipboardData(text: value));
+        AppHaptics.light();
         showToast(context, 'Copied');
-      },
+      }),
       scale: .99,
       child: Container(
         width: double.infinity,
@@ -294,10 +353,15 @@ class _Field extends StatelessWidget {
           children: [
             Text(label, style: AppText.body(11, weight: FontWeight.w600, color: AppColors.textDim)),
             const SizedBox(height: 6),
-            Text(
-              value.isEmpty ? '-' : value,
-              style: mono ? AppText.mono(12, color: dim ? AppColors.textDim : AppColors.textSoft) : AppText.body(14, weight: FontWeight.w600, color: dim ? AppColors.textDim : AppColors.text),
-            ),
+            Row(children: [
+              Expanded(
+                child: Text(
+                  value.isEmpty ? '-' : value,
+                  style: mono ? AppText.mono(12, color: dim ? AppColors.textDim : AppColors.textSoft) : AppText.body(14, weight: FontWeight.w600, color: dim ? AppColors.textDim : AppColors.text),
+                ),
+              ),
+              if (copyIcon) ...[const SizedBox(width: 8), Icon(Icons.copy_rounded, size: 16, color: AppColors.textDim)],
+            ]),
           ],
         ),
       ),
@@ -354,6 +418,51 @@ class _FairIntro extends StatelessWidget {
           step(Icons.balance_rounded, 'Same rules for everyone', 'Payout tables are published in each game, under the paytable.'),
         ],
       ),
+    );
+  }
+}
+
+/// Shown while a round is being checked.
+class _Checking extends StatelessWidget {
+  const _Checking();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 72),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const AppLoader(),
+        const SizedBox(height: 16),
+        Text('Checking this round...', style: AppText.body(14, color: AppColors.textMuted)),
+      ]),
+    );
+  }
+}
+
+String _when(DateTime t) {
+  const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  String two(int v) => v.toString().padLeft(2, '0');
+  return '${t.day} ${m[t.month - 1]} ${t.year}, ${two(t.hour)}:${two(t.minute)}:${two(t.second)}';
+}
+
+class _Stat extends StatelessWidget {
+  const _Stat({required this.label, required this.value, this.highlight = false});
+
+  final String label;
+  final String value;
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: AppColors.surfaceAlt, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.line)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: AppText.body(11, weight: FontWeight.w600, color: AppColors.textDim)),
+        const SizedBox(height: 6),
+        Text(value, style: AppText.number(18, color: highlight ? AppColors.gold : AppColors.text)),
+      ]),
     );
   }
 }

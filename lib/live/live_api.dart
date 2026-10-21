@@ -20,7 +20,7 @@ class LiveApi {
   Future<LivePayment> deposit({required String provider, required double amount, required String key}) async =>
       LivePayment.fromJson(await _api.post('/v1/live/deposits', {'provider': provider, 'amount': amount, 'key': key}));
 
-  /// Asks the server to check with the payment provider. The server credits the wallet, never the app.
+  /// Asks the server to check with the payment provider. The server coins the wallet, never the app.
   Future<LivePayment> verify(String id) async => LivePayment.fromJson(await _api.post('/v1/live/deposits/$id/verify'));
 
   /// Mock gateways only: what the customer does on the provider's own page.

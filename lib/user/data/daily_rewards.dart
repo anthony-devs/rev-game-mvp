@@ -1,7 +1,7 @@
 import '../../model/model.dart';
 
-/// Credits for each day of the 7 day streak. Must match the server (config.py).
-const List<int> kDailyRewards = [1000, 1000, 1500, 2000, 2500, 3000, 10000];
+/// Coins for each day of the 7 day streak. Must match the server (config.py).
+const List<int> kDailyRewards = [20, 20, 30, 40, 50, 60, 200];
 
 /// A streak survives if the player claims again within this time.
 const Duration kStreakGrace = Duration(hours: 48);

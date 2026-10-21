@@ -126,7 +126,7 @@ class _LiveAgreementPageState extends State<LiveAgreementPage> {
                   const SizedBox(height: 10),
                   AppButton(label: 'Accept and continue', variant: AppButtonVariant.gold, loading: _busy, onPressed: all && !_busy ? _accept : null),
                   const SizedBox(height: 8),
-                  TextButton(onPressed: _busy ? null : () => Navigator.of(context).pop(false), child: Text('Not now, stay on demo', style: AppText.body(13, color: AppColors.textMuted))),
+                  TextButton(onPressed: _busy ? null : () => Navigator.of(context).pop(false), child: Text('Not now, stay on coins', style: AppText.body(13, color: AppColors.textMuted))),
                 ],
               ),
             ),

@@ -29,11 +29,11 @@ service cloud.firestore {
 
       allow delete: if false;
 
-      // Wallet: the app may create it once with the starting credits.
+      // Wallet: the app may create it once with the starting coins (200).
       // After that only the game server (Admin SDK) can change it.
       match /wallet/{doc} {
         allow read: if canRead(uid);
-        allow create: if isOwner(uid) && doc == 'current' && request.resource.data.balance == 10000;
+        allow create: if isOwner(uid) && doc == 'current' && request.resource.data.balance == 200;
         allow update, delete: if false;
       }
 

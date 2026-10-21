@@ -36,15 +36,15 @@ class WalletPage extends StatelessWidget {
             BalanceCard(
               header: const SwitchWalletLink(),
               balance: balance,
-              label: live ? 'Live balance' : 'Credits',
+              label: live ? 'Live balance' : 'Coins',
               actions: live
                   ? liveWalletActions(context)
-                  : [AppButton(label: 'Get demo credits', variant: AppButtonVariant.gold, height: 50, fontSize: 15, onPressed: () => showGetCredits(context))],
+                  : [AppButton(label: 'Get free coins', variant: AppButtonVariant.gold, height: 50, fontSize: 15, onPressed: () => showGetCredits(context))],
             )
           else
             const SkeletonBox(height: 172, radius: 24),
           const SizedBox(height: 6),
-          Center(child: Text(live ? 'Real money. Every payout is checked by our team.' : 'Virtual credits. No cash value.', style: AppText.body(12, color: AppColors.textDim))),
+          Center(child: Text(live ? 'Real money. Every payout is checked by our team.' : 'Coins have no cash value.', style: AppText.body(12, color: AppColors.textDim))),
           if (live) ...[const SizedBox(height: 18), const LivePaymentsSection()],
           const SizedBox(height: 16),
           LevelProgressCard(

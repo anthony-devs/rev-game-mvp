@@ -5,8 +5,9 @@ import '../core/app_text.dart';
 import '../core/play_mode.dart';
 import '../core/formatters.dart';
 import '../core/press_scale.dart';
+import 'coach_tour.dart';
 
-/// Outlined pill showing the DEMO balance.
+/// Outlined pill showing the coins balance.
 ///
 /// ```dart
 /// BalancePill(balance: 94250, onTap: openWallet, onAdd: openGetCredits)
@@ -20,7 +21,7 @@ class BalancePill extends StatelessWidget {
     this.onAdd,
     this.compact = false,
     this.low = false,
-    this.tag = 'DEMO',
+    this.tag = 'COINS',
     this.decimals = 2,
     this.dropdown = false,
   });
@@ -45,6 +46,12 @@ class BalancePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<bool>(valueListenable: PlayMode.live, builder: (context, live, _) => _pill(live));
 
+  String _text(bool live) {
+    if (balance.abs() < 1e6) return PlayMode.amount(balance, decimals: decimals);
+    final short = formatCompact(balance);
+    return live ? '${PlayMode.symbol}$short' : short;
+  }
+
   Widget _pill(bool live) {
     final color = low ? AppColors.loss : (live ? AppColors.text : AppColors.mint);
     return PressScale(
@@ -63,14 +70,23 @@ class BalancePill extends StatelessWidget {
               Text(live ? 'LIVE' : tag!, style: AppText.body(10, weight: FontWeight.w800, color: live ? AppColors.loss : AppColors.gold, letterSpacing: 1)),
               const SizedBox(width: 8),
             ],
-            Text(PlayMode.amount(balance, decimals: decimals), style: AppText.number(compact ? 13 : 15, color: color)),
+            // A big balance shrinks to 1.25M instead of pushing the header off screen; the wallet shows it in full.
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: compact ? 110 : 150),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(_text(live), maxLines: 1, style: AppText.number(compact ? 13 : 15, color: color)),
+              ),
+            ),
             if (dropdown) ...[
               const SizedBox(width: 2),
               Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: AppColors.textMuted),
             ],
             if (onAdd != null) ...[
               const SizedBox(width: 8),
-              PressScale(
+              CoachTarget(
+                id: 'add',
+                child: PressScale(
                 onTap: onAdd,
                 cooldown: const Duration(milliseconds: 600),
                 child: Container(
@@ -79,6 +95,7 @@ class BalancePill extends StatelessWidget {
                   decoration: BoxDecoration(color: AppColors.inverse, shape: BoxShape.circle),
                   child: Icon(Icons.add_rounded, size: 22, color: AppColors.onInverse),
                 ),
+              ),
               ),
             ],
           ],

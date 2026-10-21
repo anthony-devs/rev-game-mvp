@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../auth/require_sign_in.dart';
 import '../catalog/catalog_cubit.dart';
 import '../components/components.dart';
 import '../games/game_launcher.dart';
@@ -64,19 +65,19 @@ class _BrowsePageState extends State<BrowsePage> {
         ] else ...[
           ListGroup(
             children: [
-              ListRowTile(icon: Icons.casino_outlined, title: 'Casino Games', onTap: () => shell.go(ShellTab.casino, filter: GameGroup.table)),
+              ListRowTile(icon: Icons.casino_outlined, title: 'Casino Games', onTap: () => shell.go(ShellTab.casino, filter: 'table')),
               ListRowTile(icon: Icons.apps_rounded, title: 'Slots', onTap: () => shell.go(ShellTab.slots)),
-              ListRowTile(icon: Icons.bolt_rounded, title: 'Instant Games', onTap: () => shell.go(ShellTab.casino, filter: GameGroup.instant)),
+              ListRowTile(icon: Icons.bolt_rounded, title: 'Originals', onTap: () => shell.go(ShellTab.casino, filter: 'originals')),
               ListRowTile(icon: Icons.star_border_rounded, title: 'Favourites', onTap: () => shell.go(ShellTab.casino, favouritesOnly: true)),
             ],
           ),
           const SizedBox(height: 16),
           ListGroup(
             children: [
-              ListRowTile(icon: Icons.account_balance_wallet_outlined, title: 'Wallet and credits', onTap: () => pushPage<void>(context, const WalletPage())),
-              ListRowTile(icon: Icons.history_rounded, title: 'Game history', onTap: () => pushPage<void>(context, const HistoryPage())),
+              ListRowTile(icon: Icons.account_balance_wallet_outlined, title: 'Wallet and coins', onTap: () { if (requireSignIn(context)) pushPage<void>(context, const WalletPage()); }),
+              ListRowTile(icon: Icons.history_rounded, title: 'Game history', onTap: () { if (requireSignIn(context)) pushPage<void>(context, const HistoryPage()); }),
               ListRowTile(icon: Icons.help_outline_rounded, title: 'Help Centre', trailing: const SupportBadge(), onTap: () => pushPage<void>(context, const HelpPage())),
-              ListRowTile(icon: Icons.shield_outlined, title: 'Responsible Play', onTap: () => pushPage<void>(context, const LimitsPage())),
+              ListRowTile(icon: Icons.shield_outlined, title: 'Responsible Play', onTap: () { if (requireSignIn(context)) pushPage<void>(context, const LimitsPage()); }),
               ListRowTile(icon: Icons.gavel_rounded, title: 'Legal and policies', onTap: () => pushPage<void>(context, const LegalPage())),
               ListRowTile(icon: Icons.settings_outlined, title: 'Settings', trailingText: 'English', onTap: () => shell.go(ShellTab.settings)),
             ],

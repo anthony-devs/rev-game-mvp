@@ -149,7 +149,7 @@ class LiveStatus extends Equatable {
     required this.enabled,
     this.message = '',
     this.currency = 'NGN',
-    this.mock = true,
+    this.mock = false,
     this.balance = 0,
     this.minDeposit = 500,
     this.maxDeposit = 500000,

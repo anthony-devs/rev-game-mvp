@@ -27,7 +27,7 @@ class SwitchWalletLink extends StatelessWidget {
           await requestPlayMode(context, !live);
         },
         icon: Icon(Icons.swap_horiz_rounded, size: 18, color: AppColors.gold),
-        label: Text(live ? 'Switch to demo credits' : 'Switch to live money', style: AppText.body(13, weight: FontWeight.w700, color: AppColors.gold)),
+        label: Text(live ? 'Switch to coins' : 'Switch to live money', style: AppText.body(13, weight: FontWeight.w700, color: AppColors.gold)),
       ),
     );
   }
@@ -65,8 +65,8 @@ class _Switcher extends StatelessWidget {
       ),
       const SizedBox(height: 10),
       _WalletCard(
-        title: 'Demo credits',
-        subtitle: 'Practice for free. Not real money.',
+        title: 'Coins',
+        subtitle: 'Free to play. Not real money.',
         balance: s.demoWallet.balance,
         live: false,
         active: !s.live,

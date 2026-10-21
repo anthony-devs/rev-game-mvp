@@ -5,14 +5,14 @@ import '../core/app_colors.dart';
 import '../core/app_text.dart';
 import '../core/formatters.dart';
 
-/// Daily credits card with a Claim button or a countdown.
+/// Daily coins card with a Claim button or a countdown.
 ///
 /// ```dart
 /// DailyRewardCard(amount: 5000, onClaim: claim)                       // ready
 /// DailyRewardCard(amount: 5000, onClaim: null, nextInSeconds: 3600)   // cooling down
 /// ```
 class DailyRewardCard extends StatelessWidget {
-  const DailyRewardCard({super.key, required this.amount, required this.onClaim, this.nextInSeconds, this.title = 'Daily credits'});
+  const DailyRewardCard({super.key, required this.amount, required this.onClaim, this.nextInSeconds, this.title = 'Daily coins'});
 
   final double amount;
   final String title;

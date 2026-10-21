@@ -30,7 +30,7 @@ class RoundEvent {
 
 /// What the Crash page needs from the game server (see ApiCrashServer).
 abstract class CrashServer {
-  /// Credits the player has right now. The page reads it after each event.
+  /// Coins the player has right now. The page reads it after each event.
   double get balance;
   set balance(double value);
 

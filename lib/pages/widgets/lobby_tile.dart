@@ -28,7 +28,7 @@ class LobbyTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final soon = game.comingSoon;
     final paused = (!game.enabled || offline) && !soon;
-    final kind = soon ? upcomingInfoFor(game).kind : game.type.kind;
+    final kind = soon ? upcomingInfoFor(game).kind : game.kind;
     return PressScale(
       onTap: onTap,
       child: AspectRatio(
@@ -45,14 +45,15 @@ class LobbyTile extends StatelessWidget {
                 right: 0,
                 bottom: 0,
                 child: Container(
-                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+                  color: Colors.black.withValues(alpha: .6),
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
                                     child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(game.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.body(12, weight: FontWeight.w700, height: 1.2)),
+                      Text(game.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.body(12, weight: FontWeight.w700, color: Colors.white, height: 1.2)),
                       const SizedBox(height: 2),
-                      Text(soon ? 'Coming soon' : (paused ? (maintenance ? 'Maintenance' : offline ? 'Unavailable' : 'Paused') : game.tag), style: AppText.body(10, color: AppColors.textMuted, height: 1.2)),
+                      Text(soon ? 'Coming soon' : (paused ? (maintenance ? 'Maintenance' : offline ? 'Unavailable' : 'Paused') : game.tag), style: AppText.body(10, color: const Color(0xFFC9C9D2), height: 1.2)),
                     ],
                   ),
                 ),
@@ -85,7 +86,11 @@ class LobbyTile extends StatelessWidget {
                     onTap: onFavourite,
                     child: Padding(
                       padding: const EdgeInsets.all(6),
-                      child: Icon(favourite ? Icons.star_rounded : Icons.star_border_rounded, size: 20, color: favourite ? AppColors.gold : AppColors.textMuted),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(color: Colors.black.withValues(alpha: .5), shape: BoxShape.circle),
+                        child: Icon(favourite ? Icons.star_rounded : Icons.star_border_rounded, size: 16, color: favourite ? AppColors.gold : Colors.white),
+                      ),
                     ),
                   ),
                 ),

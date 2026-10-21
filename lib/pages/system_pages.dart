@@ -47,14 +47,21 @@ class OfflineView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final down = error is ApiException && !(error as ApiException).isOffline;
+    final e = error is ApiException ? error as ApiException : null;
+    final slow = e != null && e.isSlow;
+    final unreachable = e != null && e.code == 'unreachable';
+    final down = e != null && !e.isOffline && !slow && !unreachable;
     return StatusView(
-      icon: down ? Icons.cloud_off_rounded : Icons.wifi_off_rounded,
-      title: down ? "We're experiencing downtime" : "You're offline",
+      icon: slow ? Icons.network_check_rounded : (down || unreachable ? Icons.cloud_off_rounded : Icons.wifi_off_rounded),
+      title: slow ? 'Slow connection' : (unreachable ? "Can't reach our servers" : (down ? "We're experiencing downtime" : "You're offline")),
       message: message ??
-          (down
-              ? "Our service is temporarily unavailable. We're working to restore it. Your balance is safe."
-              : 'Check your internet connection and try again. Your balance is safe.'),
+          (slow
+              ? 'Your connection is too slow to load this. Move to a stronger signal and try again. Your balance is safe.'
+              : unreachable
+                  ? "We couldn't connect to the game service. This is usually a connection problem on your side. Your balance is safe."
+                  : down
+                      ? "Our service is temporarily unavailable. We're working to restore it. Your balance is safe."
+                      : 'Check your internet connection and try again. Your balance is safe.'),
       actionLabel: 'Try again',
       onAction: onRetry,
     );
@@ -84,7 +91,7 @@ class GameUnavailablePage extends StatelessWidget {
     final text = message ??
         (comingSoon
             ? '${name ?? 'This game'} is on its way. We will add it in a future update.'
-            : 'This game is paused right now. Your credits are safe, and any round in progress is settled.');
+            : 'This game is paused right now. ${PlayMode.isLive ? 'Your money' : 'Your coins'} is safe, and any round in progress is settled.');
     return AppScaffold(
       glowColor: comingSoon ? AppColors.purple : AppColors.gold,
       body: Column(
@@ -249,7 +256,7 @@ Future<void> showLossLimitReached(BuildContext context) async {
       icon: Icons.shield_outlined,
       iconColor: AppColors.loss,
       title: 'Loss limit reached',
-      message: 'You have lost your session limit of ${formatCredits(guard.state.net.abs(), decimals: 0)} credits. Play is paused. This is the limit you set.',
+      message: 'You have lost your session limit of ${PlayMode.amount(guard.state.net.abs(), decimals: 0)}${PlayMode.isLive ? '' : ' coins'}. Play is paused. This is the limit you set.',
       primaryLabel: 'Leave the game',
       onPrimary: () => Navigator.of(context).pop('leave'),
       secondaryLabel: 'Change my limits',

@@ -56,7 +56,7 @@ class _RoulettePageState extends State<RoulettePage> with TickerProviderStateMix
   final List<int> _history = [];
 
   double get _total => _placed.fold(0.0, (a, p) => a + p.amount);
-  double get _maxTotal => maxBetFor(widget.info?.maxBet ?? 100000);
+  double get _maxTotal => maxBetFor(widget.info?.maxBet ?? 5000);
 
   @override
   void initState() {
@@ -105,7 +105,7 @@ class _RoulettePageState extends State<RoulettePage> with TickerProviderStateMix
     if (_phase == _Phase.spinning) return;
     if (_phase == _Phase.result) _newBets();
     if (_total + _chip > _maxTotal) {
-      showToast(context, 'Your highest bet is ${formatCredits(_maxTotal, decimals: 0)} credits.', error: true);
+      showToast(context, 'Your highest bet is ${PlayMode.amount(_maxTotal, decimals: 0)}${PlayMode.isLive ? '' : ' coins'}.', error: true);
       return;
     }
     AppSound.play(Sfx.chip);

@@ -1,4 +1,4 @@
-// Golden Reels: 3 reels, 1 payline.
+// Slot machines (Golden Reels, Lucky Sevens): 3 reels, 1 payline.
 //
 // Server-driven: the page only talks to [SlotsServer] (the game server). The
 // balance shown is the one Firestore wallet balance, held steady while the
@@ -45,15 +45,12 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
   @override
   GameType get guideType => GameType.slots;
 
-  late final SlotsServer _server = ApiSlotsServer(context.read<ApiClient>());
+  late final SlotTheme _theme = slotThemeFor(widget.info?.id);
+  late final SlotsServer _server = ApiSlotsServer(context.read<ApiClient>(), game: _theme.id);
   SlotsConfig? _cfg;
 
   final _reelKeys = List.generate(3, (_) => GlobalKey<ReelWidgetState>());
-  final _initial = const [
-    [SlotSymbol.diamond, SlotSymbol.seven, SlotSymbol.bar],
-    [SlotSymbol.bell, SlotSymbol.bar, SlotSymbol.cherry],
-    [SlotSymbol.cherry, SlotSymbol.bell, SlotSymbol.diamond],
-  ];
+  List<List<SlotSymbol>> get _initial => _theme.initial;
 
   SlotsPhase _phase = SlotsPhase.idle;
   bool _sheetOpen = false, _turbo = false, _auto = false, _skip = false;
@@ -61,7 +58,7 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
   String _plate = 'Match 3 on the line to win';
   SpinResult? _last;
   final List<int> _history = [];
-  List<SlotSymbol> _payline = [SlotSymbol.seven, SlotSymbol.bar, SlotSymbol.bell];
+  late List<SlotSymbol> _payline = _theme.startLine;
 
   late final AnimationController _fx = AnimationController(vsync: this, duration: const Duration(seconds: 6))..repeat();
   late final AnimationController _count = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
@@ -70,7 +67,7 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
   void initState() {
     super.initState(); // GameSessionMixin: joins the session, starts music
     _turbo = context.read<ProfileCubit>().state.settings.turboByDefault;
-    final warm = ApiSlotsServer.cached;
+    final warm = ApiSlotsServer.cachedFor(_theme.id);
     if (warm != null) {
       // Already fetched while the lobby was showing: open straight away, refresh quietly.
       _cfg = warm;
@@ -187,7 +184,7 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
     } catch (e) {
       if (!mounted) return;
       for (var i = 0; i < 3; i++) {
-        _reelKeys[i].currentState?.stopTo([SlotSymbol.cherry, _payline[i], SlotSymbol.bar], fast: true);
+        _reelKeys[i].currentState?.stopTo([_theme.symbols[3], _payline[i], _theme.symbols[1]], fast: true);
       }
       releaseBalance();
       _auto = false;
@@ -195,7 +192,7 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
       setState(() {
         _phase = SlotsPhase.idle;
         final k = failKind(e);
-        _plate = k == FailKind.coolOff ? 'Match 3 on the line to win' : k == FailKind.noRounds ? 'Out of rounds' : k == FailKind.busy ? 'One moment, then try again' : k == FailKind.network ? "You're offline. Try again" : (k == FailKind.down ? 'Temporarily unavailable. Try again' : 'Something went wrong. Try again');
+        _plate = k == FailKind.coolOff ? 'Match 3 on the line to win' : k == FailKind.noRounds ? 'Out of rounds' : k == FailKind.busy ? 'One moment, then try again' : k == FailKind.network ? "You're offline. Try again" : k == FailKind.slowNet ? 'Slow connection. Try again' : (k == FailKind.down ? 'Temporarily unavailable. Try again' : 'Something went wrong. Try again');
       });
       if (failKind(e) == FailKind.noRounds) {
       showRoundsSheet(context);
@@ -427,19 +424,22 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
             height: 48,
             child: Transform.rotate(
               angle: -3 * math.pi / 180,
-              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text('Golden',
-                    style: GoogleFonts.yellowtail(fontSize: 38, height: 1, color: const Color(0xFFFFD36B), shadows: [
-                      Shadow(color: kGold, blurRadius: win ? 10 : 6),
-                      Shadow(color: const Color(0xD9FFC83D), blurRadius: win ? 26 : 14),
-                    ])),
-                const SizedBox(width: 8),
-                Text('Reels',
-                    style: GoogleFonts.yellowtail(fontSize: 38, height: 1, color: const Color(0xFFE6BBFF), shadows: [
-                      Shadow(color: AppColors.purple, blurRadius: win ? 10 : 6),
-                      Shadow(color: const Color(0xE6B26BFF), blurRadius: win ? 26 : 14),
-                    ])),
-              ]),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Text(_theme.first,
+                      style: GoogleFonts.yellowtail(fontSize: 38, height: 1, color: _theme.firstColor, shadows: [
+                        Shadow(color: _theme.firstGlow, blurRadius: win ? 10 : 6),
+                        Shadow(color: _theme.firstGlow.withValues(alpha: .85), blurRadius: win ? 26 : 14),
+                      ])),
+                  const SizedBox(width: 8),
+                  Text(_theme.second,
+                      style: GoogleFonts.yellowtail(fontSize: 38, height: 1, color: _theme.secondColor, shadows: [
+                        Shadow(color: _theme.secondGlow, blurRadius: win ? 10 : 6),
+                        Shadow(color: _theme.secondGlow.withValues(alpha: .9), blurRadius: win ? 26 : 14),
+                      ])),
+                ]),
+              ),
             ),
           ),
 
@@ -448,7 +448,7 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
             Positioned(
               left: [53.0, 149.0, 245.0][i],
               top: 121,
-              child: ReelWidget(key: _reelKeys[i], initial: _initial[i], highlight: win),
+              child: ReelWidget(key: _reelKeys[i], initial: _initial[i], highlight: win, symbols: _theme.symbols),
             ),
 
           // Payline + markers
@@ -622,7 +622,7 @@ class _SlotsPageState extends State<SlotsPage> with TickerProviderStateMixin, Ga
     if (_cantAfford) {
       return AppButton(
         label: 'SPIN',
-        sublabel: 'NOT ENOUGH CREDITS',
+        sublabel: PlayMode.isLive ? 'NOT ENOUGH BALANCE' : 'NOT ENOUGH COINS',
         variant: AppButtonVariant.ghost,
         height: 68,
         fontSize: 22,

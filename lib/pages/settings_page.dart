@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../components/components.dart';
 import '../games/game_support.dart';
+import '../shell/app_tour.dart';
+import '../shell/shell_cubit.dart';
 import '../user/bloc/profile_cubit.dart';
 import '../user/pages/profile_page.dart';
 import '../legal/legal_page.dart';
@@ -107,16 +109,25 @@ class SettingsPage extends StatelessWidget {
         ListGroup(
           title: 'Account and safety',
           children: [
-            ListRowTile(icon: Icons.account_balance_wallet_outlined, title: 'Wallet and credits', onTap: () => pushPage<void>(context, const WalletPage())),
+            ListRowTile(icon: Icons.account_balance_wallet_outlined, title: 'Wallet and coins', onTap: () => pushPage<void>(context, const WalletPage())),
             ListRowTile(icon: Icons.shield_outlined, title: 'Play limits and breaks', onTap: () => pushPage<void>(context, const LimitsPage())),
             ListRowTile(icon: Icons.history_rounded, title: 'Game history', onTap: () => pushPage<void>(context, const HistoryPage())),
+            ListRowTile(
+              icon: Icons.explore_outlined,
+              title: 'Take the app tour',
+              onTap: () async {
+                context.read<ShellCubit>().go(ShellTab.casino);
+                await Future<void>.delayed(const Duration(milliseconds: 450));
+                if (context.mounted) AppTour.show(context);
+              },
+            ),
             ListRowTile(icon: Icons.help_outline_rounded, title: 'Help Centre', trailing: const SupportBadge(), onTap: () => pushPage<void>(context, const HelpPage())),
             ListRowTile(icon: Icons.gavel_rounded, title: 'Legal and policies', onTap: () => pushPage<void>(context, const LegalPage())),
             const ListRowTile(icon: Icons.language_rounded, title: 'Language', trailingText: 'English', showChevron: false),
           ],
         ),
         const SizedBox(height: 24),
-        Center(child: Text('Demo build 1.0.0 · Virtual credits only', style: AppText.body(12, color: AppColors.textFaint))),
+        Center(child: Text('REV GAMES 1.0.0', style: AppText.body(12, color: AppColors.textFaint))),
       ],
     );
   }

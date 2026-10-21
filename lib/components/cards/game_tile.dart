@@ -53,16 +53,20 @@ class GameTile extends StatelessWidget {
               if (image != null)
                 const ColoredBox(color: Color(0x73000000)), // flat scrim so the title stays readable
               Positioned(
-                left: 14,
-                right: 14,
-                bottom: 12,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.body(16, weight: FontWeight.w700)),
-                    if (tag != null) Text(tag!, style: AppText.body(12, color: AppColors.textMuted)),
-                  ],
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  color: Colors.black.withValues(alpha: .6),
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.body(16, weight: FontWeight.w700, color: Colors.white)),
+                      if (tag != null) Text(tag!, style: AppText.body(12, color: const Color(0xFFC9C9D2))),
+                    ],
+                  ),
                 ),
               ),
               if (badge != null) Positioned(top: 10, right: 10, child: badge!),

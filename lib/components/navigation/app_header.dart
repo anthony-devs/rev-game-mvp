@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/app_text.dart';
 import '../../rounds/rounds_pill.dart';
 import '../feedback/balance_pill.dart';
+import '../feedback/coach_tour.dart';
 
 /// Lobby header: wordmark + balance pill.
 ///
@@ -43,6 +44,7 @@ class AppHeader extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Flexible(
+            flex: 2,
             child: FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
@@ -50,10 +52,24 @@ class AppHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          if (action != null) ...[action!, const SizedBox(width: 8)],
-          const RoundsPill(),
-          const SizedBox(width: 8),
-          BalancePill(balance: balance, onTap: onBalanceTap, onAdd: onAdd, dropdown: dropdown),
+          // Support, rounds and balance shrink together when the screen is narrow, the font is large
+          // or the balance is long, instead of overflowing the row.
+          Flexible(
+            flex: 3,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (action != null) ...[CoachTarget(id: 'support', child: action!), const SizedBox(width: 8)],
+                  const CoachTarget(id: 'rounds', child: RoundsPill()),
+                  const SizedBox(width: 8),
+                  CoachTarget(id: 'balance', child: BalancePill(balance: balance, onTap: onBalanceTap, onAdd: onAdd, dropdown: dropdown)),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

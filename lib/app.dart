@@ -13,6 +13,8 @@ import 'support/support_cubit.dart';
 import 'theme/theme_cubit.dart';
 import 'components/components.dart';
 import 'core/api/api_client.dart';
+import 'core/app_version.dart';
+import 'push/push_registration.dart';
 import 'user/user.dart';
 
 /// Root widget: provides the repositories, the API client and the two app-wide blocs
@@ -52,7 +54,7 @@ class _RevAppState extends State<RevApp> {
             create: (context) => ProfileCubit(context.read<UserRepository>(), context.read<WalletApi>())
               ..bind(context.read<AuthBloc>().state.user),
           ),
-          BlocProvider(create: (context) => CatalogCubit(context.read<ApiClient>())),
+          BlocProvider(create: (context) => CatalogCubit(context.read<ApiClient>(), signedIn: () => context.read<AuthBloc>().state.isAuthenticated)),
           BlocProvider(create: (context) => LiveCubit(context.read<LiveApi>())),
           BlocProvider(create: (context) => SessionGuard(context.read<ProfileCubit>())),
           BlocProvider(create: (context) => SupportCubit(context.read<UserRepository>())..bind(context.read<AuthBloc>().state.user)),
@@ -67,6 +69,10 @@ class _RevAppState extends State<RevApp> {
                 context.read<ProfileCubit>().bind(state.user);
                 context.read<SupportCubit>().bind(state.user);
                 context.read<LiveCubit>().reset();
+                if (state.isAuthenticated) {
+                  context.read<CatalogCubit>().signedInNow();
+                  PushRegistration.start(context.read<ApiClient>());
+                }
               },
             ),
             // Close sign up / phone / game pages that are still open on top.
@@ -85,14 +91,24 @@ class _RevAppState extends State<RevApp> {
               scrollBehavior: const MaterialScrollBehavior().copyWith(
                 dragDevices: {PointerDeviceKind.touch, PointerDeviceKind.mouse, PointerDeviceKind.trackpad, PointerDeviceKind.stylus},
               ),
-              builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
-                value: theme.light ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light,
-                // On very wide screens the app stops growing and sits in the middle.
-                child: ColoredBox(
-                  color: AppColors.bg,
-                  child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: Breakpoints.app), child: child ?? const SizedBox.shrink())),
-                ),
-              ),
+              builder: (context, child) {
+                // Respect the phone's font-size setting, but keep it in a range the dense game
+                // layouts can hold. Without this, a large system font (common on Samsung) overflows
+                // rows everywhere. Still lets people enlarge text up to 130% for readability.
+                final clamped = MediaQuery.withClampedTextScaling(
+                  minScaleFactor: 0.85,
+                  maxScaleFactor: 1.3,
+                  child: child ?? const SizedBox.shrink(),
+                );
+                return AnnotatedRegion<SystemUiOverlayStyle>(
+                  value: theme.light ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light,
+                  // On very wide screens the app stops growing and sits in the middle.
+                  child: ColoredBox(
+                    color: AppColors.bg,
+                    child: UpdateGate(api: widget.apiClient, navigatorKey: _navigatorKey, child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: Breakpoints.app), child: clamped))),
+                  ),
+                );
+              },
               home: const AuthGate(),
             ),
           ),

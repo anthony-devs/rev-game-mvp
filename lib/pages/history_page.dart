@@ -27,6 +27,11 @@ class _HistoryPageState extends State<HistoryPage> {
     'Dice': GameType.dice,
     'Plinko': GameType.plinko,
     'Crash': GameType.crash,
+    'Mines': GameType.mines,
+    'Baccarat': GameType.baccarat,
+    'Wheel': GameType.wheel,
+    'Keno': GameType.keno,
+    'Hi-Lo': GameType.hilo,
   };
 
   int _filter = 0;

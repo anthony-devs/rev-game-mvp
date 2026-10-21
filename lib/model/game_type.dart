@@ -7,7 +7,23 @@ enum GameType {
   blackjack,
   dice,
   crash,
-  plinko;
+  plinko,
+  mines,
+  baccarat,
+  wheel,
+  keno,
+  hilo,
+  limbo,
+  coinflip,
+  rps,
+  darts,
+  scratch,
+  diamonds,
+  war,
+  tower,
+  chicken,
+  pump,
+  moles;
 
   /// Unknown names fall back to slots so an old app never crashes on a new game id.
   static GameType fromName(Object? name) => enumByName(GameType.values, name, GameType.slots);

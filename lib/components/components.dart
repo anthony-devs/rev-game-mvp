@@ -58,6 +58,7 @@ export 'lists/list_row_tile.dart';
 // feedback
 export 'feedback/app_bottom_sheet.dart';
 export 'feedback/app_loader.dart';
+export 'feedback/coach_tour.dart';
 export 'feedback/app_dialog_card.dart';
 export 'feedback/app_progress_bar.dart';
 export 'feedback/balance_pill.dart';

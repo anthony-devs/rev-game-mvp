@@ -37,7 +37,7 @@ class _BlackjackPageState extends State<BlackjackPage> with GameSessionMixin<Bla
   bool _resuming = true;
 
   double get _minBet => widget.info?.minBet ?? 10;
-  double get _maxBet => maxBetFor(widget.info?.maxBet ?? 100000);
+  double get _maxBet => maxBetFor(widget.info?.maxBet ?? 2000);
   bool get _playing => _hand?.playing == true;
   BjResult? get _result => _hand?.result;
 

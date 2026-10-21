@@ -19,7 +19,7 @@ class SessionState extends Equatable {
 
   final DateTime? startedAt;
 
-  /// Credits bet this session.
+  /// Coins bet this session.
   final double totalBet;
 
   /// Won minus bet this session (negative = down).

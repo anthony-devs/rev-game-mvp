@@ -24,7 +24,7 @@ class PlayLimits extends Equatable {
   /// Highest bet the player allows themselves.
   final double? maxBetCap;
 
-  /// Stop play when the player has lost this many credits in one session.
+  /// Stop play when the player has lost this many coins in one session.
   final double? sessionLossLimit;
 
   /// Play is blocked until this time.

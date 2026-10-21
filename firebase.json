@@ -1,1 +1,101 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"rev-games","appId":"1:499753779409:android:439fd26b8ef3c577bc45f0","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"rev-games","appId":"1:499753779409:ios:5c464ab73202a5f0bc45f0","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"rev-games","configurations":{"android":"1:499753779409:android:439fd26b8ef3c577bc45f0","ios":"1:499753779409:ios:5c464ab73202a5f0bc45f0","web":"1:499753779409:web:32cb95bc03643ba8bc45f0"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "rev-games",
+          "appId": "1:499753779409:android:439fd26b8ef3c577bc45f0",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "rev-games",
+          "appId": "1:499753779409:ios:5c464ab73202a5f0bc45f0",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "rev-games",
+          "configurations": {
+            "android": "1:499753779409:android:439fd26b8ef3c577bc45f0",
+            "ios": "1:499753779409:ios:5c464ab73202a5f0bc45f0",
+            "web": "1:499753779409:web:32cb95bc03643ba8bc45f0"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "/index.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/flutter_service_worker.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/flutter_bootstrap.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/manifest.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/version.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "**/*.@(png|ico|svg|woff2|otf|ttf|wav)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=86400"
+          }
+        ]
+      }
+    ]
+  }
+}

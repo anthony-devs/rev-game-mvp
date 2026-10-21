@@ -2,7 +2,7 @@ import 'package:equatable/equatable.dart';
 
 import 'model_json.dart';
 
-/// Virtual credits balance. Firestore path: `wallets/{uid}`.
+/// Coins balance (demo or live). Firestore path: `wallets/{uid}`.
 ///
 /// The balance is only ever changed by the server (Cloud Function). The app reads it
 /// and shows it. Never write a new balance from the client.
@@ -15,7 +15,7 @@ class Wallet extends Equatable {
   });
 
   static const Wallet empty = Wallet(userId: '');
-  static const String currency = 'credits';
+  static const String currency = 'coins';
   static const Duration dailyCooldown = Duration(hours: 24);
 
   final String userId;

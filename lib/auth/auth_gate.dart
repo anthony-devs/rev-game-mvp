@@ -7,7 +7,6 @@ import '../shell/main_shell.dart';
 import '../user/bloc/profile_cubit.dart';
 import '../user/pages/age_gate_page.dart';
 import 'bloc/auth_bloc.dart';
-import 'pages/login_page.dart';
 
 /// Picks the screen: sign in, splash (loading), age check, or the app.
 /// Rebuilds only when one of those answers changes.
@@ -17,7 +16,8 @@ class AuthGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final signedIn = context.select((AuthBloc b) => b.state.isAuthenticated);
-    if (!signedIn) return const LoginPage();
+    // Visitors can look around the whole lobby. Playing needs an account (see requireSignIn).
+    if (!signedIn) return const MainShell(guest: true);
 
     final ready = context.select((ProfileCubit c) => c.state.profileReady);
     if (!ready) return const SplashPage();

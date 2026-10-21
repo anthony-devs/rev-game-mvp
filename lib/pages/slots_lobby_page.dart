@@ -7,6 +7,7 @@ import '../components/components.dart';
 import '../games/game_launcher.dart';
 import '../model/model.dart';
 import '../user/bloc/profile_cubit.dart';
+import 'round_format.dart';
 import 'widgets/lobby_tile.dart';
 
 /// L3. The Slots tab: the playable slot, then the ones on their way.
@@ -71,7 +72,7 @@ class _Featured extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              GameArt(kind: GameKind.slots, borderRadius: 0),
+              GameArt(kind: game.kind, borderRadius: 0),
               Positioned(
                 left: 18,
                 right: 18,

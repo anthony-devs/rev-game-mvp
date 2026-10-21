@@ -16,7 +16,14 @@ const _svgCherry =
 const _svgDiamond =
     '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M16 12H48L58 26L32 56L6 26Z" fill="#2E9BFF" stroke="#14508F" stroke-width="3" stroke-linejoin="round"/><path d="M6 26H58M16 12L24 26L32 56M48 12L40 26L32 56M24 26L32 12L40 26" stroke="#FFFFFF" stroke-opacity="0.65" stroke-width="2" fill="none" stroke-linejoin="round"/></svg>';
 
+const _svgClover =
+    '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><g fill="#2FBF5B" stroke="#14702F" stroke-width="3"><circle cx="22" cy="22" r="11"/><circle cx="42" cy="22" r="11"/><circle cx="22" cy="40" r="11"/><circle cx="42" cy="40" r="11"/></g><path d="M32 32L36 58" stroke="#14702F" stroke-width="4" stroke-linecap="round"/><path d="M18 20c3-3 6-3 8 0M38 20c3-3 6-3 8 0" stroke="#A8F0B8" stroke-width="2.5" stroke-linecap="round" fill="none"/></svg>';
+const _svgStar =
+    '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M32 5L40 24L60 26L45 39L49.5 59L32 48.5L14.5 59L19 39L4 26L24 24Z" fill="#FFC83D" stroke="#9A6A00" stroke-width="3" stroke-linejoin="round"/><path d="M32 14L36 25" stroke="#FFF0B3" stroke-width="3" stroke-linecap="round"/></svg>';
+
 const _svgFor = {
+  SlotSymbol.clover: _svgClover,
+  SlotSymbol.star: _svgStar,
   SlotSymbol.seven: _svgSeven,
   SlotSymbol.bar: _svgBar,
   SlotSymbol.bell: _svgBell,

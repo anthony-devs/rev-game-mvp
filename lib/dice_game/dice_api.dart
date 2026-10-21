@@ -9,7 +9,7 @@ import '../model/model_json.dart';
 class DiceMath {
   DiceMath._();
 
-  /// Matches the server: demo credits pay more than fair, live money keeps a 5% house edge.
+  /// Matches the server: demo coins pay more than fair, live money keeps a 5% house edge.
   static double get houseEdge => PlayMode.isLive ? 0.05 : -0.15;
   static const double minTarget = 10;
   static const double maxTarget = 90;

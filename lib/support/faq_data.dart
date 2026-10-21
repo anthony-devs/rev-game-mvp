@@ -3,15 +3,15 @@ import 'package:flutter/material.dart';
 import '../model/model.dart';
 
 /// Sections of the Help Centre.
-enum FaqCategory { start, credits, fairness, slots, roulette, blackjack, dice, plinko, crash, account, support }
+enum FaqCategory { start, coins, fairness, slots, roulette, blackjack, dice, plinko, crash, mines, baccarat, wheel, keno, hilo, account, support }
 
 extension FaqCategoryX on FaqCategory {
   String get label {
     switch (this) {
       case FaqCategory.start:
         return 'Getting started';
-      case FaqCategory.credits:
-        return 'Credits';
+      case FaqCategory.coins:
+        return 'Coins';
       case FaqCategory.fairness:
         return 'Fairness';
       case FaqCategory.slots:
@@ -26,6 +26,16 @@ extension FaqCategoryX on FaqCategory {
         return 'Plinko';
       case FaqCategory.crash:
         return 'Crash';
+      case FaqCategory.mines:
+        return 'Mines';
+      case FaqCategory.baccarat:
+        return 'Baccarat';
+      case FaqCategory.wheel:
+        return 'Lucky Wheel';
+      case FaqCategory.keno:
+        return 'Keno';
+      case FaqCategory.hilo:
+        return 'Hi-Lo';
       case FaqCategory.account:
         return 'Account & limits';
       case FaqCategory.support:
@@ -37,7 +47,7 @@ extension FaqCategoryX on FaqCategory {
     switch (this) {
       case FaqCategory.start:
         return Icons.rocket_launch_outlined;
-      case FaqCategory.credits:
+      case FaqCategory.coins:
         return Icons.toll_rounded;
       case FaqCategory.fairness:
         return Icons.verified_user_outlined;
@@ -53,6 +63,16 @@ extension FaqCategoryX on FaqCategory {
         return Icons.scatter_plot_rounded;
       case FaqCategory.crash:
         return Icons.show_chart_rounded;
+      case FaqCategory.mines:
+        return Icons.grid_view_rounded;
+      case FaqCategory.baccarat:
+        return Icons.style_rounded;
+      case FaqCategory.wheel:
+        return Icons.data_usage_rounded;
+      case FaqCategory.keno:
+        return Icons.apps_rounded;
+      case FaqCategory.hilo:
+        return Icons.swap_vert_rounded;
       case FaqCategory.account:
         return Icons.tune_rounded;
       case FaqCategory.support:
@@ -76,6 +96,18 @@ FaqCategory faqCategoryFor(GameType t) {
       return FaqCategory.plinko;
     case GameType.crash:
       return FaqCategory.crash;
+    case GameType.mines:
+      return FaqCategory.mines;
+    case GameType.baccarat:
+      return FaqCategory.baccarat;
+    case GameType.wheel:
+      return FaqCategory.wheel;
+    case GameType.keno:
+      return FaqCategory.keno;
+    case GameType.hilo:
+      return FaqCategory.hilo;
+    default:
+      return FaqCategory.start;
   }
 }
 
@@ -91,30 +123,30 @@ class Faq {
 
 const List<Faq> kFaqs = [
   // ---- getting started
-  Faq(FaqCategory.start, 'Are credits real money?',
-      'No. Credits are virtual. You cannot buy, sell, deposit or withdraw them, and they have no cash value. REV GAMES is a demo for fun only.'),
+  Faq(FaqCategory.start, 'What is the difference between Coins and Live play?',
+      'Coins are free to play with (each coin is worth ₦5, shown for reference only): they have no cash value and cannot be cashed out. Your live balance is used for real-money play. You can switch between them from the balance at the top.'),
   Faq(FaqCategory.start, 'Which games can I play?',
-      'Golden Reels (slots), Euro Roulette, Blackjack, Dice and Dash Crash. Every game has a How to play guide: open the game and tap the question mark.'),
+      'Golden Reels and Lucky Sevens (slots), Euro Roulette, Blackjack, Baccarat, Dice, Dash Crash, Plinko, Mines, Lucky Wheel, Keno and Hi-Lo. Every game has a How to play guide: open the game and tap the question mark.'),
   Faq(FaqCategory.start, 'Is my progress saved?',
       'Yes. Your balance, level and history are stored in your account, so they follow you to a new phone when you sign in. Guest accounts are only saved on that sign-in, so link an email to keep them safe.'),
   Faq(FaqCategory.start, 'The app says it cannot reach the server',
-      'Check your connection and try again. Your credits are safe, because they live on our server and not on your phone. If it keeps happening, message support from Help.'),
+      'Check your connection and try again. Your coins are safe, because they live on our server and not on your phone. If it keeps happening, message support from Help.'),
 
-  // ---- credits
-  Faq(FaqCategory.credits, 'How do rounds work?',
-      'Every round you play, in any game, uses one round. You get 14 free rounds, shared by all games, and they come back 6 hours after the first round of each period. Tap the lightning-bolt counter at the top of any screen to see how many you have left and when more free rounds arrive. Demo credits and real money each have their own rounds.'),
-  Faq(FaqCategory.credits, 'Can I buy more rounds?',
-      'Yes. When you run out, open the rounds counter and choose a pack. Each extra round costs 50 (credits in demo, naira in live), taken from your balance. Extra rounds never expire and are used after your free rounds. Every round uses our servers and storage, and the fee helps us keep the games running. Purchases cannot be refunded once made.'),
-  Faq(FaqCategory.credits, 'How do I get more credits?',
-      'Open the wallet and tap Get demo credits. You can claim a daily reward every 24 hours. Claim on consecutive days to build a streak: days 1 to 7 pay 1,000, 1,000, 1,500, 2,000, 2,500, 3,000 and 10,000. You can also reset your balance back to 10,000 at any time.'),
-  Faq(FaqCategory.credits, 'How does the daily streak work?',
+  // ---- coins
+  Faq(FaqCategory.coins, 'How do rounds work?',
+      'Every round you play, in any game, uses one round. You get 14 free rounds, shared by all games, and they come back 6 hours after the first round of each period. Tap the lightning-bolt counter at the top of any screen to see how many you have left and when more free rounds arrive. Coins and live money each have their own rounds.'),
+  Faq(FaqCategory.coins, 'Can I buy more rounds?',
+      'Yes. When you run out, open the rounds counter and choose a pack. Each extra round costs 2 coins (or ₦50 in live), taken from your balance. Extra rounds never expire and are used after your free rounds. Every round uses our servers and storage, and the fee helps us keep the games running. Purchases cannot be refunded once made.'),
+  Faq(FaqCategory.coins, 'How do I get more coins?',
+      'Open the wallet and tap Get free coins. You can claim a daily reward every 24 hours. Claim on consecutive days to build a streak: days 1 to 7 pay 20, 20, 30, 40, 50, 60 and 200 coins. You can also reset your balance back to 200 coins at any time.'),
+  Faq(FaqCategory.coins, 'How does the daily streak work?',
       'Claim again within 48 hours of your last claim and the streak grows by one day. Miss that window and it starts again from day 1.'),
-  Faq(FaqCategory.credits, 'My balance looks wrong',
+  Faq(FaqCategory.coins, 'My balance looks wrong',
       'The server holds your real balance. During a round the app keeps the number steady while the animation plays, then updates it. If it still looks wrong, close and reopen the app. If it is still wrong, open a support ticket and attach a screenshot of your History.'),
-  Faq(FaqCategory.credits, 'Why are free credits paused?',
-      'Free credits (daily reward, top up, reset) are paused while an account has a restriction, and for a while after a suspension or restriction ends. The banner on the home screen shows when they come back.'),
-  Faq(FaqCategory.credits, 'What is the bet cap on probation?',
-      'After a suspension or restriction ends, your account is on probation for a short time. You can play, but each bet is capped and free credits stay paused. Everything returns to normal on its own when probation finishes.'),
+  Faq(FaqCategory.coins, 'Why are free coins paused?',
+      'Free coins (daily reward, top up, reset) are paused while an account has a restriction, and for a while after a suspension or restriction ends. The banner on the home screen shows when they come back.'),
+  Faq(FaqCategory.coins, 'What is the bet cap on probation?',
+      'After a suspension or restriction ends, your account is on probation for a short time. You can play, but each bet is capped and free coins stay paused. Everything returns to normal on its own when probation finishes.'),
 
   // ---- fairness
   Faq(FaqCategory.fairness, 'How are results decided?',
@@ -125,13 +157,13 @@ const List<Faq> kFaqs = [
   Faq(FaqCategory.fairness, 'Why does a round say "pending"?',
       'Some rounds need one extra step before they can be checked. Open the round and tap Complete check.'),
   Faq(FaqCategory.fairness, 'What does RTP mean?',
-      'Return to player. A 96% RTP means that over a very long time the game pays back 96 credits for every 100 bet. A single session can be far above or below that.'),
+      'Return to player. A 96% RTP means that over a very long time the game pays back 96 coins for every 100 bet. A single session can be far above or below that.'),
 
   // ---- slots
   Faq(FaqCategory.slots, 'How do I win on Golden Reels?',
       'Golden Reels has 3 reels and 1 payline. Pick a bet and spin. If the symbols on the line match a winning combination you are paid straight away. Open the Paytable to see every combination. The return to player is 96%.'),
   Faq(FaqCategory.slots, 'What are the bet sizes?',
-      'You can bet 10, 20, 50, 100, 200, 500 or 1,000 credits per spin.'),
+      'You can bet 10, 20, 50, 100, 200 or 500 per spin (coins in demo, naira in live).'),
 
   // ---- roulette
   Faq(FaqCategory.roulette, 'Which roulette is it?',
@@ -139,7 +171,7 @@ const List<Faq> kFaqs = [
   Faq(FaqCategory.roulette, 'What do the bets pay?',
       'A single number pays 35 to 1. Dozens pay 2 to 1. Red or black, odd or even and low or high pay 1 to 1. When the ball lands on 0, all outside bets lose.'),
   Faq(FaqCategory.roulette, 'How much can I bet?',
-      'At least 10 credits per chip and up to 100,000 credits in total on one spin.'),
+      'At least 10 coins per chip and up to 5,000 in total on one spin.'),
 
   // ---- blackjack
   Faq(FaqCategory.blackjack, 'What are the blackjack rules?',
@@ -167,11 +199,41 @@ const List<Faq> kFaqs = [
   Faq(FaqCategory.crash, 'I lost connection during a round',
       'The round carries on on the server. Reopen the game and, if you set an automatic cash out, it still applies. Open History to see how the round ended.'),
 
+  // ---- mines
+  Faq(FaqCategory.mines, 'How does Mines work?',
+      'Choose your bet and how many mines hide on the 5 by 5 board, then open tiles. Every safe tile raises your multiplier. Cash out any time to collect your bet times the multiplier. If you open a mine, the round ends and the bet is lost.'),
+  Faq(FaqCategory.mines, 'How is the multiplier worked out?',
+      'It follows the real chance of getting this far. More mines means each safe tile is rarer, so the multiplier climbs faster. The return to player is 96%, and the multiplier for your next tile is shown on screen.'),
+  Faq(FaqCategory.mines, 'I left in the middle of a round',
+      'Your round is saved on the server. Open Mines again and you will carry on where you stopped. You cannot start a new round until it is finished.'),
+
+  // ---- baccarat
+  Faq(FaqCategory.baccarat, 'How does Baccarat work?',
+      'Bet on Player, Banker or Tie. Two cards are dealt to each side and a third card may follow by fixed rules. The hand closest to 9 wins. Aces count 1, tens and face cards count 0, and only the last digit of the total counts.'),
+  Faq(FaqCategory.baccarat, 'What do the bets pay?',
+      'Player pays 1 to 1. Banker pays 1 to 1 minus a 5% commission, because the Banker wins slightly more often. Tie pays 8 to 1. If the round ties, Player and Banker bets are returned.'),
+
+  // ---- lucky wheel
+  Faq(FaqCategory.wheel, 'How does the Lucky Wheel work?',
+      'Choose a risk level and your bet, then spin. The wheel has 20 equal segments and the one it stops on pays its multiplier on your bet. Low risk has many small wins. High risk has mostly empty segments and a few big ones. The return to player is 96%.'),
+
+  // ---- keno
+  Faq(FaqCategory.keno, 'How does Keno work?',
+      'Pick 1 to 10 numbers from 1 to 40, set your bet and play. Ten numbers are drawn. The more of your picks are drawn, the bigger the multiplier. The pay table for your number of picks is shown on screen. The return to player is 96%.'),
+  Faq(FaqCategory.keno, 'How many numbers should I pick?',
+      'Fewer picks win more often but pay less. More picks win rarely but pay a lot more when most of them hit. Every choice has the same return to player.'),
+
+  // ---- hi-lo
+  Faq(FaqCategory.hilo, 'How does Hi-Lo work?',
+      'A card is shown. Guess whether the next card is higher or lower. Aces are low and kings are high, and the same rank counts as a win for both guesses. Every right guess raises your multiplier by the real chance of that guess. Cash out any time. A wrong guess loses the bet.'),
+  Faq(FaqCategory.hilo, 'I left in the middle of a round',
+      'Your round is saved on the server. Open Hi-Lo again and you will carry on where you stopped. You cannot start a new round until it is finished.'),
+
   // ---- account
   Faq(FaqCategory.account, 'How do play limits work?',
       'In Settings, open Play limits. You can turn on reality check reminders, a loss limit per session, a highest bet, or take a break. These are set by you, and they apply to every game.'),
   Faq(FaqCategory.account, 'How do I delete my account?',
-      'Open Settings, then your profile, then Delete account. This permanently removes your profile, credits, level, history and support messages. It is not possible while your account has an open restriction or probation.'),
+      'Open Settings, then your profile, then Delete account. This permanently removes your profile, coins, level, history and support messages. It is not possible while your account has an open restriction or probation.'),
   Faq(FaqCategory.account, 'I cannot sign in',
       'Use Forgot password on the sign in screen to reset it by email. If you used phone sign in, check you are using the same number. If you are still stuck, message support from the Help Centre.'),
 

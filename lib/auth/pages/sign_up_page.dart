@@ -76,7 +76,7 @@ class _SignUpViewState extends State<_SignUpView> {
       builder: (context, state) {
         return AuthLayout(
           title: 'Create account',
-          subtitle: 'Free to join. Play with virtual credits only, no real money.',
+          subtitle: 'Create your account to start playing.',
           children: [
             AuthBanner(error: state.error, info: state.info),
             AutofillGroup(
@@ -124,7 +124,9 @@ class _SignUpViewState extends State<_SignUpView> {
               loading: state.busy == AuthMethod.email,
               onPressed: state.isBusy ? null : _submit,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            const AuthLegalNote(action: 'creating an account'),
+            const SizedBox(height: 8),
             AuthLink(
               prefix: 'Already have an account?',
               action: 'Sign in',

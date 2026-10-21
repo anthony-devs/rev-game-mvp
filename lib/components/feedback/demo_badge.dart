@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
 import '../core/app_text.dart';
 
-/// Small outlined tag. Default text is DEMO.
+/// Small outlined tag. Default text is COINS.
 ///
 /// ```dart
 /// DemoBadge()
 /// DemoBadge(label: 'NEW', color: AppColors.green)
 /// ```
 class DemoBadge extends StatelessWidget {
-  const DemoBadge({super.key, this.label = 'DEMO', this.color, this.fontSize = 10});
+  const DemoBadge({super.key, this.label = 'COINS', this.color, this.fontSize = 10});
 
   final String label;
   final Color? color;

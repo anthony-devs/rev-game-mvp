@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:open_filex/open_filex.dart';
@@ -37,6 +38,10 @@ class AttachmentView extends StatelessWidget {
             child: Center(child: InteractiveViewer(child: Image.memory(bytes))),
           ),
         );
+        return;
+      }
+      if (kIsWeb) {
+        showToast(context, 'Open this file in the REV GAMES app to view it.');
         return;
       }
       final dir = await getTemporaryDirectory();

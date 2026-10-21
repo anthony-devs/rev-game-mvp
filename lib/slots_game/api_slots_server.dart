@@ -5,12 +5,18 @@ import 'slots_server.dart';
 
 /// Slots backed by the real game server.
 class ApiSlotsServer implements SlotsServer {
-  ApiSlotsServer(this._api);
+  ApiSlotsServer(this._api, {this.game = 'slots'});
 
   final ApiClient _api;
 
-  /// The last config the server sent. Slots opens with this at once and refreshes it quietly.
-  static SlotsConfig? cached;
+  /// Which machine: slots (Golden Reels), or lucky7.
+  @override
+  final String game;
+
+  /// The last config the server sent for each machine. A machine opens with this at once and refreshes it quietly.
+  static final Map<String, SlotsConfig> _cache = {};
+  static SlotsConfig? cachedFor(String game) => _cache[game];
+  static void clearCache() => _cache.clear();
 
   /// Fetch the config ahead of time (after sign in), so the game doesn't open on a spinner.
   static Future<void> prefetch(ApiClient api) async {
@@ -21,8 +27,8 @@ class ApiSlotsServer implements SlotsServer {
 
   @override
   Future<SlotsConfig> fetchConfig() async {
-    final j = await _api.get('/v1/slots/config');
-    return cached = SlotsConfig(
+    final j = await _api.get('/v1/slots/config?game=$game');
+    final cfg = SlotsConfig(
       minBet: parseDouble(j['minBet']),
       maxBet: parseDouble(j['maxBet']),
       betSteps: [for (final s in (j['betSteps'] as List? ?? const [])) parseDouble(s)],
@@ -39,12 +45,24 @@ class ApiSlotsServer implements SlotsServer {
             0,
           ),
       ],
+      pairSymbol: _pair(j['payRows']),
     );
+    _cache[game] = cfg;
+    return cfg;
+  }
+
+  /// A pay row with two symbols is the "any 2" row. Its symbol is the one that pays on two.
+  SlotSymbol? _pair(Object? rows) {
+    for (final r in (rows as List? ?? const [])) {
+      final syms = parseMap(r)['symbols'] as List? ?? const [];
+      if (syms.length == 2) return _symbol(syms.first);
+    }
+    return null;
   }
 
   @override
   Future<SpinResult> spin(double bet) async {
-    final j = await _api.post('/v1/slots/spin', {'bet': bet});
+    final j = await _api.post('/v1/slots/spin', {'bet': bet, 'game': game});
     return SpinResult(
       columns: [
         for (final col in (j['columns'] as List? ?? const []))

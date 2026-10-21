@@ -3,11 +3,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../auth/require_sign_in.dart';
 import '../blackjack_game/blackjack_page.dart';
 import '../catalog/catalog_cubit.dart';
 import '../crash_game/crash_page.dart';
 import '../dice_game/dice_page.dart';
+import '../baccarat_game/baccarat_page.dart';
 import '../catalog/upcoming.dart';
+import '../hilo_game/hilo_page.dart';
+import '../keno_game/keno_page.dart';
+import '../mines_game/mines_page.dart';
+import '../wheel_game/wheel_page.dart';
+import '../arcade/arcade_instant_page.dart';
+import '../arcade/ladder_page.dart';
 import '../pages/coming_soon_page.dart';
 import '../user/bloc/profile_cubit.dart';
 import '../plinko_game/plinko_page.dart';
@@ -31,6 +39,8 @@ void openGame(BuildContext context, GameInfo game, {bool viaDetails = false}) {
     pushPage<void>(context, GameUnavailablePage(name: game.name));
     return;
   }
+  // Visitors can browse, but playing needs an account.
+  if (!requireSignIn(context)) return;
   final catalog = context.read<CatalogCubit>();
   if (catalog.state.locked) {
     unawaited(catalog.refresh());
@@ -78,6 +88,29 @@ Widget gamePage(GameInfo game) {
       return DicePage(info: game);
     case GameType.plinko:
       return PlinkoPage(info: game);
+    case GameType.mines:
+      return MinesPage(info: game);
+    case GameType.baccarat:
+      return BaccaratPage(info: game);
+    case GameType.wheel:
+      return WheelPage(info: game);
+    case GameType.keno:
+      return KenoPage(info: game);
+    case GameType.hilo:
+      return HiLoPage(info: game);
+    case GameType.limbo:
+    case GameType.coinflip:
+    case GameType.rps:
+    case GameType.darts:
+    case GameType.scratch:
+    case GameType.diamonds:
+    case GameType.war:
+      return ArcadeInstantPage(info: game);
+    case GameType.tower:
+    case GameType.chicken:
+    case GameType.pump:
+    case GameType.moles:
+      return LadderPage(info: game);
   }
 }
 

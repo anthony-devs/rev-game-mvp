@@ -47,7 +47,7 @@ class _PlinkoPageState extends State<PlinkoPage> with GameSessionMixin<PlinkoPag
   final List<({double multiplier, bool win})> _history = [];
 
   double get _minBet => _quote?.minBet ?? widget.info?.minBet ?? 10;
-  double get _boardMax => _quote?.maxBet ?? widget.info?.maxBet ?? 100000;
+  double get _boardMax => _quote?.maxBet ?? widget.info?.maxBet ?? 2000;
   double get _maxBet => maxBetFor(_boardMax);
 
   @override

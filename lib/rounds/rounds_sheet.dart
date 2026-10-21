@@ -8,6 +8,7 @@ import '../core/api/api_client.dart';
 import '../core/api/rounds_hub.dart';
 import '../live/add_funds.dart';
 import '../live/live_cubit.dart';
+import '../referral/referral_page.dart';
 
 /// Opens the Rounds sheet: how many rounds are left, when free ones come back, and extra round packs.
 Future<void> showRoundsSheet(BuildContext context) =>
@@ -167,7 +168,7 @@ class _RoundsBodyState extends State<_RoundsBody> {
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: AppButton(
-                    label: info.live ? 'Add money' : 'Get demo credits',
+                    label: info.live ? 'Add money' : 'Get free coins',
                     variant: AppButtonVariant.outline,
                     height: 48,
                     onPressed: () {
@@ -176,6 +177,10 @@ class _RoundsBodyState extends State<_RoundsBody> {
                     },
                   ),
                 ),
+            ],
+            if (!info.live) ...[
+              const SizedBox(height: 12),
+              InviteCard(compact: true),
             ],
             const SizedBox(height: 12),
             Text(

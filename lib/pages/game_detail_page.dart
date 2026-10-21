@@ -34,10 +34,22 @@ class GameDetailPage extends StatelessWidget {
         return 'Cash out before the multiplier crashes';
       case GameType.plinko:
         return 'Drop the ball and hit a big multiplier';
+      case GameType.mines:
+        return 'Open tiles, avoid the mines, cash out any time';
+      case GameType.baccarat:
+        return 'Bet on the Player, the Banker or a Tie';
+      case GameType.wheel:
+        return 'Spin the wheel and land on a multiplier';
+      case GameType.keno:
+        return 'Pick your numbers and match the draw';
+      case GameType.hilo:
+        return 'Guess higher or lower and build a streak';
+      default:
+        return const {GameType.limbo: 'Pick a target and beat the multiplier', GameType.coinflip: 'Call heads or tails', GameType.rps: 'Beat the house at rock paper scissors', GameType.darts: 'Throw a dart and hit a multiplier', GameType.scratch: 'Scratch and match three to win', GameType.diamonds: 'Match gems for big wins', GameType.war: 'Draw a higher card than the dealer', GameType.tower: 'Climb the tower, pick the safe tile', GameType.chicken: 'Cross the road, cash out before you are hit', GameType.pump: 'Pump the balloon, cash out before it pops', GameType.moles: 'Pick a hole and avoid the mole'}[t] ?? '';
     }
   }
 
-  static String _how(GameType t) {
+  static String howTo(GameType t) {
     switch (t) {
       case GameType.slots:
         return 'Set your bet and spin. Three matching symbols on the payline pay your bet times the multiplier. Every result is decided on the server before the reels stop.';
@@ -51,6 +63,18 @@ class GameDetailPage extends StatelessWidget {
         return 'Choose your risk and the number of rows, then drop the ball. It bounces left or right at every peg and lands in a slot that pays its multiplier. Slots at the edges pay the most.';
       case GameType.crash:
         return 'The multiplier climbs from 1.00x. Cash out any time to win your bet times the multiplier, but if it crashes first the bet is lost.';
+      case GameType.mines:
+        return 'Choose how many mines hide on the 5 by 5 board, then open tiles. Every safe tile raises your multiplier. Cash out before you hit a mine, or lose the bet.';
+      case GameType.baccarat:
+        return 'Bet on the Player or the Banker hand, whichever you think will finish closer to 9, or on a Tie. Cards are drawn automatically by the standard rules.';
+      case GameType.wheel:
+        return 'Choose a risk level and spin. The wheel has 20 segments and the one it stops on pays its multiplier. Low risk pays often, high risk pays big and rarely.';
+      case GameType.keno:
+        return 'Pick 1 to 10 numbers from 1 to 40, then 10 numbers are drawn. The more of your picks are drawn, the more you win. Fewer picks pay less but hit more often.';
+      case GameType.hilo:
+        return 'A card is shown. Guess whether the next card is higher or lower (the same rank counts for both). Every right guess raises your multiplier. Cash out any time, or a wrong guess loses the bet.';
+      default:
+        return const {GameType.limbo: 'Choose a target multiplier. A multiplier is drawn: if it reaches your target you win your bet times the target. A higher target pays more but is less likely.', GameType.coinflip: 'Call heads or tails and flip. Call it right and your bet pays almost double.', GameType.rps: 'Pick rock, paper or scissors. Beat the house to win about double. A draw returns your bet.', GameType.darts: 'Choose a risk level and throw. The segment you hit pays its multiplier. Low risk pays often, high risk pays big and rarely.', GameType.scratch: 'Scratch the card. Match three tiles to win the prize. Prizes go from small to very large.', GameType.diamonds: 'Five gems are drawn from seven colours. Matching gems pay: two pairs, three, a full house, four or five of a kind.', GameType.war: 'You and the dealer each draw one card. The higher card wins. A tie returns your bet.', GameType.tower: 'Pick one tile on every level. Safe tiles move you up and raise your multiplier. A bad tile ends the round. Cash out any time.', GameType.chicken: 'Press CROSS to move to the next lane. Each lane raises your multiplier, but a lane can be unsafe. Cash out any time.', GameType.pump: 'Press PUMP to inflate the balloon. Every pump raises your multiplier but the balloon can pop. Cash out before it does.', GameType.moles: 'Pick one hole on every level. A safe hole raises your multiplier, a mole ends the round. Cash out any time.'}[t] ?? '';
     }
   }
 
@@ -68,6 +92,18 @@ class GameDetailPage extends StatelessWidget {
         return '×5,000';
       case GameType.plinko:
         return '×400';
+      case GameType.mines:
+        return '×1,000+';
+      case GameType.baccarat:
+        return '×9';
+      case GameType.wheel:
+        return '×10';
+      case GameType.keno:
+        return '×1,000+';
+      case GameType.hilo:
+        return '×1,000+';
+      default:
+        return const {GameType.limbo: '×1,000', GameType.coinflip: '×2', GameType.rps: '×2', GameType.darts: '×16', GameType.scratch: '×100', GameType.diamonds: '×50', GameType.war: '×2', GameType.tower: '×1,000+', GameType.chicken: '×1,000+', GameType.pump: '×25', GameType.moles: '×1,000+'}[t] ?? '';
     }
   }
 
@@ -79,7 +115,7 @@ class GameDetailPage extends StatelessWidget {
     final settings = context.select((ProfileCubit c) => c.state.settings);
     final uid = context.select((ProfileCubit c) => c.state.dataId);
     final isFav = favs.contains(game.id);
-    final accent = GameArtStyle.accentOf(game.type.kind);
+    final accent = GameArtStyle.accentOf(game.kind);
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -93,7 +129,7 @@ class GameDetailPage extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                GameArt(kind: game.type.kind, borderRadius: 0),
+                GameArt(kind: game.kind, borderRadius: 0),
               ],
             ),
           ),
@@ -139,7 +175,7 @@ class GameDetailPage extends StatelessWidget {
                       const SizedBox(height: 20),
                       Text('HOW IT WORKS', style: AppText.label()),
                       const SizedBox(height: 8),
-                      Text(_how(game.type), style: AppText.body(14, color: AppColors.textMuted, height: 1.55)),
+                      Text(howTo(game.type), style: AppText.body(14, color: AppColors.textMuted, height: 1.55)),
                       const SizedBox(height: 12),
                       Align(
                         alignment: Alignment.centerLeft,

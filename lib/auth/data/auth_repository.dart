@@ -61,6 +61,21 @@ class AuthRepository {
   // ---- Google -------------------------------------------------------------
 
   Future<void> signInWithGoogle() async {
+    if (kIsWeb) {
+      // Browsers use Firebase's own pop-up. The google_sign_in plugin is for phones.
+      try {
+        await _auth.signInWithPopup(GoogleAuthProvider());
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'popup-closed-by-user' || e.code == 'cancelled-popup-request' || e.code == 'web-context-canceled') throw const AuthFailure.cancelled();
+        if (e.code == 'popup-blocked') throw const AuthFailure('Your browser blocked the sign-in window. Allow pop-ups for this site and try again.');
+        throw AuthFailure.fromCode(e.code);
+      }
+      return;
+    }
+    // Without the iOS client id from Firebase, the Google sign-in library closes the whole app.
+    if (defaultTargetPlatform == TargetPlatform.iOS && DefaultFirebaseOptions.ios.iosClientId == null) {
+      throw const AuthFailure('Google sign-in is not available right now. Use email, phone or Apple instead.');
+    }
     try {
       await (_googleReady ??= _initGoogle());
       final account = await _google.authenticate();
@@ -76,6 +91,38 @@ class AuthRepository {
   Future<void> _initGoogle() {
     final isIos = defaultTargetPlatform == TargetPlatform.iOS;
     return _google.initialize(clientId: isIos ? DefaultFirebaseOptions.ios.iosClientId : null);
+  }
+
+  // ---- Apple --------------------------------------------------------------
+
+  /// Sign in with Apple (iPhone and iPad). Needs the Apple provider switched on in Firebase and the
+  /// Sign in with Apple capability on the app.
+  Future<void> signInWithApple() async {
+    try {
+      final provider = AppleAuthProvider()
+        ..addScope('email')
+        ..addScope('name');
+      await _auth.signInWithProvider(provider);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'canceled' || e.code == 'web-context-canceled' || e.code == 'web-context-cancelled') throw const AuthFailure.cancelled();
+      throw AuthFailure.fromCode(e.code);
+    }
+  }
+
+  /// Apple requires the Sign in with Apple link to be cut when an account is deleted.
+  /// Asks Apple once more, then revokes the token. Does nothing for other sign-in types.
+  /// Throws [AuthFailure.cancelled] when the player closes the Apple sheet.
+  Future<void> revokeAppleAccess() async {
+    final user = _auth.currentUser;
+    if (user == null || !user.providerData.any((p) => p.providerId == 'apple.com')) return;
+    try {
+      final result = await user.reauthenticateWithProvider(AppleAuthProvider());
+      final code = result.additionalUserInfo?.authorizationCode;
+      if (code != null && code.isNotEmpty) await _auth.revokeTokenWithAuthorizationCode(code);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'canceled' || e.code == 'web-context-canceled' || e.code == 'web-context-cancelled') throw const AuthFailure.cancelled();
+      rethrow;
+    }
   }
 
   // ---- Guest --------------------------------------------------------------
@@ -124,10 +171,12 @@ class AuthRepository {
   // ---- Session ------------------------------------------------------------
 
   Future<void> signOut() async {
-    try {
-      await _google.signOut();
-    } catch (_) {}
+    // Firebase first: this is what actually signs the player out. The Google plugin can hang on the web,
+    // so it comes after, with a time limit, and can never hold sign out up.
     await _auth.signOut();
+    try {
+      await _google.signOut().timeout(const Duration(seconds: 2));
+    } catch (_) {}
   }
 
   // ---- helpers ------------------------------------------------------------

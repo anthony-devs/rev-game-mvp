@@ -40,20 +40,6 @@ const Map<String, UpcomingInfo> _info = {
     about: 'A fast, classic slot built around sevens, bars and bells with a bold paytable.',
     features: ['3 reels, 1 payline', 'Classic symbols', 'Provably fair'],
   ),
-  'fruit': UpcomingInfo(
-    kind: GameKind.fruit,
-    icon: Icons.local_florist_rounded,
-    tagline: 'Juicy wins, bright reels',
-    about: 'A colourful fruit slot with frequent small wins and a big top prize.',
-    features: ['Frequent wins', 'Bright, fast reels', 'Provably fair'],
-  ),
-  'diamond': UpcomingInfo(
-    kind: GameKind.diamond,
-    icon: Icons.diamond_outlined,
-    tagline: 'Luxury reels, premium prizes',
-    about: 'A glittering slot where diamonds pay the most. Higher volatility, bigger moments.',
-    features: ['Premium paytable', 'High volatility', 'Provably fair'],
-  ),
 };
 
 String slugOf(String gameId) => gameId.startsWith('soon-') ? gameId.substring(5) : gameId;

@@ -6,7 +6,7 @@ import '../core/app_text.dart';
 /// Expandable question and answer (Help).
 ///
 /// ```dart
-/// FaqTile(question: 'Is this real money?', answer: 'No. Credits are virtual.')
+/// FaqTile(question: 'Is this real money?', answer: 'No. Coins are virtual.')
 /// ```
 class FaqTile extends StatelessWidget {
   const FaqTile({super.key, required this.question, required this.answer, this.initiallyExpanded = false});

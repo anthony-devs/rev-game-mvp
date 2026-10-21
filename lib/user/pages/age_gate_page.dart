@@ -63,7 +63,7 @@ class _AgeGatePageState extends State<AgeGatePage> {
               style: AppText.body(14, color: AppColors.textMuted, height: 1.5),
             ),
             const SizedBox(height: 22),
-            const _Bullet('Demo play uses credits with no cash value'),
+            const _Bullet('Coins have no cash value'),
             const _Bullet('Live play uses your own money, after you accept the Live Money Agreement'),
             const _Bullet('You can set limits or take a break at any time'),
             if (_error != null) ...[

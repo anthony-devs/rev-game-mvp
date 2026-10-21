@@ -343,7 +343,7 @@ class _AppealFormState extends State<_AppealForm> {
 }
 
 /// A slim notice on the home screen for things that don't stop play:
-/// paused free credits, probation, a payout restriction that leaves play open.
+/// paused free coins, probation, a payout restriction that leaves play open.
 class StandingBanner extends StatelessWidget {
   const StandingBanner({super.key});
 
@@ -355,10 +355,10 @@ class StandingBanner extends StatelessWidget {
     Color color = AppColors.gold;
     if (soft.isNotEmpty) {
       final a = soft.first;
-      text = '${_lookFor(a.type).title}: free credits are paused${a.expiresAt != null ? ' until ${formatWhen(a.expiresAt!)}' : ''}.';
+      text = '${_lookFor(a.type).title}: free coins are paused${a.expiresAt != null ? ' until ${formatWhen(a.expiresAt!)}' : ''}.';
     } else if (s.onProbation) {
       color = AppColors.purple;
-      text = 'Probation until ${formatWhen(s.standing.probationUntil!)}: bets up to ${formatCredits(s.standing.probationMaxBet, decimals: 0)}, free credits paused.';
+      text = 'Probation until ${formatWhen(s.standing.probationUntil!)}: bets up to ${formatCredits(s.standing.probationMaxBet, decimals: 0)}, free coins paused.';
     }
     if (text == null) return const SizedBox.shrink();
     return Padding(

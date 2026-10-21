@@ -27,7 +27,7 @@ class RoundsInfo {
   /// Bought rounds still unused. They never expire.
   final int extra;
 
-  /// Price of one extra round (in the wallet's own money or credits).
+  /// Price of one extra round (in the wallet's own money or coins).
   final double price;
   final List<int> packs;
   final double windowHours;

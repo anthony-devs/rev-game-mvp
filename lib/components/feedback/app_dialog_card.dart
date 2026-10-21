@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../buttons/app_button.dart';
@@ -55,18 +57,22 @@ class AppDialogCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final media = MediaQuery.sizeOf(context);
+    // Never wider than the screen (small phones) and never taller than it (short/landscape/folded):
+    // the card fits the width available and scrolls inside if the content is tall.
     return Container(
-      width: 340,
-      margin: const EdgeInsets.symmetric(horizontal: 24),
+      width: math.min(340, media.width - 48),
+      constraints: BoxConstraints(maxHeight: media.height - 48),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: AppColors.sheet,
         borderRadius: BorderRadius.circular(28),
         border: Border.all(color: AppColors.lineStrong),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
           if (icon != null) ...[
             Container(
               width: 64,
@@ -87,8 +93,9 @@ class AppDialogCard extends StatelessWidget {
           if (secondaryLabel != null) ...[
             const SizedBox(height: 10),
             AppButton(label: secondaryLabel!, onPressed: onSecondary, variant: AppButtonVariant.outline, height: 52),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

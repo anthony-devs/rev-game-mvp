@@ -113,7 +113,7 @@ class CrashLivePanel extends StatelessWidget {
           AppProgressBar(value: (multiplier - 1) / (autoTarget! - 1), color: AppColors.green, height: 6),
         ],
         const SizedBox(height: 10),
-        Text('Round is live. Server decides the crash point.', style: AppText.body(11, weight: FontWeight.w600, color: AppColors.textDim)),
+        Text('Cash out before the round crashes to lock in your win.', style: AppText.body(11, weight: FontWeight.w600, color: AppColors.textDim)),
       ],
     );
   }

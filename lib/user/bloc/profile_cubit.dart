@@ -70,7 +70,7 @@ class ProfileState extends Equatable {
   StandingAction? get blockingAction => standing.blockingAt(_now);
   bool get blocksPlay => blockingAction != null;
 
-  /// Free credits (daily, top-up, reset) are paused: an active action or probation.
+  /// Free coins (daily, top-up, reset) are paused: an active action or probation.
   bool get blocksCredits => standing.blocksCreditsAt(_now);
   bool get onProbation => standing.onProbationAt(_now);
 
@@ -139,7 +139,7 @@ class ProfileCubit extends Cubit<ProfileState> {
   /// when signed out.
   void bind(AppUser auth) {
     _cancel();
-    PlayMode.live.value = false; // always start a session on demo credits
+    PlayMode.live.value = false; // always start a session on demo coins
     if (auth.isEmpty) {
       AppHaptics.enabled = true;
       AppSound.reset();
@@ -198,7 +198,7 @@ class ProfileCubit extends Cubit<ProfileState> {
       }, onError: (_) {}));
   }
 
-  /// Switch between demo credits and live money. Call it only from the lobby / wallet,
+  /// Switch between demo coins and live money. Call it only from the lobby / wallet,
   /// never in the middle of a round.
   void setLive(bool live) {
     if (state.live == live || state.user.isEmpty) return;
@@ -236,13 +236,13 @@ class ProfileCubit extends Cubit<ProfileState> {
   Future<void> appeal(String actionId, String message, {List<String> attachments = const []}) =>
       _walletApi.appeal(actionId, message, attachments: attachments);
 
-  /// Thrown instead of calling the server when free credits are paused.
+  /// Thrown instead of calling the server when free coins are paused.
   ApiException get _creditsPaused => ApiException(
         403,
         'credits_restricted',
         state.blockingAction != null || state.standing.activeAt(DateTime.now()).isNotEmpty
-            ? 'Free credits are paused while your account has an open restriction.'
-            : 'Free credits are paused while your account is on probation.',
+            ? 'Free coins are paused while your account has an open restriction.'
+            : 'Free coins are paused while your account is on probation.',
       );
 
   // ---- Player edits (UI updates at once through the live listener) --------
@@ -291,7 +291,7 @@ class ProfileCubit extends Cubit<ProfileState> {
 
   // ---- Wallet actions (the new balance arrives through the live listener) --
 
-  /// Claims the daily credits. Returns the claim, or throws [ApiException].
+  /// Claims the daily coins. Returns the claim, or throws [ApiException].
   Future<DailyClaim> claimDaily() => state.blocksCredits ? Future.error(_creditsPaused) : _walletApi.claimDaily();
 
   /// Refill to the starting balance when low.
@@ -304,7 +304,7 @@ class ProfileCubit extends Cubit<ProfileState> {
   Future<void> deleteAccount() => _walletApi.deleteAccount();
 
   /// Friendly text for any failure.
-  static String errorText(Object e) => e is ApiException ? e.message : 'Something went wrong. Please try again.';
+  static String errorText(Object e) => e is ApiException ? e.message : "That didn't work. Please check your connection and try again.";
 
   void _cancel() {
     _standingTimer?.cancel();

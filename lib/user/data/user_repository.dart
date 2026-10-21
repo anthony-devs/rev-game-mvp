@@ -44,8 +44,8 @@ class UserProfile {
 class UserRepository {
   UserRepository({FirebaseFirestore? firestore}) : _db = firestore ?? FirebaseFirestore.instance;
 
-  /// Credits every new player starts with. Must match firestore.rules.
-  static const double startingBalance = 10000;
+  /// Coins every new player starts with. Must match firestore.rules.
+  static const double startingBalance = 200;
 
   final FirebaseFirestore _db;
 

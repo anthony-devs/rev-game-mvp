@@ -14,9 +14,10 @@ import 'phone_page.dart';
 import 'sign_up_page.dart';
 
 /// First screen for signed-out players. Email, Google, phone or guest.
-/// Google's sign-in button and Firebase phone codes only work on phones (and Google also on Mac).
+/// Firebase phone codes only work on phones. Google works everywhere (a pop-up in the browser).
 final bool _phoneOk = !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android);
-final bool _googleOk = !kIsWeb;
+final bool _googleOk = true;
+final bool _appleOk = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
@@ -82,7 +83,7 @@ class _LoginViewState extends State<_LoginView> {
         final cubit = context.read<AuthFormCubit>();
         return AuthLayout(
           title: 'Welcome back',
-          subtitle: 'Sign in to keep your credits, level and history.',
+          subtitle: 'Sign in to keep your coins, level and history.',
           showBack: false,
           children: [
             AuthBanner(error: state.error, info: state.info),
@@ -127,6 +128,10 @@ class _LoginViewState extends State<_LoginView> {
               onPressed: state.isBusy ? null : _submit,
             ),
             const AuthDivider(label: 'or continue with'),
+            if (_appleOk) ...[
+              AppleSignInButton(loading: state.busy == AuthMethod.apple, onPressed: state.isBusy ? null : cubit.apple),
+              const SizedBox(height: 12),
+            ],
             if (_googleOk || _phoneOk)
             Row(
               children: [
@@ -167,11 +172,13 @@ class _LoginViewState extends State<_LoginView> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Guests start with 10,000 demo credits. Progress is saved to this guest account.',
+              'Try the games as a guest with free coins. Sign in later to keep your progress.',
               textAlign: TextAlign.center,
               style: AppText.body(12, color: AppColors.textDim),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            const AuthLegalNote(),
+            const SizedBox(height: 8),
             AuthLink(
               prefix: 'New here?',
               action: 'Create account',

@@ -7,7 +7,7 @@ import '../../user/data/daily_rewards.dart';
 import '../round_format.dart';
 import '../get_credits_sheet.dart';
 
-/// Level badge, XP bar and the 7 day streak (tap to open daily credits).
+/// Level badge, XP bar and the 7 day streak (tap to open daily coins).
 class LevelStreakCard extends StatelessWidget {
   const LevelStreakCard({super.key});
 
@@ -72,7 +72,7 @@ class LevelStreakCard extends StatelessWidget {
                       const SizedBox(width: 2),
                       Expanded(
                         child: Text(
-                          canClaim ? 'Daily credits ready' : (streak > 0 ? '$streak day streak' : 'Start a streak'),
+                          canClaim ? 'Daily coins ready' : (streak > 0 ? '$streak day streak' : 'Start a streak'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: AppText.body(10, weight: FontWeight.w600, color: canClaim ? AppColors.gold : AppColors.textDim),

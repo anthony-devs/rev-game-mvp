@@ -13,9 +13,12 @@ const double _pitch = 66; // distance between symbol rows
 const double _cellTop = -35; // y of the row above the payline when pos == 0
 
 class ReelWidget extends StatefulWidget {
-  const ReelWidget({super.key, required this.initial, required this.highlight});
+  const ReelWidget({super.key, required this.initial, required this.highlight, this.symbols = const []});
   final List<SlotSymbol> initial; // [top, payline, bottom]
   final bool highlight;
+
+  /// The symbols this machine uses for the blur while spinning. Empty = all of them.
+  final List<SlotSymbol> symbols;
 
   @override
   State<ReelWidget> createState() => ReelWidgetState();
@@ -36,7 +39,10 @@ class ReelWidgetState extends State<ReelWidget> with SingleTickerProviderStateMi
   Completer<void>? _done;
   static const _curve = Cubic(0.2, 0.9, 0.3, 1.18); // eases out with a small bounce
 
-  SlotSymbol _rand() => SlotSymbol.values[_rnd.nextInt(SlotSymbol.values.length)];
+  SlotSymbol _rand() {
+    final pool = widget.symbols.isEmpty ? SlotSymbol.values : widget.symbols;
+    return pool[_rnd.nextInt(pool.length)];
+  }
 
   SlotSymbol _at(int r) {
     if (r < 0) return _tape.first;

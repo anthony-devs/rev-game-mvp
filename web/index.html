@@ -1,46 +1,54 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
+  <!-- Replaced by `--base-href` when you run `flutter build web`. -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="REV GAMES. Slots, crash, roulette, blackjack and more.">
+  <meta name="theme-color" content="#0B0B0C">
+  <meta name="color-scheme" content="dark light">
 
-  <!-- iOS meta tags & icons -->
+  <!-- Home screen on iPhone and iPad -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="rev_game_mvp">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="REV GAMES">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>rev_game_mvp</title>
   <link rel="manifest" href="manifest.json">
+  <title>REV GAMES</title>
+
+  <style>
+    html, body { margin: 0; height: 100%; background: #0B0B0C; }
+    #boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #0B0B0C; transition: opacity .25s ease; }
+    #boot svg { width: 96px; height: 96px; color: #FFC83D; }
+  </style>
+
+  <script>
+    // Keep the browser's "install" offer. The app asks for it later from the Profile page.
+    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.__revInstall = e; });
+    window.addEventListener('appinstalled', function () { window.__revInstall = null; });
+    // Remove the loading mark once the first screen is drawn.
+    window.addEventListener('flutter-first-frame', function () {
+      var b = document.getElementById('boot');
+      if (!b) return;
+      b.style.opacity = '0';
+      setTimeout(function () { if (b.parentNode) b.parentNode.removeChild(b); }, 300);
+    });
+  </script>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <div id="boot" aria-hidden="true">
+    <svg viewBox="0 0 200 200">
+      <circle cx="100" cy="100" r="82" fill="none" stroke="currentColor" stroke-width="14" stroke-dasharray="32 10.93"></circle>
+      <circle cx="100" cy="100" r="60" fill="none" stroke="currentColor" stroke-width="4"></circle>
+      <path transform="translate(68 58) scale(.8)" d="M9 100V9H46a25 25 0 0 1 0 50H9M44 59 72 100" fill="none" stroke="currentColor" stroke-width="18"></path>
+    </svg>
+  </div>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 
 import '../../components/core/play_mode.dart';
 import '../../model/model_json.dart';
+import '../app_version.dart';
 import 'api_config.dart';
 import 'rounds_hub.dart';
 import 'reachability.dart';
@@ -23,6 +24,9 @@ class ApiException implements Exception {
 
   /// The request never got an answer (either [isOffline] or [isServerDown]).
   bool get isNetwork => status == 0;
+
+  /// The phone is online but the answer did not arrive in time (a slow connection).
+  bool get isSlow => code == 'slow_connection' || code == 'slow';
 
   /// The phone has no internet connection.
   bool get isOffline => code == 'network';
@@ -65,16 +69,27 @@ class ApiClient {
   Future<Json> get(String path, {Duration? timeout}) =>
       _call((fresh) async => _http.get(await _uri(path), headers: await _headers(fresh: fresh)), timeout: timeout);
 
+  /// A read the server answers for visitors too (the game list, the bets feed). Sends the sign-in
+  /// token when there is one, and works without it.
+  Future<Json> getOpen(String path, {Duration? timeout}) => _call((fresh) async {
+        final token = await _token();
+        return _http.get(await _uri(path), headers: {
+          if (token != null) 'Authorization': 'Bearer $token',
+          ...AppVersion.headers,
+          if (PlayMode.isLive) 'X-Play-Mode': 'live',
+        });
+      }, timeout: timeout);
+
   /// A read that needs no sign-in (the legal pages). Sent without a token.
   Future<Json> getPublic(String path) async {
     try {
-      final res = await _http.get(await _uri(path)).timeout(const Duration(seconds: 12));
+      final res = await _http.get(await _uri(path), headers: AppVersion.headers).timeout(const Duration(seconds: 12));
       if (res.statusCode >= 200 && res.statusCode < 300) return _decode(res.body);
       throw _fromResponse(res.statusCode, res.body);
     } on SocketException {
       throw await _unreachable();
     } on TimeoutException {
-      throw await _unreachable();
+      throw await _timedOut();
     } on http.ClientException {
       throw await _unreachable();
     }
@@ -83,7 +98,7 @@ class ApiClient {
   /// Starting a round writes several documents, which can take a while when the database is slow.
   /// Give those calls longer, and never call a slow answer "downtime".
   static const Duration _roundTimeout = Duration(seconds: 35);
-  static const List<String> _roundStarts = ['/v1/slots/spin', '/v1/dice/roll', '/v1/plinko/drop', '/v1/roulette/spin', '/v1/blackjack/deal', '/v1/crash/rounds'];
+  static const List<String> _roundStarts = ['/v1/slots/spin', '/v1/dice/roll', '/v1/plinko/drop', '/v1/roulette/spin', '/v1/blackjack/deal', '/v1/crash/rounds', '/v1/mines/start', '/v1/baccarat/play', '/v1/wheel/spin', '/v1/keno/play', '/v1/hilo/start'];
 
   /// Rounds cannot start back to back. Instead of an error, a tap during the short cool-off is simply
   /// ignored (the server enforces the same gap).
@@ -91,7 +106,7 @@ class ApiClient {
   DateTime? _lastRoundStart;
 
   Future<Json> post(String path, [Json? body]) {
-    final round = _roundStarts.contains(path);
+    final round = _roundStarts.contains(path) || (path.startsWith('/v1/arcade/') && (path.endsWith('/play') || path.endsWith('/start')));
     if (round) {
       final now = DateTime.now();
       final last = _lastRoundStart;
@@ -123,7 +138,7 @@ class ApiClient {
     } on SocketException {
       throw await _unreachable();
     } on TimeoutException {
-      throw await _unreachable();
+      throw await _timedOut();
     } on http.ClientException {
       throw await _unreachable();
     }
@@ -138,7 +153,7 @@ class ApiClient {
     } on SocketException {
       throw await _unreachable();
     } on TimeoutException {
-      throw await _unreachable();
+      throw await _timedOut();
     } on http.ClientException {
       throw await _unreachable();
     }
@@ -153,7 +168,7 @@ class ApiClient {
     } on SocketException {
       throw await _unreachable();
     } on TimeoutException {
-      throw await _unreachable();
+      throw await _timedOut();
     } on http.ClientException {
       throw await _unreachable();
     }
@@ -191,6 +206,7 @@ class ApiClient {
     if (token == null) throw const ApiException(401, 'unauthenticated', 'Sign in to continue.');
     return {
       'Authorization': 'Bearer $token',
+      ...AppVersion.headers,
       if (json) 'Content-Type': 'application/json',
       if (sse) 'Accept': 'text/event-stream',
       // Live mode plays on the real-money wallet. The server only looks at this on game requests.
@@ -214,7 +230,7 @@ class ApiClient {
     } on SocketException {
       throw await _unreachable();
     } on TimeoutException {
-      throw round ? await _slow() : await _unreachable();
+      throw round ? await _slow() : await _timedOut();
     } on http.ClientException {
       throw await _unreachable();
     }
@@ -227,18 +243,26 @@ class ApiClient {
     return const ApiException(0, 'slow', 'This is taking longer than usual. Your balance will update in a moment. Check History before playing again.');
   }
 
+  /// The answer did not arrive in time. If the phone is online this is a slow connection, which is
+  /// not the same as our service being down.
+  Future<ApiException> _timedOut() async {
+    if (!await deviceHasInternet()) return await _unreachable();
+    return const ApiException(0, 'slow_connection', 'Your connection is slow, so this did not finish. Please check your connection and try again.');
+  }
+
   /// Nothing came back. Works out why: no internet on the phone, or our service is down.
   Future<ApiException> _unreachable() async {
     if (!await deviceHasInternet()) {
       return const ApiException(0, 'network', "You're offline. Check your internet connection and try again.");
     }
-    return const ApiException(0, 'unreachable', "We're experiencing downtime. Please try again in a few minutes. Your balance is safe.");
+    return const ApiException(0, 'unreachable', "We couldn't reach our servers. This is usually a connection problem. Please try again in a moment. Your balance is safe.");
   }
 
   ApiException _fromResponse(int status, String body) {
     final json = _decode(body);
     final code = parseString(json['error']) ?? 'server_error';
     if (code == 'no_rounds') RoundsHub.applyRefusal(json);
+    if (status == 426 && code == 'update_required') AppVersion.markRequired(json);
     return ApiException(status, code, _friendly(status, code, parseString(json['message'])), json);
   }
 
@@ -247,6 +271,8 @@ class ApiClient {
   /// becomes a calm sentence.
   static String _friendly(int status, String code, String? message) {
     switch (code) {
+      case 'update_required':
+        return message ?? 'Please update the app to keep playing.';
       case 'maintenance':
         return message ?? "We're making things better. Back shortly.";
       case 'slow_down':
@@ -262,8 +288,9 @@ class ApiClient {
     }
     if (status == 429) return 'Too many tries. Please wait a moment and try again.';
     if (status == 502 || status == 503 || status == 504) return "We're experiencing downtime. Please try again in a few minutes. Your balance is safe.";
-    if (status >= 500) return 'Something went wrong on our side. Please try again in a moment.';
-    return message ?? 'Something went wrong. Please try again.';
+    if (status == 404) return "This isn't available right now. Please try again later, or update the app.";
+    if (status >= 500) return 'We hit a problem on our side (error $status). Please try again in a moment.';
+    return message ?? "We couldn't complete that (error $status). Please try again.";
   }
 
   Json _decode(String body) {

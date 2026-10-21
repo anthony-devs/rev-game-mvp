@@ -140,7 +140,8 @@ class AppButton extends StatelessWidget {
         onTap: _disabled ? null : onPressed,
         haptic: haptic,
         cooldown: cooldown,
-        onDisabledTap: loading ? null : (onPressed == null ? onDisabledTap : null),
+        // A disabled button still reacts (press-in, wiggle, tap sound) so it never feels dead.
+        onDisabledTap: loading ? null : (onPressed == null ? (onDisabledTap ?? () {}) : null),
         child: AnimatedOpacity(opacity: loading ? .9 : 1, duration: const Duration(milliseconds: 120), child: box),
       ),
     );

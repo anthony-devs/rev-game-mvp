@@ -37,8 +37,6 @@ class AuthLayout extends StatelessWidget {
                       )
                     else
                       Text('REV GAMES', style: AppText.heading(16, letterSpacing: -0.4)),
-                    const Spacer(),
-                    const DemoBadge(label: 'VIRTUAL CREDITS'),
                   ],
                 ),
               ),
