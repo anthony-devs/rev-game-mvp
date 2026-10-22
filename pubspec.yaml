@@ -35,6 +35,9 @@ dependencies:
   flutter_svg: ^2.3.0
   flutter_multiple_loaders: ^1.1.1
 
+  # Browser APIs for the web build (sound, install prompt).
+  web: ^1.1.1
+
   # Value equality for models and BLoC states.
   equatable: ^2.0.7
 

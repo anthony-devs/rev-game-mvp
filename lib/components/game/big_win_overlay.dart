@@ -62,13 +62,20 @@ class _BigWinOverlayState extends State<BigWinOverlay> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
+    final reduce = MediaQuery.disableAnimationsOf(context);
     return Material(
       color: Colors.transparent,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          Positioned.fill(child: AnimatedBuilder(animation: _c, builder: (_, __) => CustomPaint(painter: _RaysPainter(_c.value)))),
-          Column(
+          Positioned.fill(child: AnimatedBuilder(animation: _c, builder: (_, __) => CustomPaint(painter: _RaysPainter(reduce ? 0 : _c.value)))),
+          // The one big moment in the app: the whole card pops in, then the amount counts up.
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: reduce ? 1 : .7, end: 1),
+            duration: reduce ? Duration.zero : const Duration(milliseconds: 420),
+            curve: Curves.easeOutBack,
+            builder: (_, s, child) => Transform.scale(scale: s, child: child),
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(widget.title, style: AppText.heading(40, color: AppColors.gold, letterSpacing: 2)),
@@ -76,7 +83,7 @@ class _BigWinOverlayState extends State<BigWinOverlay> with SingleTickerProvider
               const SizedBox(height: 16),
               TweenAnimationBuilder<double>(
                 tween: Tween(begin: 0, end: widget.amount),
-                duration: const Duration(milliseconds: 1400),
+                duration: reduce ? Duration.zero : const Duration(milliseconds: 1400),
                 curve: Curves.easeOutCubic,
                 builder: (_, v, __) => Text(formatCredits(v, decimals: 0), style: AppText.number(48, color: AppColors.gold, shadows: AppText.glow(AppColors.gold))),
               ),
@@ -91,6 +98,7 @@ class _BigWinOverlayState extends State<BigWinOverlay> with SingleTickerProvider
               const SizedBox(height: 36),
               SizedBox(width: 240, child: AppButton(label: widget.buttonLabel, onPressed: widget.onCollect, variant: AppButtonVariant.gold)),
             ],
+          ),
           ),
         ],
       ),

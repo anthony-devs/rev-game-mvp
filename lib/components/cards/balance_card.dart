@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
 import '../core/app_text.dart';
 import '../core/play_mode.dart';
+import '../core/rolling_number.dart';
 import '../feedback/demo_badge.dart';
 
 /// Big balance card for the Wallet screen. Put action buttons in [actions].
@@ -40,7 +41,7 @@ class BalanceCard extends StatelessWidget {
           const SizedBox(height: 10),
           FittedBox(
             fit: BoxFit.scaleDown,
-            child: Text(PlayMode.amount(balance), style: AppText.number(34, color: live ? AppColors.text : AppColors.green)),
+            child: RollingNumber(key: ValueKey(live), value: balance, builder: (v) => Text(PlayMode.amount(v), style: AppText.number(34, color: live ? AppColors.text : AppColors.green))),
           ),
           if (!live) ...[
             const SizedBox(height: 4),

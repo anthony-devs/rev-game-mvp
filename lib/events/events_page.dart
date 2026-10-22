@@ -88,7 +88,7 @@ class _EventsPageState extends State<EventsPage> {
           Text(PlayMode.isLive ? 'Climb the leaderboard and win real prizes.' : 'Climb the leaderboard and win free coins.', style: AppText.body(13, color: AppColors.textMuted)),
           const SizedBox(height: 18),
           if (!_loaded && !_failed)
-            const Padding(padding: EdgeInsets.only(top: 60), child: Center(child: AppLoader()))
+            const SkeletonList(rows: 3, rowHeight: 120, radius: 20)
           else if (_failed && _events.isEmpty)
             StatusView(icon: Icons.cloud_off_rounded, title: "Couldn't load events", message: 'Check your connection and try again.', actionLabel: 'Try again', onAction: _reload)
           else if (_events.isEmpty)
@@ -256,7 +256,7 @@ class _EventPageState extends State<EventPage> {
         children: [
           SubPageBar(title: 'Event', onBack: () => Navigator.of(context).maybePop(), padding: const EdgeInsets.symmetric(vertical: 8)),
           if (e == null && !_failed)
-            const Padding(padding: EdgeInsets.only(top: 80), child: Center(child: AppLoader()))
+            Column(children: [const SkeletonBox(height: 140, radius: 20), const SizedBox(height: 12), const SkeletonList(rows: 4, rowHeight: 52, radius: 14)])
           else if (e == null)
             StatusView(icon: Icons.cloud_off_rounded, title: "Couldn't load this event", message: 'Check your connection and try again.', actionLabel: 'Try again', onAction: _load)
           else ...[

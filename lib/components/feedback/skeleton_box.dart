@@ -37,7 +37,8 @@ class _SkeletonBoxState extends State<SkeletonBox> with SingleTickerProviderStat
         width: widget.width,
         height: widget.height,
         decoration: BoxDecoration(
-          color: Color.lerp(AppColors.surfaceAlt, AppColors.track, _c.value),
+          // Still (no pulse) when the device asks for reduced motion.
+          color: Color.lerp(AppColors.surfaceAlt, AppColors.track, MediaQuery.disableAnimationsOf(context) ? .5 : _c.value),
           borderRadius: BorderRadius.circular(widget.radius),
         ),
       ),

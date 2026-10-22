@@ -132,7 +132,7 @@ class _BetsFeedState extends State<BetsFeed> {
       );
     }
     if (!_loaded) {
-      return const Padding(padding: EdgeInsets.symmetric(vertical: 36), child: Center(child: AppLoader()));
+      return const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: SkeletonList(rows: 5, rowHeight: 44, gap: 8, radius: 12));
     }
     if (_kind == BetsKind.top) {
       if (_top.isEmpty) {

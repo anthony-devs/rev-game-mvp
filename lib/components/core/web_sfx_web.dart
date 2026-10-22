@@ -1,20 +1,18 @@
 import 'dart:async';
-// ignore: avoid_web_libraries_in_flutter, deprecated_member_use
-import 'dart:html' as html;
-import 'dart:typed_data';
-// ignore: avoid_web_libraries_in_flutter, deprecated_member_use
-import 'dart:web_audio';
+import 'dart:js_interop';
+
+import 'package:web/web.dart' as web;
 
 /// Sound effects for the browser, through the Web Audio API. Every file is decoded once into memory,
 /// so a sound starts the moment it is asked for. (An HTML audio element reloads and starts late.)
 class WebSfx {
   WebSfx._();
 
-  static AudioContext? _ctx;
-  static final Map<String, AudioBuffer> _buffers = {};
+  static web.AudioContext? _ctx;
+  static final Map<String, web.AudioBuffer> _buffers = {};
   static Future<void>? _loading;
 
-  static AudioContext get _c => _ctx ??= AudioContext();
+  static web.AudioContext get _c => _ctx ??= web.AudioContext();
 
   static bool _unlockHooked = false;
 
@@ -23,18 +21,19 @@ class WebSfx {
   static void _hookUnlock() {
     if (_unlockHooked) return;
     _unlockHooked = true;
-    void unlock(html.Event _) {
+    void unlock(web.Event _) {
       try {
         final c = _c;
-        unawaited(c.resume());
+        unawaited(c.resume().toDart);
         final src = c.createBufferSource()..buffer = c.createBuffer(1, 1, 22050);
-        src.connectNode(c.destination!);
+        src.connect(c.destination);
         src.start(0);
       } catch (_) {}
     }
 
+    final fn = unlock.toJS;
     for (final type in const ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'click', 'keydown']) {
-      html.document.addEventListener(type, unlock, true);
+      web.document.addEventListener(type, fn, true.toJS);
     }
   }
 
@@ -43,8 +42,10 @@ class WebSfx {
         final c = _c;
         await Future.wait(files.map((f) async {
           try {
-            final req = await html.HttpRequest.request('assets/assets/sounds/$f.wav', responseType: 'arraybuffer');
-            _buffers[f] = await c.decodeAudioData(req.response as ByteBuffer);
+            final res = await web.window.fetch('assets/assets/sounds/$f.wav'.toJS).toDart;
+            if (!res.ok) return;
+            final bytes = await res.arrayBuffer().toDart;
+            _buffers[f] = await c.decodeAudioData(bytes).toDart;
           } catch (_) {}
         }));
       }();
@@ -58,9 +59,9 @@ class WebSfx {
       void go() {
         final src = c.createBufferSource()..buffer = buffer;
         final gain = c.createGain();
-        gain.gain?.value = volume;
-        src.connectNode(gain);
-        gain.connectNode(c.destination!);
+        gain.gain.value = volume;
+        src.connect(gain);
+        gain.connect(c.destination);
         src.start(0);
       }
 
@@ -68,7 +69,7 @@ class WebSfx {
         go();
       } else {
         // Still locked (first sound): start as soon as the browser lets it.
-        c.resume().then((_) => go()).catchError((_) {});
+        c.resume().toDart.then((_) => go(), onError: (_) {});
       }
     } catch (_) {}
   }

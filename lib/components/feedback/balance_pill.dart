@@ -5,6 +5,7 @@ import '../core/app_text.dart';
 import '../core/play_mode.dart';
 import '../core/formatters.dart';
 import '../core/press_scale.dart';
+import '../core/rolling_number.dart';
 import 'coach_tour.dart';
 
 /// Outlined pill showing the coins balance.
@@ -46,7 +47,7 @@ class BalancePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<bool>(valueListenable: PlayMode.live, builder: (context, live, _) => _pill(live));
 
-  String _text(bool live) {
+  String _text(bool live, double balance) {
     if (balance.abs() < 1e6) return PlayMode.amount(balance, decimals: decimals);
     final short = formatCompact(balance);
     return live ? '${PlayMode.symbol}$short' : short;
@@ -75,7 +76,8 @@ class BalancePill extends StatelessWidget {
               constraints: BoxConstraints(maxWidth: compact ? 110 : 150),
               child: FittedBox(
                 fit: BoxFit.scaleDown,
-                child: Text(_text(live), maxLines: 1, style: AppText.number(compact ? 13 : 15, color: color)),
+                // Keyed by mode so switching Demo/Live shows the other balance at once instead of rolling between them.
+                child: RollingNumber(key: ValueKey(live), value: balance, builder: (v) => Text(_text(live, v), maxLines: 1, style: AppText.number(compact ? 13 : 15, color: color))),
               ),
             ),
             if (dropdown) ...[

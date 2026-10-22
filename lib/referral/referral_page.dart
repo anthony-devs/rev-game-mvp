@@ -134,7 +134,7 @@ class _ReferralPageState extends State<ReferralPage> {
         children: [
           SubPageBar(title: 'Invite friends', onBack: () => Navigator.of(context).maybePop(), padding: const EdgeInsets.symmetric(vertical: 8)),
           if (i == null && !_failed)
-            const Padding(padding: EdgeInsets.only(top: 80), child: Center(child: AppLoader()))
+            Column(children: [const SkeletonBox(height: 150, radius: 20), const SizedBox(height: 12), const SkeletonList(rows: 3, rowHeight: 56, radius: 16)])
           else if (i == null)
             StatusView(icon: Icons.cloud_off_rounded, title: "Couldn't load this", message: 'Check your connection and try again.', actionLabel: 'Try again', onAction: _load)
           else if (!i.enabled)
