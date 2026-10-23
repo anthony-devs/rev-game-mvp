@@ -88,6 +88,15 @@
         ]
       },
       {
+        "source": "/main.dart.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
         "source": "**/*.@(png|ico|svg|woff2|otf|ttf|wav)",
         "headers": [
           {

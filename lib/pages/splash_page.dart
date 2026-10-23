@@ -39,10 +39,9 @@ class _SplashPageState extends State<SplashPage> {
       body: Column(
         children: [
           const Spacer(flex: 3),
-          Text('REV', style: AppText.heading(64, letterSpacing: -3, height: .95)),
-          Text('GAMES', style: AppText.heading(64, letterSpacing: -3, height: .95, color: AppColors.gold)),
+          const RevWordmark(markSize: 44, textSize: 26),
           const Spacer(flex: 3),
-          const AppLoader(size: 24),
+          const AppLoader(size: 40),
           const SizedBox(height: 14),
           if (_slow) ...[
             Text('Taking longer than usual…', style: AppText.body(12, color: AppColors.textDim)),

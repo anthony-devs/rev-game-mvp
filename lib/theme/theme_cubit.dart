@@ -98,7 +98,7 @@ class ThemeCubit extends Cubit<ThemeState> with WidgetsBindingObserver {
   }
 }
 
-/// Material theme that matches [AppColors] and uses Space Grotesk everywhere.
+/// Material theme that matches [AppColors] and uses Inter everywhere.
 ThemeData buildAppTheme() {
   final light = AppColors.light;
   final brightness = light ? Brightness.light : Brightness.dark;

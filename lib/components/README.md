@@ -7,7 +7,7 @@ Needs (pubspec): `google_fonts: ^6.2.1`, Flutter 3.22+.
 
 | Folder | What is in it |
 |---|---|
-| core | AppColors (dark + light, switched by ThemeCubit), AppText (Space Grotesk), AppSpacing/AppRadius/AppShadows, formatters, PressScale, GlowBackground, AppScaffold |
+| core | AppColors (dark + light, switched by ThemeCubit), AppText (Inter), AppSpacing/AppRadius/AppShadows, formatters, PressScale, GlowBackground, AppScaffold |
 | buttons | AppButton (6 variants), IconSquareButton, PillButton, DockToggleButton, BrassButton |
 | inputs | SearchField, AppTextField, AmountField, SegmentedToggle, SwitchRow, PillChip/FilterChipRow, BetChipPicker |
 | navigation | AppTabBar, AppHeader, GameTopBar, SubPageBar, SectionHeader |

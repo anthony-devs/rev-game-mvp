@@ -144,7 +144,7 @@ class _GuestHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Row(
         children: [
-          Expanded(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text('REV GAMES', maxLines: 1, style: AppText.heading(30, letterSpacing: -1.5)))),
+          Expanded(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: const RevWordmark())),
           const SizedBox(width: 10),
           AppButton(label: 'Log in', variant: AppButtonVariant.ghost, expanded: false, height: 42, fontSize: 13, radius: AppRadius.md, onPressed: () => openSignIn(context)),
           const SizedBox(width: 8),
@@ -191,7 +191,7 @@ class _Header extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('REV GAMES', style: AppText.heading(30, letterSpacing: -1.5)),
+            const RevWordmark(),
             const SkeletonBox(width: 150, height: 46, radius: 46),
           ],
         ),

@@ -4,6 +4,7 @@ import '../core/app_text.dart';
 import '../../rounds/rounds_pill.dart';
 import '../feedback/balance_pill.dart';
 import '../feedback/coach_tour.dart';
+import '../feedback/rev_mark.dart';
 
 /// Lobby header: wordmark + balance pill.
 ///
@@ -38,36 +39,30 @@ class AppHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Two rows: the name on the first, and the support, rounds and balance controls on the second, at the
+    // right and at their normal size. (On one row they were squeezed small next to the name.) The row only
+    // scales down when the balance is so long that it would not fit the screen.
     return Padding(
       padding: padding,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Flexible(
-            flex: 2,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(title, maxLines: 1, style: AppText.heading(30, letterSpacing: -1.5)),
-            ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: title == 'REV GAMES' ? const RevWordmark() : Text(title, maxLines: 1, style: AppText.heading(20, letterSpacing: -.4)),
           ),
-          const SizedBox(width: 10),
-          // Support, rounds and balance shrink together when the screen is narrow, the font is large
-          // or the balance is long, instead of overflowing the row.
-          Flexible(
-            flex: 3,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerRight,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (action != null) ...[CoachTarget(id: 'support', child: action!), const SizedBox(width: 8)],
-                  const CoachTarget(id: 'rounds', child: RoundsPill()),
-                  const SizedBox(width: 8),
-                  CoachTarget(id: 'balance', child: BalancePill(balance: balance, onTap: onBalanceTap, onAdd: onAdd, dropdown: dropdown)),
-                ],
-              ),
+          const SizedBox(height: 12),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerRight,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (action != null) ...[CoachTarget(id: 'support', child: action!), const SizedBox(width: 8)],
+                const CoachTarget(id: 'rounds', child: RoundsPill()),
+                const SizedBox(width: 8),
+                CoachTarget(id: 'balance', child: BalancePill(balance: balance, onTap: onBalanceTap, onAdd: onAdd, dropdown: dropdown)),
+              ],
             ),
           ),
         ],

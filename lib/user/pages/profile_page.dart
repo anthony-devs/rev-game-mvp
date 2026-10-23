@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/pwa/install_card.dart';
-import '../../referral/referral_page.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/data/auth_failure.dart';
 import '../../auth/data/auth_repository.dart';
@@ -92,8 +91,6 @@ class ProfilePage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          const InviteCard(compact: true),
-          const SizedBox(height: 12),
           const InstallCard(),
           if (user.isAnonymous) ...[
             const SizedBox(height: 16),

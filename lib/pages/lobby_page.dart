@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../auth/bloc/auth_bloc.dart';
 import '../auth/require_sign_in.dart';
 import '../bets/bets_feed.dart';
-import '../referral/referral_page.dart';
 import '../catalog/catalog_cubit.dart';
 import '../catalog/server_banner.dart';
 import '../components/components.dart';
@@ -29,6 +28,7 @@ class LobbyPage extends StatefulWidget {
 
 class _LobbyPageState extends State<LobbyPage> {
   String _query = '';
+  bool _searching = false;
 
   /// Chips: All, one per group (the server decides the order), Favourites.
   int _chipIndex(ShellState s, List<GameGroupInfo> groups) {
@@ -37,6 +37,16 @@ class _LobbyPageState extends State<LobbyPage> {
     final i = groups.indexWhere((g) => g.id == s.filter);
     return i < 0 ? 0 : i + 1;
   }
+
+  static IconData _groupIcon(String id) => switch (id) {
+        'originals' => Icons.diamond_outlined,
+        'crash' => Icons.rocket_launch_rounded,
+        'adventure' => Icons.terrain_rounded,
+        'table' => Icons.style_rounded,
+        'slots' => Icons.casino_rounded,
+        'quick' => Icons.bolt_rounded,
+        _ => Icons.grid_view_rounded,
+      };
 
   void _chip(BuildContext context, int i, List<GameGroupInfo> groups) {
     final shell = context.read<ShellCubit>();
@@ -99,35 +109,53 @@ class _LobbyPageState extends State<LobbyPage> {
     final heroSlots = byId['slots'], heroWheel = byId['wheel'], heroPlinko = byId['plinko'];
     final showHero = heroSlots != null || heroWheel != null || heroPlinko != null;
 
+    // Tall cover cards in a sideways row, one row per section.
     Widget row(List<GameInfo> games) => SizedBox(
-          height: 152,
+          height: 176,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             clipBehavior: Clip.none,
             itemCount: games.length,
             separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (_, i) => SizedBox(width: 112, child: tile(games[i])),
+            itemBuilder: (_, i) => SizedBox(width: 130, child: tile(games[i])),
           ),
         );
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 4, AppSpacing.screen, 120),
       children: [
-        SearchField(hint: 'Search games', onChanged: (v) => setState(() => _query = v)),
-        const SizedBox(height: 14),
+        // Search is one small button; it opens a slim field in place of the filter chips.
         SizedBox(
-          height: 38,
-          child: FilterChipRow(
-            labels: ['All', for (final g in groups) g.name, 'Favourites'],
-            selectedIndex: _chipIndex(shell, groups),
-            onSelected: (i) => _chip(context, i, groups),
-            padding: EdgeInsets.zero,
-          ),
+          height: 52,
+          child: Row(children: [
+            PressScale(
+              onTap: () => setState(() {
+                _searching = !_searching;
+                if (!_searching) _query = '';
+              }),
+              child: Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(color: AppColors.surfaceAlt, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.line)),
+                child: Icon(_searching ? Icons.close_rounded : Icons.search_rounded, size: 20, color: AppColors.textSoft),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _searching
+                  ? SearchField(hint: 'Search games', height: 52, autofocus: true, onChanged: (v) => setState(() => _query = v))
+                  : CategoryTileRow(
+                      labels: ['All', for (final g in groups) g.name, 'Favourites'],
+                      icons: [Icons.apps_rounded, for (final g in groups) _groupIcon(g.id), Icons.star_rounded],
+                      selectedIndex: _chipIndex(shell, groups),
+                      onSelected: (i) => _chip(context, i, groups),
+                    ),
+            ),
+          ]),
         ),
         const SizedBox(height: 16),
         const ServerBanner(padding: EdgeInsets.only(bottom: 14)),
         if (signedIn && !live) ...[const LevelStreakCard(), const SizedBox(height: 12)],
-        if (!live && browsing) ...[const InviteCard(compact: true), const SizedBox(height: 20)],
         if (playable.isEmpty && upcoming.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 40),
@@ -152,7 +180,7 @@ class _LobbyPageState extends State<LobbyPage> {
           if (popular.isNotEmpty) ...[
             SectionHeader(title: 'Popular', icon: Icons.local_fire_department_outlined, iconColor: AppColors.text, padding: EdgeInsets.zero),
             const SizedBox(height: 12),
-            TileGrid(children: [for (final g in popular) tile(g)]),
+            row(popular),
             const SizedBox(height: 24),
           ],
           for (final grp in groups) ...[

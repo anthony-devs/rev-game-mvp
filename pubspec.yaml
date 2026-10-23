@@ -33,7 +33,6 @@ dependencies:
 
   google_fonts: ^9.0.0
   flutter_svg: ^2.3.0
-  flutter_multiple_loaders: ^1.1.1
 
   # Browser APIs for the web build (sound, install prompt).
   web: ^1.1.1
@@ -92,15 +91,15 @@ flutter:
   uses-material-design: true
 
   fonts:
-    - family: SpaceGrotesk
+    - family: Inter
       fonts:
-        - asset: assets/fonts/SpaceGrotesk-Regular.ttf
+        - asset: assets/fonts/Inter-Regular.ttf
           weight: 400
-        - asset: assets/fonts/SpaceGrotesk-Medium.ttf
+        - asset: assets/fonts/Inter-Medium.ttf
           weight: 500
-        - asset: assets/fonts/SpaceGrotesk-SemiBold.ttf
+        - asset: assets/fonts/Inter-SemiBold.ttf
           weight: 600
-        - asset: assets/fonts/SpaceGrotesk-Bold.ttf
+        - asset: assets/fonts/Inter-Bold.ttf
           weight: 700
     - family: JetBrainsMono
       fonts:

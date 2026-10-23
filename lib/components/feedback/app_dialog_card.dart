@@ -63,37 +63,51 @@ class AppDialogCard extends StatelessWidget {
     return Container(
       width: math.min(340, media.width - 48),
       constraints: BoxConstraints(maxHeight: media.height - 48),
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(22),
+      // A purple-tinted card with a purple edge, like a promo card (flat colour, no gradient).
       decoration: BoxDecoration(
-        color: AppColors.sheet,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppColors.lineStrong),
+        color: Color.alphaBlend(AppColors.purple.withValues(alpha: .10), AppColors.sheet),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.purple.withValues(alpha: .55), width: 1.2),
       ),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-          if (icon != null) ...[
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: (iconColor ?? AppColors.gold).withValues(alpha: .12), border: Border.all(color: (iconColor ?? AppColors.gold).withValues(alpha: .5))),
-              child: Icon(icon, size: 30, color: (iconColor ?? AppColors.gold)),
-            ),
-            const SizedBox(height: 18),
-          ],
-          Text(title, textAlign: TextAlign.center, style: AppText.body(22, weight: FontWeight.w700)),
-          if (message != null) ...[
-            const SizedBox(height: 8),
-            Text(message!, textAlign: TextAlign.center, style: AppText.body(14, color: AppColors.textMuted, height: 1.5)),
-          ],
+          // Text on the left, the icon on the right (where a promo card puts its picture).
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title.toUpperCase(), style: AppText.heading(21, letterSpacing: .2, height: 1.15)),
+                    if (message != null) ...[
+                      const SizedBox(height: 8),
+                      Text(message!, style: AppText.body(14, color: AppColors.textMuted, height: 1.5)),
+                    ],
+                  ],
+                ),
+              ),
+              if (icon != null) ...[
+                const SizedBox(width: 14),
+                Container(
+                  width: 68,
+                  height: 68,
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), color: (iconColor ?? AppColors.gold).withValues(alpha: .14)),
+                  child: Icon(icon, size: 34, color: iconColor ?? AppColors.gold),
+                ),
+              ],
+            ],
+          ),
           if (body != null) ...[const SizedBox(height: 16), body!],
-          const SizedBox(height: 24),
+          const SizedBox(height: 22),
           AppButton(label: primaryLabel, onPressed: onPrimary),
           if (secondaryLabel != null) ...[
             const SizedBox(height: 10),
-            AppButton(label: secondaryLabel!, onPressed: onSecondary, variant: AppButtonVariant.outline, height: 52),
-            ],
+            AppButton(label: secondaryLabel!, onPressed: onSecondary, variant: AppButtonVariant.outline, height: 48, fontSize: 14),
+          ],
           ],
         ),
       ),

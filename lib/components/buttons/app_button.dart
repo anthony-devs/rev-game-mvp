@@ -7,7 +7,7 @@ import '../core/press_scale.dart';
 import '../feedback/app_loader.dart';
 
 enum AppButtonVariant {
-  /// White fill. Default call to action.
+  /// Gold pill. Default call to action.
   primary,
 
   /// Green fill with a 3D lip. Spin, Bet, Roll, Deal.
@@ -46,7 +46,7 @@ class AppButton extends StatelessWidget {
     this.loading = false,
     this.fontSize = 16,
     this.letterSpacing,
-    this.radius = AppRadius.lg,
+    this.radius = AppRadius.pill,
     this.haptic = true,
     this.cooldown = const Duration(milliseconds: 250),
     this.onDisabledTap,
@@ -150,7 +150,7 @@ class AppButton extends StatelessWidget {
   _Style _style() {
     switch (variant) {
       case AppButtonVariant.primary:
-        return _Style(bg: AppColors.inverse, fg: AppColors.onInverse);
+        return _Style(bg: AppColors.gold, fg: AppColors.onAccent);
       case AppButtonVariant.success:
         return _Style(
           bg: AppColors.green,

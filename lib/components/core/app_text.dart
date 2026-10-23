@@ -4,16 +4,25 @@ import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
 
-/// Text styles. Space Grotesk for everything; JetBrains Mono for seeds and hashes.
+/// Text styles. Inter for everything; JetBrains Mono for seeds and hashes.
 /// Both fonts ship inside the app.
 class AppText {
   AppText._();
 
   /// Bundled in assets/fonts (no download, works offline, no first-use flicker).
-  static const String family = 'SpaceGrotesk';
+  static const String family = 'Inter';
   static const String monoFamily = 'JetBrainsMono';
 
   static const List<FontFeature> tabular = [FontFeature.tabularFigures()];
+
+  /// One step lighter than asked for, so the whole app reads calmer: w700 -> w600, w600 -> w500, w500 -> w400.
+  static FontWeight _lighter(FontWeight w) => switch (w.value) {
+        >= 800 => FontWeight.w600,
+        700 => FontWeight.w600,
+        600 => FontWeight.w500,
+        500 => FontWeight.w400,
+        _ => w,
+      };
 
   /// Regular UI text.
   static TextStyle body(
@@ -28,7 +37,7 @@ class AppText {
       TextStyle(
         fontFamily: family,
         fontSize: size,
-        fontWeight: weight,
+        fontWeight: _lighter(weight),
         color: color ?? AppColors.text,
         letterSpacing: letterSpacing,
         height: height,
@@ -40,13 +49,13 @@ class AppText {
   static TextStyle heading(
     double size, {
     Color? color,
-    double letterSpacing = -0.6,
-    double? height = 1.1,
+    double letterSpacing = -0.4,
+    double? height = 1.15,
   }) =>
       TextStyle(
         fontFamily: family,
         fontSize: size,
-        fontWeight: FontWeight.w800,
+        fontWeight: FontWeight.w600,
         color: color ?? AppColors.text,
         letterSpacing: letterSpacing,
         height: height,
@@ -56,9 +65,9 @@ class AppText {
   static TextStyle label({Color? color, double size = 11}) => TextStyle(
         fontFamily: family,
         fontSize: size,
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w600,
         color: color ?? AppColors.textDim,
-        letterSpacing: 1.4,
+        letterSpacing: 1.2,
       );
 
   /// Digital counters: balances, multipliers, big win amounts.
@@ -71,7 +80,7 @@ class AppText {
       TextStyle(
         fontFamily: family,
         fontSize: size,
-        fontWeight: weight,
+        fontWeight: _lighter(weight),
         color: color ?? AppColors.text,
         height: 1.1,
         shadows: shadows,

@@ -288,7 +288,7 @@ class _EventPageState extends State<EventPage> {
                     Text('${formatMultiplier(e.boostMult!, trim: true)} bonus', style: AppText.body(16, weight: FontWeight.w800)),
                   ]),
                   const SizedBox(height: 4),
-                  Text('Claim it to multiply your daily coins and referral rounds for ${e.boostMinutes} minutes.', style: AppText.body(13, color: AppColors.textMuted, height: 1.45)),
+                  Text('Claim it to multiply your daily coins and rounds for ${e.boostMinutes} minutes.', style: AppText.body(13, color: AppColors.textMuted, height: 1.45)),
                   const SizedBox(height: 12),
                   AppButton(
                     label: e.boostClaimed ? 'Claimed' : (e.running ? 'Claim bonus' : 'Opens when the event starts'),
